@@ -1,0 +1,4 @@
+interface:
+  display_name: "AdAnt Claude Setup"
+  short_description: "Connect or repair AdAnt in Claude Code"
+  default_prompt: "Use $adant-claude-setup to connect my AdAnt account in Claude Code."

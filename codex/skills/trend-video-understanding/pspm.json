@@ -1,0 +1,19 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "trend-video-understanding",
+  "version": "0.1.0",
+  "description": "Download a short-form video (TikTok / Instagram / YouTube) and analyze it deeply with Gemini video understanding using clone-video's Pass-1 analysis prompt, plus a compact concept fingerprint (hook, viral format, concept summary) used to compare and dedupe content concepts",
+  "author": "Adant AI",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Download short-form videos via yt-dlp (TikTok, Instagram Reels, YouTube Shorts)",
+    "Upload to the Gemini Files API and run video understanding (visuals + audio together)",
+    "Produce the clone-video Pass-1 narrative analysis (visual style, story, text overlays, dialogue, scene breakdown)",
+    "Emit a structured concept fingerprint: hook, hook type, viral format, concept summary, why it works, adaptability notes",
+    "Skip-if-output-exists so candidate batches can resume cheaply"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {}
+}

@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>{{clientName}} — Social Content Research</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  /* ── Bunli / Adant design system ─────────────────────────────
+     Dark Ink surface:  #0c0a09  · card #16130f · text #fafafa · muted #a8a29e
+     Light surface:     #f5f5f4  · card #ffffff · text #0c0a09 · muted #777169
+     Accents:  terracotta #cd7f5f · aurora #5ea0ff → #9b7be8 → #f0a07a
+     Serif EB Garamond 300 (italic gradient accents) · Inter body · JetBrains Mono data
+  ─────────────────────────────────────────────────────────────── */
+  :root {
+    --ink: #0c0a09;
+    --ink-card: #16130f;
+    --ink-text: #fafafa;
+    --ink-muted: #a8a29e;
+    --paper: #f5f5f4;
+    --card: #ffffff;
+    --line: #e7e5e4;
+    --text: #0c0a09;
+    --muted: #777169;
+    --body: #3f3c39;
+    --body-strong: #292524;
+    --terracotta: #cd7f5f;
+    --g-blue: #5ea0ff;
+    --g-purple: #9b7be8;
+    --g-peach: #f0a07a;
+  }
+
+  @page { size: landscape; margin: 0; }
+  /* Chrome's printToPDF renders blurred box-shadows as solid boxes — kill them in print.
+     Aurora glows use plain radial-gradients (no filter: blur) so they print cleanly. */
+  @media print {
+    .hero-stat, .rec-block, .cn-link, .tier-row, .format-card { box-shadow: none !important; }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  a, a:link, a:visited, a * { text-decoration: none !important; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: var(--text);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.55;
+  }
+
+  .slide {
+    width: 1280px; height: 720px;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+    padding: 52px 72px;
+    display: flex;
+    flex-direction: column;
+  }
+  .slide:last-child { page-break-after: auto; }
+  .slide--dark { background: var(--ink); color: var(--ink-text); }
+
+  /* Aurora glows — pure radial-gradients, print-safe */
+  .aurora { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .aurora span { position: absolute; border-radius: 50%; }
+  .aurora .a-core {
+    left: 50%; transform: translateX(-50%); top: 200px; width: 980px; height: 520px;
+    background: radial-gradient(closest-side, rgba(155,123,232,0.30) 0%, rgba(94,160,255,0.16) 45%, transparent 75%);
+  }
+  .aurora .a-peach {
+    left: 8%; top: 330px; width: 430px; height: 360px;
+    background: radial-gradient(closest-side, rgba(240,160,122,0.24) 0%, transparent 72%);
+  }
+  .aurora .a-blue {
+    right: 7%; top: 310px; width: 430px; height: 360px;
+    background: radial-gradient(closest-side, rgba(94,160,255,0.22) 0%, transparent 72%);
+  }
+  /* soft warm wash for light slides */
+  .wash { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .wash span { position: absolute; border-radius: 50%; }
+  .wash .w-peach {
+    left: 90px; top: 60px; width: 640px; height: 260px;
+    background: radial-gradient(closest-side, rgba(244,197,168,0.30) 0%, transparent 75%);
+  }
+  .wash .w-lav {
+    left: 640px; top: 20px; width: 520px; height: 240px;
+    background: radial-gradient(closest-side, rgba(200,184,224,0.26) 0%, transparent 75%);
+  }
+
+  /* Brand mark */
+  .brand-mark {
+    position: absolute; top: 36px; right: 72px; z-index: 3;
+    display: flex; align-items: center; gap: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .brand-mark .dot {
+    width: 15px; height: 15px; border-radius: 50%;
+    background: linear-gradient(155deg, var(--g-peach) 0%, var(--g-purple) 100%);
+  }
+  .slide--dark .brand-mark { color: var(--ink-muted); }
+
+  /* Section labels + titles */
+  .section-label {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    align-self: flex-start;
+    position: relative; z-index: 2;
+  }
+  .section-label::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--terracotta);
+  }
+  .section-title {
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 50px; font-weight: 300;
+    line-height: 1.08; letter-spacing: -0.045em;
+    color: var(--text);
+    position: relative; z-index: 2;
+    margin-bottom: 18px;
+  }
+  /* printToPDF cannot clip gradients to glyphs - solid italic accents instead
+     (matches the Bunli "Dia style" reference: italic #cd7f5f) */
+  .section-title em, .grad-i { font-style: italic; color: #c0653f; }
+  .slide--dark .section-title { color: var(--ink-text); }
+  .slide--dark .section-title em { color: #e8a888; }
+  .body-text {
+    font-size: 17.5px; line-height: 1.6;
+    color: var(--body);
+    max-width: 760px;
+    position: relative; z-index: 2;
+  }
+  .body-text strong { color: var(--text); font-weight: 600; }
+  .page-num {
+    position: absolute; bottom: 30px; right: 72px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; color: #a8a29e;
+    letter-spacing: 0.2em;
+  }
+  .slide--dark .page-num { color: rgba(250,250,250,0.35); }
+
+  /* ─── COVER ─── */
+  .cover { padding: 48px 72px; justify-content: space-between; }
+  .cover-top { display: flex; align-items: center; gap: 10px; position: relative; z-index: 2; }
+  .cover-top .dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: linear-gradient(155deg, var(--g-peach) 0%, var(--g-purple) 100%);
+  }
+  .cover-top .name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px; font-weight: 500;
+    color: var(--ink-text); letter-spacing: 0.24em;
+  }
+  .cover-mid { position: relative; z-index: 2; }
+  .cover-mid .pitch-cat {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-muted); margin-bottom: 18px;
+  }
+  .cover-mid .pitch-title {
+    font-family: 'EB Garamond', serif;
+    font-size: 116px; font-weight: 300;
+    line-height: 1.02; letter-spacing: -0.035em;
+    color: var(--ink-text); margin-bottom: 22px;
+  }
+  .cover-mid .pitch-title em { font-style: italic; color: #e8a888; }
+  .cover-mid .lime-bar { display: none; }
+  .cover-mid .pitch-sub {
+    font-size: 21px; color: #e7e5e4;
+    max-width: 760px; line-height: 1.55;
+  }
+  .cover-bot {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: rgba(250,250,250,0.45);
+    letter-spacing: 0.18em;
+    position: relative; z-index: 2;
+  }
+  .cover-bot strong { color: var(--ink-text); font-weight: 500; }
+
+  /* ─── LANDSCAPE / HERO STAT ─── */
+  .opp-grid {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    gap: 44px;
+    flex: 1;
+    align-items: center;
+    position: relative; z-index: 2;
+  }
+  .hero-stat {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 24px;
+    padding: 40px 34px;
+    box-shadow: 0 18px 50px rgba(12,10,9,0.07);
+    text-align: center;
+  }
+  .hero-stat .num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 96px; font-weight: 500;
+    line-height: 1;
+    color: #8b6bd8;
+  }
+  .hero-stat .num sup { font-size: 40px; vertical-align: super; color: var(--g-peach); }
+  .hero-stat .label {
+    font-size: 15.5px; font-weight: 500;
+    margin-top: 18px; color: var(--body);
+    line-height: 1.5;
+  }
+  .hero-stat .platforms {
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--terracotta);
+  }
+  .hero-stats-2 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+  .hero-stat--mini {
+    padding: 22px 18px 20px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 128px;
+  }
+  .hero-stat--mini { padding: 20px 12px 18px; }
+  .hero-stat--mini .num { font-size: 38px; }
+  .hero-stat--mini .label {
+    font-size: 11px; margin-top: 8px; line-height: 1.35;
+    max-width: 160px;
+  }
+  /* dark-slide variant of the mini stat cards */
+  .slide--dark .hero-stat {
+    background: var(--ink-card);
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: none;
+  }
+  .slide--dark .hero-stat .label { color: #d6d3d1; }
+  .slide--dark .hero-stat .num { color: #f0c8a8; }
+
+  /* ─── TIER ROWS ─── */
+  .tier-list { display: flex; flex-direction: column; gap: 13px; flex: 1; justify-content: center; position: relative; z-index: 2; }
+  .tier-row {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 19px 28px;
+    display: flex; flex-direction: column; gap: 5px;
+    box-shadow: 0 8px 26px rgba(12,10,9,0.04);
+  }
+  .tier-row .header {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted);
+  }
+  .tier-row .brand-line {
+    display: flex; align-items: center; gap: 14px;
+    font-family: 'EB Garamond', serif;
+    font-size: 26px; font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .tier-row .desc { font-size: 15.5px; color: var(--body); line-height: 1.55; max-width: 980px; }
+  .badge {
+    display: inline-block; padding: 4px 14px;
+    border-radius: 999px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+  }
+  .badge--lime { background: var(--ink); color: #ffffff; }
+  .badge--purple {
+    background: linear-gradient(120deg, var(--g-peach) 0%, var(--g-purple) 100%);
+    color: #ffffff;
+  }
+  .badge--gray { background: #f0efed; color: var(--muted); border: 1px solid var(--line); }
+
+  /* ─── ADS GRID (3x2) ─── */
+  .slide-ads { padding-top: 38px; padding-bottom: 34px; }
+  .slide-ads .section-title { font-size: 38px; margin-bottom: 8px; }
+  .ads-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 20px;
+    margin: 0 auto;
+    max-width: 680px;
+    align-content: center;
+    position: relative; z-index: 2;
+  }
+  .ad-card { display: block; text-decoration: none; color: inherit; }
+  .ad-thumb {
+    width: 100%; aspect-ratio: 1/1;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: var(--card);
+    position: relative;
+  }
+  .ad-thumb img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+  .ad-thumb::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(120% 120% at 50% 0%, transparent 55%, rgba(12,10,9,0.18) 100%);
+  }
+  .ads-grid--cropped .ad-thumb { aspect-ratio: 5/6; }
+  .ads-grid--cropped .ad-thumb img { object-position: 78% center; }
+  .ad-label {
+    margin-top: 6px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--text);
+  }
+  .ads-foot {
+    margin-top: 10px;
+    font-family: 'EB Garamond', serif;
+    font-style: italic;
+    font-size: 12.5px; color: var(--muted);
+    text-align: center;
+    position: relative; z-index: 2;
+  }
+  .ads-intro {
+    font-size: 15px; line-height: 1.5; color: var(--body);
+    text-align: center; max-width: 840px;
+    margin: 2px auto 10px;
+    position: relative; z-index: 2;
+  }
+  .ads-intro strong { font-weight: 600; color: var(--text); }
+
+  /* ─── CONTENT VIDEO GRID (1 row of 3-5, 9:16) ─── */
+  .slide-vids { padding-top: 38px; padding-bottom: 32px; }
+  .slide-vids .section-title { font-size: 37px; margin-bottom: 10px; }
+  .slide-vids .body-text { font-size: 15.5px; }
+  .vid-grid {
+    display: grid;
+    gap: 18px;
+    margin: 4px auto 0;
+    flex: 1;
+    align-content: center;
+    position: relative; z-index: 2;
+  }
+  .vid-grid--1 { grid-template-columns: 1fr; max-width: 210px; }
+  .vid-grid--2 { grid-template-columns: repeat(2, 1fr); max-width: 420px; }
+  .vid-grid--3 { grid-template-columns: repeat(3, 1fr); max-width: 620px; }
+  .vid-empty {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    font-family: 'EB Garamond', serif; font-style: italic;
+    font-size: 22px; color: var(--muted);
+    text-align: center; max-width: 720px; margin: 0 auto;
+  }
+  .vid-grid--4 { grid-template-columns: repeat(4, 1fr); max-width: 800px; gap: 16px; }
+  .vid-grid--5 { grid-template-columns: repeat(5, 1fr); max-width: 1000px; gap: 14px; }
+  .vid-grid--5 .vid-meta .h { font-size: 11.5px; }
+  .vid-grid--5 .vid-meta .v { font-size: 10px; }
+  .vid-grid--4 .vid-meta .h { font-size: 12px; }
+  .vid-grid--4 .vid-meta .v { font-size: 10.5px; }
+  .vid-card { display: block; text-decoration: none; color: inherit; }
+  .vid-thumb {
+    width: 100%; aspect-ratio: 9/16;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    background: #1c1917;
+    position: relative;
+  }
+  .vid-thumb img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
+  /* bottom vignette (dot overlay removed) */
+  .vid-thumb::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(120% 120% at 50% 0%, transparent 55%, rgba(12,10,9,0.28) 100%);
+  }
+  .vid-thumb .pf {
+    position: absolute; top: 9px; left: 9px; z-index: 2;
+    background: rgba(12,10,9,0.45); color: #fff;
+    font-size: 8.5px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 7px;
+  }
+  .vid-meta {
+    margin-top: 8px;
+    text-align: center;
+    padding: 0 4px;
+  }
+  .vid-meta .h { font-size: 13px; font-weight: 600; color: var(--text); }
+  .vid-meta .v {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; color: var(--body); margin-top: 2px;
+  }
+  .vid-meta .f {
+    display: inline-block;
+    margin-top: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--terracotta);
+    border: 1px solid rgba(205,127,95,0.4);
+    padding: 2px 8px; border-radius: 999px;
+  }
+
+  /* ─── EXECUTIVE SUMMARY ─── */
+  .findings-list { display: flex; flex-direction: column; gap: 15px; max-width: 1050px; margin-top: 4px; position: relative; z-index: 2; }
+  .finding-row { display: flex; align-items: flex-start; gap: 18px; }
+  .finding-num {
+    flex-shrink: 0;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: linear-gradient(155deg, var(--g-peach) 0%, var(--g-purple) 100%);
+    color: #fff;
+    font-family: 'EB Garamond', serif;
+    font-size: 17px; font-weight: 400;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .finding-text { font-size: 19px; line-height: 1.55; color: var(--body-strong); }
+  .finding-text strong { font-weight: 600; color: var(--text); }
+  /* aurora gradient-border card, from the Bunli prompt-input reference */
+  .rec-block {
+    margin-top: 18px;
+    max-width: 1010px;
+    border-radius: 20px;
+    padding: 2px;
+    background: linear-gradient(120deg, rgba(94,160,255,0.9) 0%, rgba(155,123,232,0.9) 38%, rgba(240,160,122,0.9) 72%, rgba(232,184,196,0.5) 100%);
+    position: relative; z-index: 2;
+  }
+  .rec-block .inner {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 15px 24px;
+  }
+  .rec-block .l {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--terracotta); margin-bottom: 6px;
+  }
+  .rec-block .d { font-size: 17.5px; line-height: 1.55; color: var(--body-strong); }
+  .rec-block .d strong { font-weight: 600; color: var(--text); }
+
+  /* ─── FORMAT CARDS (2x2) ─── */
+  .format-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
+    flex: 1;
+    margin-top: 2px;
+    position: relative; z-index: 2;
+  }
+  .format-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    padding: 22px 26px;
+    display: flex; flex-direction: column;
+    gap: 7px;
+    box-shadow: 0 8px 26px rgba(12,10,9,0.04);
+  }
+  .format-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9.5px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted); background: #f0efed;
+    border: 1px solid var(--line);
+    align-self: flex-start;
+    padding: 4px 12px; border-radius: 999px;
+  }
+  .format-tag--purple {
+    background: var(--ink); color: #ffffff; border-color: var(--ink);
+  }
+  .format-name {
+    font-family: 'EB Garamond', serif;
+    font-size: 26px; font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+  }
+  .format-desc {
+    font-size: 14.5px; line-height: 1.5;
+    color: var(--body);
+  }
+
+  /* ─── CONNECT (About Adant AI + Let's connect, dark) ─── */
+  .connect { padding: 56px 72px 46px; }
+  .connect-grid {
+    display: grid;
+    grid-template-columns: 6fr 6fr;
+    gap: 48px;
+    flex: 1;
+    align-items: center;
+    position: relative; z-index: 2;
+  }
+  .cn-label {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 18px;
+  }
+  .cn-label::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--terracotta);
+  }
+  .cn-title {
+    font-family: 'EB Garamond', serif;
+    font-size: 46px; font-weight: 300;
+    line-height: 1.1; letter-spacing: -0.035em;
+    color: var(--ink-text);
+    margin-bottom: 6px;
+  }
+  .cn-title em { font-style: italic; color: #e8a888; }
+  .cn-accent { display: none; }
+  .cn-copy {
+    font-size: 16.5px; line-height: 1.65;
+    color: #e7e5e4;
+    max-width: 520px;
+    margin: 14px 0 24px;
+  }
+  .cn-copy strong { color: var(--ink-text); font-weight: 600; }
+  .cn-link {
+    display: inline-block;
+    background: var(--ink-text); color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    font-size: 15px; font-weight: 600;
+    letter-spacing: 0.02em;
+    padding: 13px 26px;
+    border-radius: 999px;
+    text-decoration: none;
+  }
+  .cn-link::after { content: " ↗"; margin-left: 4px; }
+  .cn-contact {
+    margin-top: 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px;
+    color: rgba(250,250,250,0.5);
+    letter-spacing: 0.08em;
+  }
+  .cn-right { display: flex; flex-direction: column; gap: 22px; }
+  .case-row { display: flex; gap: 14px; justify-content: center; }
+  .case-card { display: flex; flex-direction: column; align-items: center; text-decoration: none; color: inherit; }
+  .small-phone {
+    width: 138px; height: 276px;
+    border-radius: 22px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: #1c1917;
+    position: relative;
+  }
+  .small-phone img { width: 100%; height: 100%; object-fit: cover; object-position: center 25%; display: block; }
+  .small-phone::after {
+    content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: radial-gradient(120% 120% at 50% 0%, transparent 55%, rgba(12,10,9,0.28) 100%);
+  }
+  .small-phone .pf {
+    position: absolute; top: 9px; left: 9px; z-index: 2;
+    background: rgba(12,10,9,0.45); color: #fff;
+    font-size: 8.5px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    padding: 4px 9px; border-radius: 7px;
+  }
+  .case-info { margin-top: 10px; text-align: center; }
+  .case-info .b { font-size: 12px; font-weight: 500; color: var(--ink-text); }
+  .case-info .s {
+    margin-top: 5px;
+    display: block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.06em;
+    color: #f0c8a8;
+    background: none; border: none;
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ SLIDE 01 — COVER ═══════════════════ -->
+<div class="slide slide--dark cover">
+  <div class="aurora"><span class="a-core"></span><span class="a-peach"></span><span class="a-blue"></span></div>
+  <div class="cover-top">
+    <div class="dot"></div>
+    <div class="name">ADANT AI</div>
+  </div>
+  <div class="cover-mid">
+    <div class="pitch-cat">Social Content Research</div>
+    <div class="pitch-title">{{clientName}}</div>
+    <div class="lime-bar"></div>
+    <div class="pitch-sub">{{reportSubtitle}}</div>
+  </div>
+  <div class="cover-bot">
+    <div>PREPARED FOR <strong>{{clientContact}}</strong></div>
+    <div>{{reportDate}} &nbsp; · &nbsp; CONFIDENTIAL</div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SLIDE 02 — EXECUTIVE SUMMARY ═══════════════════ -->
+<div class="slide">
+  <div class="wash"><span class="w-peach"></span><span class="w-lav"></span></div>
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">Executive Summary</div>
+  <div class="section-title">{{execSummaryHeadline}}</div>
+  <div class="findings-list">
+    <div class="finding-row">
+      <div class="finding-num">1</div>
+      <div class="finding-text">{{finding1}}</div>
+    </div>
+    <div class="finding-row">
+      <div class="finding-num">2</div>
+      <div class="finding-text">{{finding2}}</div>
+    </div>
+    <div class="finding-row">
+      <div class="finding-num">3</div>
+      <div class="finding-text">{{finding3}}</div>
+    </div>
+  </div>
+  <div class="rec-block">
+    <div class="inner">
+      <div class="l">What This Means For Content</div>
+      <div class="d">{{execRecommendation}}</div>
+    </div>
+  </div>
+  <div class="page-num">02</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 03 — THE LANDSCAPE ═══════════════════ -->
+<div class="slide">
+  <div class="wash"><span class="w-peach"></span><span class="w-lav"></span></div>
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">The Landscape</div>
+  <div class="section-title">{{landscapeHeadline}}</div>
+  <div class="opp-grid">
+    <div>
+      <p class="body-text" style="font-size: 19px; line-height: 1.65;">{{landscapeCopy}}</p>
+    </div>
+    <div class="hero-stat">
+      <div class="num">{{heroStatNumber}}<sup>{{heroStatSup}}</sup></div>
+      <div class="label">{{heroStatLabel}}</div>
+      <div class="platforms">{{heroStatPlatforms}}</div>
+    </div>
+  </div>
+  <div class="page-num">03</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 04 — COMPETITIVE FIELD ═══════════════════ -->
+<div class="slide">
+  <div class="wash"><span class="w-peach"></span><span class="w-lav"></span></div>
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">Competitive Field</div>
+  <div class="section-title">Who's making content, and <em>where the gap is.</em></div>
+  <div class="tier-list">
+    <div class="tier-row">
+      <div class="header">{{tier1Header}}</div>
+      <div class="brand-line">{{tier1Brand}} <span class="badge badge--lime">{{tier1Badge}}</span></div>
+      <div class="desc">{{tier1Desc}}</div>
+    </div>
+    <div class="tier-row">
+      <div class="header">{{tier2Header}}</div>
+      <div class="brand-line">{{tier2Brand}} <span class="badge badge--gray">{{tier2Badge}}</span></div>
+      <div class="desc">{{tier2Desc}}</div>
+    </div>
+    <div class="tier-row">
+      <div class="header">{{tier3Header}}</div>
+      <div class="brand-line">{{tier3Brand}} <span class="badge badge--purple">{{tier3Badge}}</span></div>
+      <div class="desc">{{tier3Desc}}</div>
+    </div>
+  </div>
+  <div class="page-num">04</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 05 — TIKTOK: BRAND & COMPETITOR CONTENT ═══════════════════ -->
+<div class="slide slide-vids">
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">TikTok — Brand &amp; Competitor Content</div>
+  <div class="section-title">{{ttBrandHeadline}}</div>
+  <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{ttBrandIntro}}</p>
+  {{ttBrandGridHtml}}
+  <div class="page-num">05</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 06 — TIKTOK: ORGANIC CREATOR CONTENT ═══════════════════ -->
+<div class="slide slide-vids">
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">TikTok — Organic Creator Content</div>
+  <div class="section-title">{{ttCreatorHeadline}}</div>
+  <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{ttCreatorIntro}}</p>
+  {{ttCreatorGridHtml}}
+  <div class="page-num">06</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 07 — INSTAGRAM: BRAND & COMPETITOR REELS ═══════════════════ -->
+<div class="slide slide-vids">
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">Instagram — Brand &amp; Competitor Reels</div>
+  <div class="section-title">{{igBrandHeadline}}</div>
+  <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{igBrandIntro}}</p>
+  {{igBrandGridHtml}}
+  <div class="page-num">07</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 08 — INSTAGRAM: ORGANIC CREATOR REELS ═══════════════════ -->
+<div class="slide slide-vids">
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">Instagram — Organic Creator Reels</div>
+  <div class="section-title">{{igCreatorHeadline}}</div>
+  <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{igCreatorIntro}}</p>
+  {{igCreatorGridHtml}}
+  <div class="page-num">08</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 09 — META ADS CREATIVE REFERENCE ═══════════════════ -->
+<div class="slide slide-ads">
+  <div class="wash"><span class="w-peach"></span><span class="w-lav"></span></div>
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">Meta Ads — Creative Reference</div>
+  <div class="section-title">{{adsHeadline}}</div>
+  <p class="ads-intro">{{adsIntro}}</p>
+  {{adsGridHtml}}
+  <div class="ads-foot">Meta Ad Library is incomplete and changes daily. Read as creative reference, not a definitive map of competitor spend.</div>
+  <div class="page-num">09</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 10 — YOUTUBE SHORTS: BRAND & COMPETITOR ═══════════════════ -->
+<div class="slide slide-vids">
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">YouTube Shorts — Brand &amp; Competitor Content</div>
+  <div class="section-title">{{ytBrandHeadline}}</div>
+  <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{ytBrandIntro}}</p>
+  {{ytBrandGridHtml}}
+  <div class="page-num">10</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 11 — YOUTUBE SHORTS: ORGANIC CREATORS ═══════════════════ -->
+<div class="slide slide-vids">
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">YouTube Shorts — Organic Creator Content</div>
+  <div class="section-title">{{ytCreatorHeadline}}</div>
+  <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{ytCreatorIntro}}</p>
+  {{ytCreatorGridHtml}}
+  <div class="page-num">11</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 12 — CONTENT FORMAT PATTERNS ═══════════════════ -->
+<div class="slide">
+  <div class="wash"><span class="w-peach"></span><span class="w-lav"></span></div>
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="section-label">Content Format Patterns</div>
+  <div class="section-title">{{formatsHeadline}}</div>
+  <div class="format-grid">
+    <div class="format-card">
+      <div class="format-tag">{{format1Tag}}</div>
+      <div class="format-name">{{format1Name}}</div>
+      <div class="format-desc">{{format1Desc}}</div>
+    </div>
+    <div class="format-card">
+      <div class="format-tag">{{format2Tag}}</div>
+      <div class="format-name">{{format2Name}}</div>
+      <div class="format-desc">{{format2Desc}}</div>
+    </div>
+    <div class="format-card">
+      <div class="format-tag format-tag--purple">{{format3Tag}}</div>
+      <div class="format-name">{{format3Name}}</div>
+      <div class="format-desc">{{format3Desc}}</div>
+    </div>
+    <div class="format-card">
+      <div class="format-tag">{{format4Tag}}</div>
+      <div class="format-name">{{format4Name}}</div>
+      <div class="format-desc">{{format4Desc}}</div>
+    </div>
+  </div>
+  <div class="page-num">12</div>
+</div>
+
+<!-- ═══════════════════ SLIDE 13 — ABOUT ADANT AI + LET'S CONNECT ═══════════════════ -->
+<div class="slide slide--dark connect">
+  <div class="aurora"><span class="a-core"></span><span class="a-peach"></span><span class="a-blue"></span></div>
+  <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
+  <div class="connect-grid">
+    <div>
+      <div class="cn-label">About Adant AI</div>
+      <div class="cn-title">Research to action. <em>Built for you.</em></div>
+      <div class="cn-accent"></div>
+      <p class="cn-copy">{{aboutAdantCopy}}</p>
+      <a class="cn-link" href="{{connectUrl}}" target="_blank">{{connectLinkText}}</a>
+      <div class="cn-contact">{{connectContact}}</div>
+    </div>
+    <div class="cn-right">
+      <div class="hero-stats-2">
+        <div class="hero-stat hero-stat--mini">
+          <div class="num">{{heroMetricNumber}}</div>
+          <div class="label">{{heroMetricLabel}}</div>
+        </div>
+        <div class="hero-stat hero-stat--mini">
+          <div class="num">{{heroMetric2Number}}</div>
+          <div class="label">{{heroMetric2Label}}</div>
+        </div>
+        <div class="hero-stat hero-stat--mini">
+          <div class="num">{{heroMetric3Number}}</div>
+          <div class="label">{{heroMetric3Label}}</div>
+        </div>
+      </div>
+      <div class="case-row">
+        <div class="case-card">
+          <a href="{{case1_url}}" target="_blank"><div class="small-phone"><div class="pf">TIKTOK</div><img src="{{case1_thumb}}" alt="{{case1_brand}}"></div></a>
+          <div class="case-info"><div class="b">{{case1_brand}}</div><div class="s">{{case1_stat}}</div></div>
+        </div>
+        <div class="case-card">
+          <a href="{{case2_url}}" target="_blank"><div class="small-phone"><div class="pf">TIKTOK</div><img src="{{case2_thumb}}" alt="{{case2_brand}}"></div></a>
+          <div class="case-info"><div class="b">{{case2_brand}}</div><div class="s">{{case2_stat}}</div></div>
+        </div>
+        <div class="case-card">
+          <a href="{{case3_url}}" target="_blank"><div class="small-phone"><div class="pf">TIKTOK</div><img src="{{case3_thumb}}" alt="{{case3_brand}}"></div></a>
+          <div class="case-info"><div class="b">{{case3_brand}}</div><div class="s">{{case3_stat}}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-num">13</div>
+</div>
+
+</body>
+</html>

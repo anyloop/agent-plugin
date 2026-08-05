@@ -1,0 +1,20 @@
+{
+  "name": "adant-ai",
+  "interface": {
+    "displayName": "AdAnt AI"
+  },
+  "plugins": [
+    {
+      "name": "adant",
+      "source": {
+        "source": "local",
+        "path": "./codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Design"
+    }
+  ]
+}

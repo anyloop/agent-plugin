@@ -1,0 +1,32 @@
+{
+  "name": "adant",
+  "version": "0.1.0",
+  "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt from Claude Code.",
+  "author": {
+    "name": "AdAnt AI",
+    "email": "contact@anyloop.ai",
+    "url": "https://adant.ai"
+  },
+  "homepage": "https://adant.ai",
+  "repository": "https://github.com/anyloop/agent-plugin.git",
+  "keywords": [
+    "ads",
+    "ai-video",
+    "avatars",
+    "claude-code",
+    "creative",
+    "mcp",
+    "media-generation",
+    "research",
+    "social-content",
+    "strategy"
+  ],
+  "mcpServers": {
+    "adant": {
+      "type": "http",
+      "url": "https://api.adant.ai/mcp",
+      "oauth_resource": "https://api.adant.ai/mcp"
+    }
+  },
+  "skills": "./skills/"
+}

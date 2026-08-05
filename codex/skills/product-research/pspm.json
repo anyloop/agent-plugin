@@ -1,0 +1,19 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "product-research",
+  "version": "0.1.0",
+  "description": "Turn a product website URL plus free-form natural-language notes into a structured client profile for social content research (name, description, vertical, audience, niche label, keyword seeds, competitor candidates)",
+  "author": "Adant AI",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Fetch and parse a product website for positioning copy and social links",
+    "Research the product via Gemini with Google Search grounding (app stores, press, socials)",
+    "Fold authoritative user notes (natural language) into the structured profile",
+    "Produce competitor candidates, keyword seeds, and positioning hooks for downstream research",
+    "Emit the brand folder slug used by the initial-social-content-research workflow"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {}
+}

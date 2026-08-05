@@ -1,0 +1,29 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "browse-tiktok-research",
+  "version": "0.1.0",
+  "description": "Search TikTok by keywords for company research, returning relevant videos with engagement metrics",
+  "author": "yetu",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Search TikTok by keywords with filters (sort, time range, duration)",
+    "Login once and reuse session for all searches",
+    "Paginated results up to 50 per keyword",
+    "Generate company research reports with engagement metrics",
+    "Rank videos by views, likes, or recency"
+  ],
+  "main": "SKILL.md",
+  "requirements": {
+    "pspm": ">=0.1.0"
+  },
+  "files": [
+    "SKILL.md",
+    "runtime"
+  ],
+  "dependencies": {},
+  "private": false,
+  "githubDependencies": {
+    "github:browser-use/browser-use": "HEAD"
+  }
+}

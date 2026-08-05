@@ -1,0 +1,25 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "browse-meta-ads-library",
+  "version": "0.1.0",
+  "description": "Browse Meta Ad Library by keywords and competitor names to analyze active Facebook and Instagram ad campaigns",
+  "author": "Shortflow",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Search Meta Ad Library by keywords",
+    "Search by competitor/advertiser name",
+    "Extract ad creative details (text, media type, CTA)",
+    "Filter by platform (Facebook, Instagram, Audience Network)",
+    "Filter by media type (image, video, carousel)",
+    "Capture ad screenshots (full page or cropped to creative)",
+    "Screenshot individual ad cards by Library ID (screenshot_ads.py)",
+    "Generate competitive ad research reports"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {},
+  "githubDependencies": {
+    "github:browser-use/browser-use": "HEAD"
+  }
+}

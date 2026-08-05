@@ -1,0 +1,53 @@
+{
+  "name": "adant",
+  "version": "0.1.0",
+  "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt.",
+  "author": {
+    "name": "AdAnt AI",
+    "email": "contact@anyloop.ai",
+    "url": "https://adant.ai"
+  },
+  "homepage": "https://adant.ai",
+  "repository": "https://github.com/anyloop/agent-plugin.git",
+  "keywords": [
+    "ads",
+    "ai-video",
+    "avatars",
+    "codex",
+    "creative",
+    "mcp",
+    "media-generation",
+    "research",
+    "social-content",
+    "strategy"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "AdAnt",
+    "shortDescription": "Research trends and create short-form ads with AI.",
+    "longDescription": "Research products, competitors, and short-form trends; build evidence-backed social strategies and reports; then create or clone ads and generate image, video, and voice assets with AdAnt.",
+    "developerName": "AdAnt AI",
+    "category": "Design",
+    "capabilities": [
+      "Research",
+      "Browser automation",
+      "Video understanding",
+      "Report generation",
+      "Strategy generation",
+      "Media generation"
+    ],
+    "websiteURL": "https://adant.ai",
+    "privacyPolicyURL": "https://adant.ai/privacy",
+    "termsOfServiceURL": "https://adant.ai/terms",
+    "defaultPrompt": [
+      "Create a short-form product ad with AdAnt.",
+      "Clone this reference ad for my product.",
+      "Research current short-form trends for my product.",
+      "Turn social research into eight distinct content strategies."
+    ],
+    "brandColor": "#FF5A1F",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/logo.png"
+  }
+}

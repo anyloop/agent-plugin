@@ -1,0 +1,4 @@
+interface:
+  display_name: "Social Content Strategist"
+  short_description: "Turn fresh video trends into content strategies"
+  default_prompt: "Use $social-content-strategist to find fresh video trends and turn them into distinct content strategies."

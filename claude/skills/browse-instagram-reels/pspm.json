@@ -1,0 +1,22 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "browse-instagram-reels",
+  "version": "0.1.0",
+  "description": "Browse Instagram Reels by keywords to find viral content for brand research, returning Reels with engagement metrics",
+  "author": "Shortflow",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Search Instagram Reels by keywords",
+    "Login once and reuse session for all searches",
+    "Extract Reel URLs, view counts, like counts, comment counts",
+    "Filter by time range and engagement thresholds",
+    "Generate research reports with engagement metrics"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {},
+  "githubDependencies": {
+    "github:browser-use/browser-use": "HEAD"
+  }
+}

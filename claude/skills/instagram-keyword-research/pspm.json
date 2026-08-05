@@ -1,0 +1,19 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "instagram-keyword-research",
+  "version": "0.1.0",
+  "description": "Generate Instagram-native keywords from a client description, website, or niche for Reels and ad research",
+  "author": "Shortflow",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Generate Instagram-native search keywords from client description",
+    "Fetch and analyze client website for keyword context",
+    "Identify competitor Instagram presence and brand keywords",
+    "Categorize keywords into brand, niche, hashtag, hook, trend, competitor buckets",
+    "Output structured JSON keyword list"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {}
+}

@@ -1,0 +1,279 @@
+---
+schema: "2.0"
+name: social-content-strategist
+description: Turn an initial social content research report into 5-10 copy-paste-ready
+  content strategies built on the freshest trending videos (last 1-2 months) across
+  TikTok, Instagram Reels, Meta Ads Library, and YouTube Shorts. Every candidate video
+  is deeply analyzed with Gemini video understanding; past inspiration videos and
+  concept-duplicates are excluded via the strategy history, so each batch is new.
+workdir: anyt_workspace_social_content_strategist
+---
+
+# social-content-strategist
+
+<note id="overview" label="Workflow Overview">
+## Social Content Strategist
+
+Two ways in, same output — **5-10 content strategies**, each anchored on a fresh trending inspiration video the client hasn't used before:
+
+- **Report mode** (original): input the **initial social content research report** (from `initial-social-content-research.anyt`, PDF or MD, possibly hand-edited) — keywords ride the report's proven example videos.
+- **Standalone mode** (no report needed): input just a **product URL + product description + example videos the client likes**. The workflow runs the `product-research` skill for a quick profile + keyword seeds (same logic as the initial workflow's Step 1, but NO comprehensive PDF deck), mines the liked videos' captions/hashtags to expand keywords, and excludes those videos from suggestions (the client already knows them).
+
+Both modes then share the **strategy history** (past batches and/or a user-provided list of past inspiration videos):
+
+1. **Ingest** — read the initial report + product profile; derive fresh, slightly-more-creative trend keywords
+2. **Trend Browse** — all four platforms (TikTok, Instagram Reels, Meta Ads Library, YouTube Shorts), **strict recency: last 1-2 months only**
+3. **Candidate Selection** — merge, dedupe, hard-exclude history URLs, rank by engagement x recency, keep ~2x the target count
+4. **Video Understanding** — `trend-video-understanding` skill runs Gemini video understanding (clone-video Pass-1 prompt) on EVERY candidate
+5. **Strategy Generation** — `content-strategy-generator` skill: concept-similarity filter vs history, then 5-10 **concise** strategies (source hook + viral format preserved), each a short copy-paste message for Adant (https://adant.ai) — inspiration video, avatar, what to keep, what to change, 2-3 overlay lines, nothing more — history updated
+
+**Finding the right inspiration video is the most important step** — favor proven engagement, hooks that map naturally to the product, and format diversity across the batch.
+
+**Prerequisites:**
+- `GEMINI_API_KEY` in `.env` (video understanding + strategy generation)
+- `TIKAPI_KEY` in `.env` for the TikTok fallback when no browse login session exists
+- The browse skills' login sessions where available (TikTok/Instagram); every platform has a documented fallback
+</note>
+
+<input id="strategy-setup" label="Strategy Setup">
+## Product, Report & History
+
+<form type="json">
+{
+  "fields": [
+    {
+      "name": "reportPath",
+      "type": "text",
+      "label": "Initial Research Report (.md or .pdf) — leave empty for standalone mode",
+      "required": false,
+      "placeholder": "anyt_workspace_initial_social_content_research/example-product/example-product_social_content_research_YYYY-MM-DD.md"
+    },
+    {
+      "name": "productDescription",
+      "type": "textarea",
+      "label": "Product Description (required in standalone mode)",
+      "required": false,
+      "rows": 3,
+      "placeholder": "e.g., Food scanner app: scan a barcode, get a 0-100 health score and better swaps."
+    },
+    {
+      "name": "exampleVideos",
+      "type": "textarea",
+      "label": "Example videos the client likes (one URL per line — mined for keywords, excluded from suggestions)",
+      "required": false,
+      "rows": 3,
+      "placeholder": "https://www.tiktok.com/@user/video/123..."
+    },
+    {
+      "name": "productName",
+      "type": "text",
+      "label": "Product Name",
+      "required": true,
+      "placeholder": "Example Product"
+    },
+    {
+      "name": "productUrl",
+      "type": "text",
+      "label": "Product URL",
+      "required": true,
+      "placeholder": "https://example.com/"
+    },
+    {
+      "name": "historyPath",
+      "type": "text",
+      "label": "Strategy History JSON (leave empty for first batch)",
+      "required": false,
+      "placeholder": "{brandFolder}/{product}_strategy_history.json"
+    },
+    {
+      "name": "pastVideos",
+      "type": "textarea",
+      "label": "Past inspiration video URLs to exclude (one per line, optional)",
+      "required": false,
+      "rows": 3,
+      "placeholder": "https://www.tiktok.com/@user/video/123..."
+    },
+    {
+      "name": "strategyCount",
+      "type": "number",
+      "label": "Number of strategies (5-10)",
+      "default": 8
+    },
+    {
+      "name": "recencyDays",
+      "type": "select",
+      "label": "Max age of inspiration videos",
+      "default": "60",
+      "options": [
+        { "value": "30", "label": "Last month" },
+        { "value": "60", "label": "Last 2 months" }
+      ]
+    }
+  ]
+}
+</form>
+</input>
+
+<task id="ingest" label="Step 1: Ingest Report + Derive Fresh Trend Keywords">
+## Read the Report and Plan the Trend Hunt
+
+1. **Report mode** — `@strategy-setup.reportPath` given: read it (if PDF, extract text with pymupdf). Also load the product's `product_profile.json` and `keywords_*.json` from the initial-research brand folder when available.
+
+   **Standalone mode** — no report: run the `product-research` skill (same logic the initial workflow starts with, but no deck is built) to get a profile with `niche_label` + `keyword_seeds`:
+
+```bash
+uv run --project skills/product-research/runtime \
+  skills/product-research/runtime/research_product.py \
+  --url "{productUrl}" --notes "{productDescription from @strategy-setup}" \
+  -o {brandFolder}/product_profile.json
+```
+
+2. If `@strategy-setup.historyPath` exists, read it; merge `@strategy-setup.pastVideos` AND `@strategy-setup.exampleVideos` lines into its `excluded_urls` (the client already knows their liked videos — never suggest them back). Create the workspace folder `{brandFolder}/` (product slug) with `{brandFolder}/candidates/`.
+3. **Mine example videos for keywords/hashtags** — report examples, the client's liked videos, or both; ride the winners' language:
+
+```bash
+uv run --project skills/content-strategy-generator/runtime \
+  skills/content-strategy-generator/runtime/mine_report_keywords.py \
+  [--report "{reportPath}"] \
+  [--video "{example video URL}" ...] \
+  --description "{productDescription or client_description from the profile}" \
+  --captions-from {initialBrandFolder}/browse_tiktok.json \
+  --product-name "{productName}" --niche "{niche label from report or profile}" \
+  --profile {brandFolder}/product_profile.json \
+  --base-keywords {brandFolder}/trend_keywords.json \
+  -o {brandFolder}/expanded_keywords.json
+```
+
+   **App products (`product_profile.json → is_app`):** pass `--profile` so the miner enforces the app-keyword rule — every platform list must carry "xxx app" variants ("{category} app", "best {category} apps", "{competitor} app", "... app review"); plain names drown in the lifestyle side of social search and the batch ends up with no app-related content.
+
+   In standalone mode, also run `trend-video-understanding` on each liked example video — their concept fingerprints sharpen both the keyword synthesis and later concept-dedup.
+
+   It extracts the example-video URLs, harvests their captions (browse JSONs first, oEmbed/og-tags fallback), mines hashtags (generic tags like #fyp are dropped), and synthesizes new per-platform search phrases from the winners' actual language (e.g. #seedoilfree → "seed oil free swaps", recurring "what i eat in a day" phrasings).
+4. Derive the final **trend keyword lists**, merging three sources:
+   - **Mined keywords/hashtags from the example videos** (step 3 — report examples and/or client-liked videos) — highest priority, this is proven language
+   - Standalone mode: the product profile's `keyword_seeds`
+   - Trend-flavored variants of the report's winning formats ("POV grocery", "scan with me")
+   - **Creative expansion**: if the history already covers the core formats, expand to adjacent angles (adjacent audiences, seasonal hooks, reaction/duet formats, adjacent niches) — relevant first, expansion second. **When the product is an app, keep at least half of every batch's keywords app-related** ("{competitor} app", "{category} app review") — pure lifestyle keywords surface content with no app to swap in
+5. Write `{brandFolder}/trend_keywords.json`: `{"tiktok": [...], "instagram": [...], "youtube": [...], "meta_ads_advertisers": [...]}` (8-12 per organic platform).
+
+**Output:** `{brandFolder}/expanded_keywords.json`, `{brandFolder}/trend_keywords.json`, `{brandFolder}/{product}_strategy_history.json` (initialized if new)
+</task>
+
+<task id="trend-browse" label="Step 2: Browse All 4 Platforms (fresh content only)">
+## Thorough 4-Platform Trend Browse — Last 1-2 Months Only
+
+Run all four browses (parallel where they don't share the CDP browser). **Recency is strict**: drop anything older than `@strategy-setup.recencyDays` days — check `create_time` / upload date per video; when a platform can't filter by date natively, over-collect and filter afterward.
+
+```bash
+# TikTok — time-range month; fallback: TikAPI (public/search/videos returns create_time)
+uv run --project skills/browse-tiktok-research/runtime \
+  skills/browse-tiktok-research/runtime/browse.py \
+  {trend keywords, quoted} --sort-by likes --time-range month -n 10 --no-details \
+  -o {brandFolder}/trend_tiktok.json
+
+# YouTube Shorts — time-range month (headless, no login)
+uv run --project skills/browse-youtube-shorts/runtime \
+  skills/browse-youtube-shorts/runtime/browse.py \
+  {trend keywords, quoted} -n 10 --min-views 50000 --time-range month \
+  -o {brandFolder}/trend_youtube.json
+
+# Meta Ads Library — active ads only are inherently fresh; keep ads started within the window
+uv run --project skills/browse-meta-ads-library/runtime \
+  skills/browse-meta-ads-library/runtime/browse.py \
+  --advertiser "{brand 1}" --advertiser "{brand 2}" ... --country US -n 25 \
+  -o {brandFolder}/trend_ads.json
+
+# Instagram Reels — after TikTok releases the CDP browser. No session (or low-view
+# results)? Use the login-less discovery script: indexed reels + og-tag metrics,
+# self-expanding with hashtags mined from accepted reels until enough qualify
+uv run --project skills/browse-instagram-reels/runtime \
+  skills/browse-instagram-reels/runtime/discover_reels.py \
+  {trend keywords} --min-likes 50000 --target 8 --rounds 3 \
+  -o {brandFolder}/trend_instagram.json
+# (drop --min-likes to 10000 only if the 50K tier is too thin; never below 10K)
+```
+
+Fallbacks (same as initial-social-content-research): TikAPI for TikTok, `web_profile_info` + Google-indexed reel URLs for Instagram, Gemini + Google Search grounding as last resort. Record `"source"` in each JSON.
+
+**Output:** `{brandFolder}/trend_tiktok.json`, `trend_youtube.json`, `trend_ads.json`, `trend_instagram.json`
+</task>
+
+<task id="select-candidates" label="Step 3: Select Candidates (dedupe vs history)">
+## Merge, Filter, Rank
+
+1. Merge all four platforms into one candidate pool with per-video: `url`, `platform`, `handle`, `metric` (likes/views), `posted` (ISO date from create_time / upload date / ad start date).
+2. **Drop**: videos older than the recency window; organic/creator videos under **50K views/likes** (relax to a **10K floor** only when fewer than the target count clear 50K — never keep organic content under 10K, the strategy skill enforces this; official brand/competitor videos are exempt when they carry unique format intel); URLs already in the history (`strategies[].inspiration_url` + `excluded_urls`); duplicates; videos with unusable URLs (private/deleted).
+3. Rank by engagement weighted toward recency and **cloneability** (single on-camera character or simple demo formats clone better than heavy-edit compilations).
+4. Keep **~2x `@strategy-setup.strategyCount`** candidates (e.g. 16 for 8 strategies), spread across platforms and formats.
+
+Write `{brandFolder}/candidates.json`:
+```json
+[{"url": "...", "platform": "tiktok", "handle": "@x", "metric": "1.2M likes",
+  "posted": "YYYY-MM-DD", "analysis_path": "{brandFolder}/candidates/analysis_<id>.json"}]
+```
+
+**Output:** `{brandFolder}/candidates.json`
+</task>
+
+<task id="understand-videos" label="Step 4: Gemini Video Understanding on Every Candidate">
+## Deep-Analyze Each Candidate
+
+Run `trend-video-understanding` on EVERY candidate (downloads the video, runs the clone-video Pass-1 analysis + concept fingerprint). The `-o` skip-if-exists behavior makes re-runs cheap.
+
+```bash
+# For each candidate:
+uv run --project skills/trend-video-understanding/runtime \
+  skills/trend-video-understanding/runtime/understand_video.py \
+  --url "{candidate url}" \
+  --context "{product name} - {niche label from the report}" \
+  -o {brandFolder}/candidates/analysis_{video_id}.json
+```
+
+Run 3-4 in parallel. Candidates that fail to download (`status: download_failed`) are dropped automatically by the strategy skill; if too many fail, top up from the ranked pool (Step 3) so ~2x the target survives.
+
+**Output:** `{brandFolder}/candidates/analysis_*.json`
+</task>
+
+<task id="generate-strategies" label="Step 5: Generate the Strategy Report">
+## Strategies + History Update
+
+```bash
+uv run --project skills/content-strategy-generator/runtime \
+  skills/content-strategy-generator/runtime/generate_strategies.py \
+  --report "{reportPath}"            # report mode\
+  # OR: --product-description "{productDescription}"   # standalone mode\
+  --candidates {brandFolder}/candidates.json \
+  --product-name "{productName}" --product-url "{productUrl}" \
+  --history {brandFolder}/{product}_strategy_history.json \
+  --count {strategyCount} \
+  -o {brandFolder}/{product}_content_strategies_{date}.md
+```
+
+The skill applies the concept-similarity filter against history, generates the strategies, renders the copyable markdown (Adant https://adant.ai paste note at top and bottom, General Instructions once), and appends the batch to the history. Each strategy is a **concise one-paragraph message** — `analyze <url>, and use a UGC avatar: <avatar>. Hook to keep: <hook>. <what to change> Add text overlay` + 2-3 short overlay lines — no full scripts, no timelines; avatar is a suggestion only (no image generation).
+
+If it exits 2 (all candidates too similar to past concepts), go back to Step 1 and expand keywords to adjacent angles, then re-run Steps 2-5.
+
+**Output:** `{brandFolder}/{product}_content_strategies_{date}.md`, updated `{product}_strategy_history.json`
+</task>
+
+<break id="review-strategies" label="Review Strategies (optional)">
+Review the strategy report. Swap out any strategy whose inspiration video feels off-brand — remove it from the report AND from the history file, then re-run Step 5 (the freed slot fills from remaining candidates). Skip when running autonomously.
+</break>
+
+<note id="complete" label="Done">
+## Final Output
+
+```
+{brandFolder}/
+├── trend_keywords.json
+├── trend_tiktok.json / trend_instagram.json / trend_youtube.json / trend_ads.json
+├── candidates.json
+├── candidates/analysis_*.json          (Gemini video understanding per candidate)
+├── {product}_content_strategies_{date}.md   (copy-paste strategy report)
+└── {product}_strategy_history.json     (grows every batch - feeds the next run's exclusions)
+```
+
+**Next batch:** run the workflow again with the same history file — new inspiration videos and new concepts are guaranteed by the URL exclusion + concept-similarity filter. To seed exclusions manually, paste past video URLs into the `pastVideos` input.
+
+**To produce a video from a strategy:** copy the strategy block into Adant (https://adant.ai) — or run `workflows/clone-video.anyt` locally with the inspiration URL, using Seedance 2.0 and the strategy's adapted script/overlays.
+</note>

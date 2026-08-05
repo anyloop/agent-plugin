@@ -1,0 +1,361 @@
+---
+schema: "2.0"
+name: initial-social-content-research
+description: One-shot initial social content research — user provides a product URL
+  plus natural-language context, then the workflow runs product research, competitor
+  research, and all three platform researches (TikTok, Instagram Reels + Meta Ads,
+  YouTube Shorts), and generates a Social Content Research deck (not a pitch — no
+  pricing or deliverables, closes with an About Adant AI past-records page).
+workdir: anyt_workspace_initial_social_content_research
+---
+
+# initial-social-content-research
+
+<note id="overview" label="Workflow Overview">
+## Initial Social Content Research
+
+Give this workflow a **product URL + whatever you know in natural language**, and it runs the full initial research a new client needs, condensed from `tiktok-research.anyt`, `instagram-research.anyt`, and `youtube-shorts-research.anyt` into one pass:
+
+1. **Product Research** — `product-research` skill turns URL + notes into a structured client profile
+2. **Competitor Research** — `competitor-research` skill finds true competitors (verified via web search)
+3. **Keyword Research** — platform-native keywords per platform (TikTok, Instagram, YouTube)
+4. **Platform Browsing** — `browse-tiktok-research`, `browse-instagram-reels`, `browse-meta-ads-library`, `browse-youtube-shorts`
+5. **Content Curation** — ~10 contents per platform (5 brand/competitor + 5 organic creator), diverse formats, max 3 videos per account
+6. **Report** — `social-content-research-report` skill builds the 13-slide Social Content Research deck as `{product_name}_social_content_research_{date}` (PDF + MD, plus a clickable HTML review copy)
+
+**This is a research report, not a pitch**: no pricing page, no deliverables page. The final "Let's connect" slide carries a one-page intro to Adant AI's past records.
+
+**Prerequisites:**
+- `GEMINI_API_KEY` in `.env`
+- For TikTok/Instagram browsing: be logged into TikTok/Instagram in Chrome at least once (the browse skills import your session into a separate research browser). YouTube Shorts and Meta Ads Library browsing need no login.
+- If a platform browse hits a login wall, fall back to Gemini + Google Search grounded research (presence-research skills pattern) plus oEmbed metadata for that platform, and note the fallback in the report data.
+</note>
+
+<input id="product-info" label="Product Information">
+## Product & Research Setup
+
+Provide the product URL and anything you know about it in plain language. Everything else is derived.
+
+<form type="json">
+{
+  "fields": [
+    {
+      "name": "websiteUrl",
+      "type": "text",
+      "label": "Product Website URL",
+      "required": true,
+      "placeholder": "https://example.com/"
+    },
+    {
+      "name": "productNotes",
+      "type": "textarea",
+      "label": "About the Product (natural language)",
+      "required": true,
+      "rows": 4,
+      "placeholder": "e.g., It is a dating and friendship app for GenZ. Focus on dating for now."
+    },
+    {
+      "name": "preparedFor",
+      "type": "text",
+      "label": "Prepared For (contact/team name on the cover)",
+      "placeholder": "e.g., Example Team"
+    },
+    {
+      "name": "timeRange",
+      "type": "select",
+      "label": "Content Time Range",
+      "default": "3months",
+      "options": [
+        { "value": "month", "label": "Last month" },
+        { "value": "3months", "label": "Last 3 months" },
+        { "value": "6months", "label": "Last 6 months" },
+        { "value": "all", "label": "All time" }
+      ]
+    },
+    {
+      "name": "targetCountry",
+      "type": "select",
+      "label": "Target Country (for Meta Ads)",
+      "default": "US",
+      "options": [
+        { "value": "US", "label": "United States" },
+        { "value": "GB", "label": "United Kingdom" },
+        { "value": "CA", "label": "Canada" },
+        { "value": "ALL", "label": "All Countries" }
+      ]
+    }
+  ]
+}
+</form>
+</input>
+
+<task id="product-research" label="Step 1: Product Research">
+## Product Research — URL + Notes → Client Profile
+
+**Use the `product-research` skill** to turn the URL and natural-language notes into the structured profile every later step consumes.
+
+```bash
+uv run --project skills/product-research/runtime \
+  skills/product-research/runtime/research_product.py \
+  --url "{websiteUrl from @product-info}" \
+  --notes "{productNotes from @product-info}" \
+  -o product_profile_tmp.json
+```
+
+Read `brand_folder` from the output, create the folder, and move the profile in:
+
+```bash
+BRAND_FOLDER=$(python3 -c "import json; print(json.load(open('product_profile_tmp.json'))['brand_folder'])")
+mkdir -p "$BRAND_FOLDER/thumbnails"
+mv product_profile_tmp.json "$BRAND_FOLDER/product_profile.json"
+```
+
+All subsequent outputs go into `{brandFolder}/`. The profile provides `client_name`, `client_description`, `niche_label`, `keyword_seeds`, and `known_competitor_candidates` for the steps below.
+
+**Output:** `{brandFolder}/product_profile.json`
+</task>
+
+<task id="competitor-research" label="Step 2: Competitor Research">
+## Discover and Verify True Competitors
+
+**Use the `competitor-research` skill**, seeded with the candidates from the product profile:
+
+```bash
+uv run --project skills/competitor-research/runtime \
+  skills/competitor-research/runtime/research_competitors.py \
+  --client "{client_name from product_profile.json}" \
+  --description "{client_description from product_profile.json}" \
+  --website "{websiteUrl from @product-info}" \
+  --competitors "{comma-separated names from product_profile.json → known_competitor_candidates}" \
+  --max-competitors 12 \
+  --tiktok-presence \
+  --report \
+  -o {brandFolder}/competitors_research.json
+```
+
+`--tiktok-presence` also produces `{brandFolder}/competitors_tiktok_presence.json` and `--report` writes `{brandFolder}/competitor_report.md`.
+
+Then derive `{brandFolder}/competitors_confirmed.json` from the Tier 1 + Tier 2 competitors (same shape as the per-platform workflows use). In an interactive session, pause at @review-competitors first; in an autonomous run, confirm Tier 1 + Tier 2 as-is and note that in the file.
+
+**Output:** `{brandFolder}/competitors_research.json`, `competitors_confirmed.json`, `competitors_tiktok_presence.json`, `competitor_report.md`
+</task>
+
+<break id="review-competitors" label="Review Competitor List (optional)">
+Review `{brandFolder}/competitors_research.json`. Keep / remove / add competitors, then continue. Skip this break when running autonomously — Tier 1 + Tier 2 are confirmed automatically.
+</break>
+
+<task id="keyword-research" label="Step 3: Keyword Research (all platforms)">
+## Generate Platform-Native Keywords
+
+Reuse the platform keyword skills where they exist, seeded from `product_profile.json → keyword_seeds`:
+
+```bash
+# TikTok keywords (top 20)
+uv run --project skills/tiktok-keyword-research/runtime \
+  skills/tiktok-keyword-research/runtime/research_keywords.py \
+  --client "{client_name}" --description "{client_description}" \
+  --website "{websiteUrl}" \
+  --competitors "{comma-separated confirmed competitor names}" \
+  --max-keywords 20 \
+  -o {brandFolder}/keywords_tiktok.json
+
+# Instagram keywords (top 50: competitor_keywords for Meta Ads + top_keywords for Reels)
+uv run --project skills/instagram-keyword-research/runtime \
+  skills/instagram-keyword-research/runtime/research_keywords.py \
+  --client "{client_name}" --description "{client_description}" \
+  --website "{websiteUrl}" \
+  --competitors "{comma-separated confirmed competitor names}" \
+  --max-keywords 50 \
+  -o {brandFolder}/keywords_instagram.json
+```
+
+For YouTube, derive `{brandFolder}/keywords_youtube.json` from the TikTok keywords + `keyword_seeds`, following the YouTube-native guidance in `youtube-shorts-research.anyt` (question-based queries, "shorts" suffix variants, competitor names).
+
+**App products (`product_profile.json → is_app`):** when the client is an app, use "xxx app" keyword variants everywhere organic search happens — "spark app", "mint finance app", "best dating apps" — plain common-word app names can be ambiguous in social search. The keyword skills apply this automatically; carry it into the YouTube keyword derivation too. (Meta Ads Library `--advertiser` names stay the exact brand name.)
+
+**Output:** `{brandFolder}/keywords_tiktok.json`, `keywords_instagram.json`, `keywords_youtube.json`
+</task>
+
+<task id="browse-tiktok" label="Step 4a: Browse TikTok">
+## Browse TikTok with Keywords
+
+Same flow as `tiktok-research.anyt` Step 4 (single round — hashtag expansion is a follow-up workflow):
+
+```bash
+uv run --project skills/browse-tiktok-research/runtime \
+  skills/browse-tiktok-research/runtime/browse.py \
+  {top_keywords from keywords_tiktok.json, each in quotes} \
+  --sort-by likes \
+  --time-range {timeRange from @product-info} \
+  -n 10 \
+  --max-time 300 \
+  --no-details \
+  -o {brandFolder}/browse_tiktok.json
+```
+
+Note: TikTok search results show **likes**, not views. If the browse hits a login wall, fall back to Gemini + Google Search grounded video discovery (search "site:tiktok.com" + keywords) and TikTok oEmbed for metadata; record `"source": "search-fallback"` in the JSON.
+
+**Output:** `{brandFolder}/browse_tiktok.json` + summary `{brandFolder}/browse_tiktok_top.md` (top 30 by likes)
+
+Steps 4a-4d are independent — run them in parallel where possible.
+</task>
+
+<task id="browse-instagram" label="Step 4b: Browse Instagram Reels">
+## Browse Instagram Reels
+
+Same flow as `instagram-research.anyt` Step 5, using ONLY `top_keywords` (organic keywords):
+
+```bash
+uv run --project skills/browse-instagram-reels/runtime \
+  skills/browse-instagram-reels/runtime/browse.py \
+  {top_keywords from keywords_instagram.json} \
+  -n 10 \
+  --min-views 50000 \
+  -o {brandFolder}/browse_instagram.json
+```
+
+If Instagram requires login and no session is available — or the browse returns mostly low-view content — use the skill's **login-less discovery script**, which searches indexed reels, reads real og-tag metrics, and **self-expands with hashtags mined from accepted reels** until enough high-engagement content qualifies:
+
+```bash
+uv run --project skills/browse-instagram-reels/runtime \
+  skills/browse-instagram-reels/runtime/discover_reels.py \
+  {top_keywords} --min-likes 10000 --target 8 --rounds 3 \
+  -o {brandFolder}/browse_instagram_discovered.json
+```
+
+Try `--min-likes 50000` first; drop to `10000` (the hard floor) only if the niche is thin. This floor applies only to organic creator discovery. Source official brand/competitor Reels separately from confirmed handles and keep the top available posts regardless of engagement. `instagram-presence-research` (Gemini-grounded) remains the last resort for competitor handles; record whichever fallback was used.
+
+**Output:** `{brandFolder}/browse_instagram.json` + `{brandFolder}/browse_instagram_top.md`
+</task>
+
+<task id="browse-meta-ads" label="Step 4c: Browse Meta Ads Library">
+## Browse Meta Ads Library by Brand/Competitor Names
+
+Same flow as `instagram-research.anyt` Step 6 — use ONLY `competitor_keywords` (brand names) via `--advertiser`:
+
+```bash
+uv run --project skills/browse-meta-ads-library/runtime \
+  skills/browse-meta-ads-library/runtime/browse.py \
+  --advertiser "{client_name}" \
+  --advertiser "{competitor 1}" \
+  --advertiser "{competitor 2}" \
+  ... \
+  --country {targetCountry from @product-info} \
+  -n 25 \
+  -o {brandFolder}/ads_research.json
+```
+
+**Immediately** download creatives from each ad's `creative_urls` (signed CDN URLs expire in hours) into `{brandFolder}/thumbnails/ad-{slug}.jpg`.
+
+**Output:** `{brandFolder}/ads_research.json`, `ads_research_top.md`, ad thumbnails
+</task>
+
+<task id="browse-youtube" label="Step 4d: Browse YouTube Shorts">
+## Browse YouTube Shorts
+
+Same flow as `youtube-shorts-research.anyt` Step 4 (headless, no login needed):
+
+```bash
+uv run --project skills/browse-youtube-shorts/runtime \
+  skills/browse-youtube-shorts/runtime/browse.py \
+  {keywords from keywords_youtube.json, each in quotes} \
+  -n 10 \
+  --min-views 100000 \
+  --time-range {timeRange mapped to today/week/month/year/all} \
+  -o {brandFolder}/browse_youtube.json
+```
+
+**Output:** `{brandFolder}/browse_youtube.json` + `{brandFolder}/browse_youtube_top.md`
+</task>
+
+<task id="curate-content" label="Step 5: Curate ~10 Contents per Platform">
+## Select and Diversify the Content Set
+
+From the browse results + competitor presence data, curate per platform:
+
+- **5 brand/competitor contents** — official brand accounts (client's competitors, ideally across several brands)
+- **5 organic creator contents** — non-brand creators winning in the niche
+- **Minimum engagement (organic creators, hard):** creator content needs **>=50K views/likes**; if the niche can't fill the slots at 50K, relax the floor to **>=10K**, never lower. **Brand/competitor content has no engagement floor at all** - never pre-filter official posts at 10K (or any other threshold); curate the top ones available regardless of views because weak brand numbers are a finding, not a gap
+- **Diversity rules (hard):** max **3 videos from the same account** per platform; aim for **3+ distinct content formats** per platform (POV skit, talking head, street interview, UGC demo, meme, vlog, screen demo…)
+- Label every video with `handle`, `metric` (likes/views), and `format`
+
+Fetch thumbnails into `{brandFolder}/thumbnails/`:
+
+```bash
+# TikTok: oEmbed
+curl -sL "https://www.tiktok.com/oembed?url={video_url}" | python3 -c "import sys,json; print(json.load(sys.stdin)['thumbnail_url'])" | xargs -I{} curl -sL -o "{brandFolder}/thumbnails/tiktok-{video_id}.jpg" "{}"
+
+# YouTube Shorts
+yt-dlp --skip-download --write-thumbnail --convert-thumbnails jpg -o "{brandFolder}/thumbnails/yt-%(id)s.%(ext)s" {urls}
+
+# Instagram: yt-dlp or the Reel page og:image
+```
+
+Verify: `find {brandFolder}/thumbnails -name '*.jpg' -size -15k -print` — re-capture anything under 15 KB.
+
+**Output:** curated content lists (feed directly into `report_data.json` in the next step), thumbnails
+</task>
+
+<break id="review-content" label="Review Curated Content (optional)">
+Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap out anything off-niche. Skip when running autonomously — the diversity validator in the report skill flags violations.
+</break>
+
+<task id="generate-report" label="Step 6: Generate Social Content Research Report">
+## Build the Deck with the social-content-research-report Skill
+
+1. Consolidate everything into `{brandFolder}/report_data.json` following the schema in `skills/social-content-research-report/SKILL.md`:
+   - `cover` — client name, subtitle, `{preparedFor from @product-info}`, current month/year
+   - `exec` — 3 findings + "what this means for content" from the cross-platform evidence
+   - `landscape` — tight copy + ONE hero stat (the most striking number found)
+   - `competitive` — 3 tier rows from `competitors_confirmed.json` + presence data
+   - `platforms.tiktok/instagram/youtube` — the curated 5+5 video lists from Step 5
+   - `meta_ads` — 6 ads from `ads_research.json` (filter `advertiser` to real target brands); include each ad's `ad_id` so the deck cards deep-link to the specific ad (`https://www.facebook.com/ads/library/?id={ad_id}`), not a keyword search
+   - `formats` — 4 format cards synthesizing what works cross-platform
+   - `connect` — About Adant AI product overview: keep the capability-card defaults, use `contact@anyloop.ai`, and include case-study identities, URLs, or performance metrics only when they are verified public information or explicitly approved by the user
+
+2. Build HTML + markdown (validates diversity rules + unfilled placeholders). Final report files are named `{product_name}_social_content_research_{date}` (lowercase product slug from `brand_folder`, date as `YYYY-MM-DD`):
+
+```bash
+uv run --project skills/social-content-research-report/runtime \
+  skills/social-content-research-report/runtime/build_deck.py \
+  --data {brandFolder}/report_data.json \
+  -o {brandFolder}/{product_name}_social_content_research_{date}.html \
+  --md {brandFolder}/{product_name}_social_content_research_{date}.md
+```
+
+3. Render PDF:
+
+```bash
+python3 skills/slide-pdf-generator/runtime/to_pdf.py \
+  {brandFolder}/{product_name}_social_content_research_{date}.html \
+  {brandFolder}/{product_name}_social_content_research_{date}.pdf --wait 8
+```
+
+4. Check: exactly 13 pages, no gray thumbnail boxes, no overflow clipping, no pricing/deliverables anywhere. Copy stays tight per the skill's length guidance (findings ≤ 2 sentences, intros 1-2 sentences, every sentence carries a number or a decision).
+
+**Output:** `{brandFolder}/{product_name}_social_content_research_{date}.pdf` + `.md` (+ `.html` clickable review copy)
+</task>
+
+<note id="complete" label="Research Complete">
+## Final Output
+
+```
+{brandFolder}/
+├── product_profile.json
+├── competitors_research.json
+├── competitors_confirmed.json
+├── competitors_tiktok_presence.json
+├── competitor_report.md
+├── keywords_tiktok.json / keywords_instagram.json / keywords_youtube.json
+├── browse_tiktok.json / browse_instagram.json / browse_youtube.json
+├── browse_*_top.md
+├── ads_research.json / ads_research_top.md
+├── report_data.json
+├── thumbnails/
+├── {product_name}_social_content_research_{date}.html   (clickable review copy)
+├── {product_name}_social_content_research_{date}.md     (markdown version)
+└── {product_name}_social_content_research_{date}.pdf    (13 landscape pages)
+```
+
+**Follow-ups:** run the full `tiktok-research.anyt` / `instagram-research.anyt` / `youtube-shorts-research.anyt` for two-round keyword expansion + hand-picked deep dives, or `pitch-slides-report.anyt` when it's time to pitch (pricing + deliverables live there).
+</note>

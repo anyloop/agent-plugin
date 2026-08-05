@@ -1,0 +1,20 @@
+# Dev environment
+runtime/.venv/
+runtime/.ruff_cache/
+runtime/__pycache__/
+runtime/.pytest_cache/
+
+# Tests
+runtime/tests/
+
+# Dev config
+runtime/.python-version
+
+# Lockfile (consumers resolve their own deps)
+runtime/uv.lock
+
+# Skill output
+output/
+
+# User data (cookies, sessions)
+data/

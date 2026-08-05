@@ -1,0 +1,4 @@
+interface:
+  display_name: "Initial Social Content Research"
+  short_description: "Research social content and build a deck"
+  default_prompt: "Use $initial-social-content-research to research this product’s short-form content landscape and build a report."

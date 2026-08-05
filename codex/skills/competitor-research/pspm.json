@@ -1,0 +1,20 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "competitor-research",
+  "version": "0.2.0",
+  "description": "Three-phase competitive intelligence: discover true competitors via capability cluster analysis, research TikTok presence, and generate a combined competitor analysis report",
+  "author": "Shortflow",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Identify true competitors via Gemini with Google Search grounding and capability cluster analysis",
+    "Classify competitors into tiers (direct, partial overlap, behavioral substitute) by capability overlap",
+    "Research each competitor's TikTok presence (handles, followers, videos, content strategy, viral videos)",
+    "Generate a markdown competitor analysis report combining competitive intelligence with TikTok presence",
+    "Verify user-provided competitor lists and exclude non-competitors with reasoning",
+    "Distinguish decision-layer vs tool-layer products to avoid false competitor identification"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {}
+}

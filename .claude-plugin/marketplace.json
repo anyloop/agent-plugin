@@ -1,0 +1,23 @@
+{
+  "name": "adant-ai",
+  "owner": {
+    "name": "AdAnt AI",
+    "email": "contact@anyloop.ai",
+    "url": "https://adant.ai"
+  },
+  "description": "Official AdAnt plugin for social research, strategy, and short-form ad creation.",
+  "plugins": [
+    {
+      "name": "adant",
+      "source": "./claude",
+      "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt.",
+      "category": "Design",
+      "homepage": "https://adant.ai",
+      "author": {
+        "name": "AdAnt AI",
+        "email": "contact@anyloop.ai"
+      },
+      "keywords": ["ads", "ai-video", "creative", "mcp", "research", "social-content", "strategy"]
+    }
+  ]
+}

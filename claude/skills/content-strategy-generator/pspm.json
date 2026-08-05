@@ -1,0 +1,21 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "content-strategy-generator",
+  "version": "0.1.0",
+  "description": "Turn Gemini-analyzed trending videos into 5-10 copy-paste-ready content strategies for a product: reads the initial social content research report (md or pdf), hard-excludes past inspiration videos by URL, drops concept-duplicates via fingerprint comparison, adapts scripts and text overlays to the product while keeping the source hook and viral format, and maintains the strategy history across batches",
+  "author": "Adant AI",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Read the initial social content research report in markdown or PDF",
+    "Hard-exclude past inspiration videos (strategy history + user-provided lists) by URL",
+    "Concept-similarity filter: Gemini compares candidate fingerprints against past strategy concepts",
+    "Generate 5-10 strategies: inspiration video, avatar suggestion, adapted script, adapted text overlays, editing instructions",
+    "Keep the source hook and viral format - small changes only, product swapped in",
+    "Render a markdown report with per-strategy copyable blocks and Adant (adant.ai) paste instructions",
+    "Append the batch to the strategy history JSON so the next run never repeats a concept"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {}
+}

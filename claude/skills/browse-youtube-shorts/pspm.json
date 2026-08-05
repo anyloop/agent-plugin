@@ -1,0 +1,20 @@
+{
+  "$schema": "https://pspm.dev/schema/v1/pspm.json",
+  "name": "browse-youtube-shorts",
+  "version": "0.1.0",
+  "description": "Browse YouTube Shorts by keywords to find viral content for brand research, returning Shorts with view counts and channel metrics",
+  "author": "Shortflow",
+  "license": "Apache-2.0",
+  "type": "skill",
+  "capabilities": [
+    "Search YouTube Shorts by keywords",
+    "No login required (public search)",
+    "Extract Shorts URLs, view counts, channel names, upload dates",
+    "Filter by time range and sort order",
+    "Generate research reports with engagement metrics"
+  ],
+  "main": "SKILL.md",
+  "files": ["SKILL.md", "runtime"],
+  "dependencies": {},
+  "githubDependencies": {}
+}
