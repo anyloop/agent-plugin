@@ -16,7 +16,5 @@
   "main": "SKILL.md",
   "files": ["SKILL.md", "runtime"],
   "dependencies": {},
-  "githubDependencies": {
-    "github:browser-use/browser-use": "HEAD"
-  }
+  "githubDependencies": {}
 }

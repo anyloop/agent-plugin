@@ -588,6 +588,101 @@
     background: none; border: none;
   }
 
+  /* ─── SAMPLE CONTENT STRATEGY (opener, per-strategy slides, closing) ─── */
+  .strat-open { padding: 54px 72px 44px; justify-content: center; }
+  .strat-open-grid {
+    display: grid;
+    grid-template-columns: 5fr 7fr;
+    gap: 42px;
+    align-items: center;
+    position: relative; z-index: 2;
+  }
+  .strat-open .section-title { font-size: 44px; margin-bottom: 14px; }
+  .strat-open-copy {
+    font-size: 15.5px; line-height: 1.6;
+    color: #e7e5e4;
+    max-width: 440px;
+  }
+  .strat-open-copy strong { color: var(--ink-text); font-weight: 600; }
+  .gen-card {
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 16px;
+    background: rgba(255,255,255,0.05);
+    padding: 18px 22px 20px;
+  }
+  .gen-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: #e8a888;
+    margin-bottom: 11px;
+  }
+  .gen-pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; line-height: 1.62;
+    color: #e7e5e4;
+    white-space: pre-wrap;
+  }
+
+  .strat-slide { padding-top: 38px; padding-bottom: 30px; }
+  .strat-slide .section-title { font-size: 33px; margin-bottom: 6px; }
+  .strat-grid {
+    display: grid;
+    grid-template-columns: 224px 1fr;
+    gap: 34px;
+    flex: 1;
+    align-items: start;
+    margin-top: 8px;
+    position: relative; z-index: 2;
+  }
+  .strat-meta-row {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--terracotta);
+    margin-bottom: 12px;
+  }
+  .strat-why {
+    font-size: 14.5px; line-height: 1.55;
+    color: var(--body);
+    margin-bottom: 16px;
+    max-width: 780px;
+  }
+  .strat-why strong { color: var(--text); font-weight: 600; }
+  .msg-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .msg-block {
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--terracotta);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 15px 18px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11.5px; line-height: 1.62;
+    color: var(--body-strong);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .strat-close { padding: 56px 72px 46px; justify-content: center; align-items: center; }
+  .strat-close-inner {
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    position: relative; z-index: 2;
+  }
+  .strat-close .section-label { align-self: center; }
+  .strat-close .section-title { font-size: 54px; margin-bottom: 10px; }
+  .strat-close-copy {
+    font-size: 16.5px; line-height: 1.6;
+    color: #e7e5e4;
+    max-width: 560px;
+    margin: 6px 0 26px;
+  }
+
 </style>
 </head>
 <body>
@@ -816,24 +911,11 @@
           <div class="label">{{heroMetric3Label}}</div>
         </div>
       </div>
-      <div class="case-row">
-        <div class="case-card">
-          <a href="{{case1_url}}" target="_blank"><div class="small-phone"><div class="pf">TIKTOK</div><img src="{{case1_thumb}}" alt="{{case1_brand}}"></div></a>
-          <div class="case-info"><div class="b">{{case1_brand}}</div><div class="s">{{case1_stat}}</div></div>
-        </div>
-        <div class="case-card">
-          <a href="{{case2_url}}" target="_blank"><div class="small-phone"><div class="pf">TIKTOK</div><img src="{{case2_thumb}}" alt="{{case2_brand}}"></div></a>
-          <div class="case-info"><div class="b">{{case2_brand}}</div><div class="s">{{case2_stat}}</div></div>
-        </div>
-        <div class="case-card">
-          <a href="{{case3_url}}" target="_blank"><div class="small-phone"><div class="pf">TIKTOK</div><img src="{{case3_thumb}}" alt="{{case3_brand}}"></div></a>
-          <div class="case-info"><div class="b">{{case3_brand}}</div><div class="s">{{case3_stat}}</div></div>
-        </div>
-      </div>
+      {{caseRowHtml}}
     </div>
   </div>
   <div class="page-num">13</div>
 </div>
-
+{{strategySectionHtml}}
 </body>
 </html>

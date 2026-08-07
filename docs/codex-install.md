@@ -19,6 +19,12 @@ flow was closed or the account needs to change, run:
 codex mcp login adant
 ```
 
+Run this command in your system terminal and complete sign-in in your regular
+Chrome or Safari browser. If Google shows a timeout in Codex's built-in
+browser, return to the AdAnt authorization page, copy its full address, and
+paste it into the regular browser while the command keeps running. The AdAnt
+page also provides a **Copy sign-in link** button for this recovery path.
+
 ## Verify
 
 ```bash

@@ -23,7 +23,5 @@
   ],
   "dependencies": {},
   "private": false,
-  "githubDependencies": {
-    "github:browser-use/browser-use": "HEAD"
-  }
+  "githubDependencies": {}
 }

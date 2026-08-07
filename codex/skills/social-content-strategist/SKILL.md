@@ -36,9 +36,10 @@ maintaining history so later batches do not repeat URLs or concepts.
 
 ## Preflight
 
-- Require Python 3.11+, `uv`, `yt-dlp`, Google Chrome, and `GEMINI_API_KEY` in
-  the process environment. `TIKAPI_KEY` is optional and used only for the
-  documented TikTok fallback. Never persist secrets in the plugin.
+- Require Python 3.11+, `uv`, `yt-dlp`, Node.js/npm, and Google Chrome. Confirm
+  AdAnt CLI authentication with `npx @anyloop/adant-cli credit balance`; if missing, ask
+  for `npx @anyloop/adant-cli auth login`. Never request a Gemini or other upstream model
+  key. `TIKAPI_KEY` remains optional for the documented TikTok fallback only.
 - Explain any interactive TikTok or Instagram login before opening the dedicated
   research browser. Do not copy, expose, or log cookie contents.
 - Read a component skill's `SKILL.md` before invoking its runtime.
@@ -63,8 +64,8 @@ maintaining history so later batches do not repeat URLs or concepts.
    Rank by engagement, recency, relevance, cloneability, and format diversity;
    retain roughly twice the requested strategy count.
 6. **Video understanding:** run `trend-video-understanding` for every retained
-   candidate, at most 3–4 concurrent jobs. Drop download failures and top up the
-   pool before strategy generation.
+   candidate. It calls authenticated `adant-cli media analyze`, so respect AdAnt
+   usage and limit concurrency to 3–4 jobs. Drop failures and top up the pool.
 7. **Strategies:** run `content-strategy-generator` with the candidate manifest
    and history. If it exits with code 2 because all concepts are too similar,
    expand to adjacent angles and repeat research rather than weakening dedupe.

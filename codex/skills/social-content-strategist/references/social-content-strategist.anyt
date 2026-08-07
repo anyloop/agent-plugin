@@ -4,7 +4,7 @@ name: social-content-strategist
 description: Turn an initial social content research report into 5-10 copy-paste-ready
   content strategies built on the freshest trending videos (last 1-2 months) across
   TikTok, Instagram Reels, Meta Ads Library, and YouTube Shorts. Every candidate video
-  is deeply analyzed with Gemini video understanding; past inspiration videos and
+  is deeply analyzed through AdAnt's authenticated video-understanding API; past inspiration videos and
   concept-duplicates are excluded via the strategy history, so each batch is new.
 workdir: anyt_workspace_social_content_strategist
 ---
@@ -24,13 +24,15 @@ Both modes then share the **strategy history** (past batches and/or a user-provi
 1. **Ingest** — read the initial report + product profile; derive fresh, slightly-more-creative trend keywords
 2. **Trend Browse** — all four platforms (TikTok, Instagram Reels, Meta Ads Library, YouTube Shorts), **strict recency: last 1-2 months only**
 3. **Candidate Selection** — merge, dedupe, hard-exclude history URLs, rank by engagement x recency, keep ~2x the target count
-4. **Video Understanding** — `trend-video-understanding` skill runs Gemini video understanding (clone-video Pass-1 prompt) on EVERY candidate
+4. **Video Understanding** — `trend-video-understanding` calls authenticated `adant-cli media analyze` on EVERY candidate
 5. **Strategy Generation** — `content-strategy-generator` skill: concept-similarity filter vs history, then 5-10 **concise** strategies (source hook + viral format preserved), each a short copy-paste message for Adant (https://adant.ai) — inspiration video, avatar, what to keep, what to change, 2-3 overlay lines, nothing more — history updated
 
 **Finding the right inspiration video is the most important step** — favor proven engagement, hooks that map naturally to the product, and format diversity across the batch.
 
 **Prerequisites:**
-- `GEMINI_API_KEY` in `.env` (video understanding + strategy generation)
+- AdAnt CLI authentication (`npx @anyloop/adant-cli auth login` when needed). AdAnt owns
+  the upstream model credentials for video understanding and strategy generation;
+  never request a Gemini or other model-provider key.
 - `TIKAPI_KEY` in `.env` for the TikTok fallback when no browse login session exists
 - The browse skills' login sessions where available (TikTok/Instagram); every platform has a documented fallback
 </note>
@@ -193,7 +195,7 @@ uv run --project skills/browse-instagram-reels/runtime \
 # (drop --min-likes to 10000 only if the 50K tier is too thin; never below 10K)
 ```
 
-Fallbacks (same as initial-social-content-research): TikAPI for TikTok, `web_profile_info` + Google-indexed reel URLs for Instagram, Gemini + Google Search grounding as last resort. Record `"source"` in each JSON.
+Fallbacks (same as initial-social-content-research): TikAPI for TikTok when configured, and public search indexes plus verified page/oEmbed metadata for Instagram. Record `"source"` in each JSON; never request an upstream model key.
 
 **Output:** `{brandFolder}/trend_tiktok.json`, `trend_youtube.json`, `trend_ads.json`, `trend_instagram.json`
 </task>
@@ -215,10 +217,10 @@ Write `{brandFolder}/candidates.json`:
 **Output:** `{brandFolder}/candidates.json`
 </task>
 
-<task id="understand-videos" label="Step 4: Gemini Video Understanding on Every Candidate">
+<task id="understand-videos" label="Step 4: AdAnt Video Understanding on Every Candidate">
 ## Deep-Analyze Each Candidate
 
-Run `trend-video-understanding` on EVERY candidate (downloads the video, runs the clone-video Pass-1 analysis + concept fingerprint). The `-o` skip-if-exists behavior makes re-runs cheap.
+Run `trend-video-understanding` on EVERY candidate. It downloads the video and calls authenticated `npx @anyloop/adant-cli media analyze` for the narrative analysis plus concept fingerprint. The `-o` skip-if-exists behavior makes re-runs cheap.
 
 ```bash
 # For each candidate:
@@ -268,7 +270,7 @@ Review the strategy report. Swap out any strategy whose inspiration video feels 
 ├── trend_keywords.json
 ├── trend_tiktok.json / trend_instagram.json / trend_youtube.json / trend_ads.json
 ├── candidates.json
-├── candidates/analysis_*.json          (Gemini video understanding per candidate)
+├── candidates/analysis_*.json          (AdAnt video understanding per candidate)
 ├── {product}_content_strategies_{date}.md   (copy-paste strategy report)
 └── {product}_strategy_history.json     (grows every batch - feeds the next run's exclusions)
 ```

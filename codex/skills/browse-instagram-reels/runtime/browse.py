@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Instagram Reels Browse - AI-powered Instagram Reels research using browser-use.
+Instagram Reels Browse - deterministic Instagram Reels research through Chrome CDP.
 
 Uses a persistent Chrome profile with CDP (Chrome DevTools Protocol).
 On first run, you log into Instagram once. Subsequent runs reuse the session.
@@ -33,9 +33,6 @@ _project_root = _skill_dir.parent.parent
 for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
     if env_file.exists():
         load_dotenv(env_file)
-
-from browser_use import Agent
-from browser_use.browser import BrowserProfile, BrowserSession
 
 from config import (
     DEFAULT_MIN_VIEW_FOLLOWER_RATIO,
@@ -578,16 +575,6 @@ def _recover_from_agent_history(result, keywords: list[str] | None = None) -> di
     return None
 
 
-def _create_browser_session() -> BrowserSession:
-    """Create a new browser session connected to Chrome CDP."""
-    return BrowserSession(
-        browser_profile=BrowserProfile(
-            cdp_url=f"http://localhost:{CDP_PORT}",
-            is_local=True,
-        )
-    )
-
-
 # ---------------------------------------------------------------------------
 # Direct CDP extraction (no browser-use, no screenshots, fast)
 # ---------------------------------------------------------------------------
@@ -596,11 +583,14 @@ JS_EXTRACT_REELS = r"""
 (function() {
   var reels = [];
   var seen = new Set();
-  document.querySelectorAll('a[href*="/reel/"]').forEach(function(a) {
+  // Instagram's keyword-search grid links every post as /p/<shortcode>/, including
+  // video posts; /reel/<shortcode>/ only appears in some surfaces. Match both and
+  // normalise to the /reel/ permalink, which redirects correctly either way.
+  document.querySelectorAll('a[href*="/reel/"], a[href*="/p/"]').forEach(function(a) {
     var href = a.href;
-    var m = href.match(/(https:\/\/www\.instagram\.com\/reel\/[A-Za-z0-9_-]+)/);
+    var m = href.match(/instagram\.com\/(?:reel|p)\/([A-Za-z0-9_-]+)/);
     if (!m) return;
-    var url = m[1] + '/';
+    var url = 'https://www.instagram.com/reel/' + m[1] + '/';
     if (seen.has(url)) return;
     seen.add(url);
     var card = a.closest('div') || a.parentElement;
@@ -703,17 +693,17 @@ async def _cdp_search_keyword(
                 await asyncio.sleep(0.5)
             await asyncio.sleep(1)
 
-            # Instagram explore/search may not have a direct Reels filter via URL.
-            # Try clicking on the "Reels" tab if visible.
+            # Only click a Reels *tab* that belongs to the search results. Matching
+            # any element whose text is "reels" also matches the global nav link,
+            # which navigates to the single-reel viewer and destroys the result
+            # grid we are about to read (the grid is where the posts actually are).
             click_reels_js = """
 (function() {
-  // Look for Reels tab/button in the search results
-  var els = document.querySelectorAll('a, button, [role="tab"], span');
-  for (var i = 0; i < els.length; i++) {
-    var text = els[i].textContent.trim().toLowerCase();
-    if (text === 'reels') {
-      els[i].click();
-      return 'clicked_reels';
+  var tabs = document.querySelectorAll('[role="tab"], [role="tablist"] a, [role="tablist"] button');
+  for (var i = 0; i < tabs.length; i++) {
+    if (tabs[i].textContent.trim().toLowerCase() === 'reels') {
+      tabs[i].click();
+      return 'clicked_reels_tab';
     }
   }
   return 'no_reels_tab';
@@ -791,73 +781,6 @@ def _merge_reel_data(file_data: dict, history_reels: list[dict]) -> dict:
     return file_data
 
 
-async def _run_agent(
-    task: str,
-    keywords: list[str] | None = None,
-    max_steps: int = 30,
-    timeout_seconds: int = 120,
-) -> dict | None:
-    """Run a browser-use agent with the given task and return parsed JSON.
-
-    Args:
-        task: The natural language task for the agent.
-        keywords: Keywords being searched (for result recovery).
-        max_steps: Maximum agent steps before forced stop (default 30).
-        timeout_seconds: Hard timeout in seconds (default 120 = 2 minutes).
-    """
-    from browser_use import ChatGoogle
-
-    # Clean up stale temp files from previous runs so recovery only finds current data
-    _cleanup_old_agent_files()
-
-    start_time = time.time()
-    browser_session = _create_browser_session()
-    llm = ChatGoogle(model="gemini-2.5-flash")
-    agent = Agent(task=task, llm=llm, browser_session=browser_session, max_steps=max_steps)
-
-    result_obj = None
-    try:
-        result_obj = await asyncio.wait_for(agent.run(), timeout=timeout_seconds)
-
-        final_result = result_obj.final_result()
-        if final_result:
-            parsed = _try_parse_json_results(final_result)
-            if parsed is not None:
-                return parsed
-    except asyncio.TimeoutError:
-        print(f"Agent timed out after {timeout_seconds}s. Recovering partial results...", file=sys.stderr)
-    except Exception as e:
-        print(f"Error during agent run: {e}", file=sys.stderr)
-
-    # Try recovering from temp files
-    file_data = _recover_results_from_files(since_timestamp=start_time)
-
-    # Try recovering extract history for captions/views
-    history_reels: list[dict] = []
-    if result_obj and hasattr(result_obj, "history") and result_obj.history:
-        for entry in result_obj.history:
-            if not hasattr(entry, "result") or not entry.result:
-                continue
-            for r in entry.result:
-                if hasattr(r, "extracted_content") and r.extracted_content:
-                    reels = _parse_markdown_reel_list(r.extracted_content)
-                    if reels:
-                        history_reels.extend(reels)
-
-    if file_data is not None:
-        if history_reels:
-            file_data = _merge_reel_data(file_data, history_reels)
-        return file_data
-
-    # Fall back to history-only recovery
-    if result_obj:
-        recovered = _recover_from_agent_history(result_obj, keywords=keywords)
-        if recovered is not None:
-            return recovered
-
-    return None
-
-
 async def browse_instagram_reels(
     keywords: list[str],
     max_results: int = DEFAULT_RESULTS_PER_KEYWORD,
@@ -894,7 +817,11 @@ async def browse_instagram_reels(
             results[kw] = []
             continue
 
-        per_keyword_timeout = min(45, remaining)
+        # A fixed 45s cap made --max-time inert: raising the total budget could not
+        # give a slow keyword more time. Share the remaining budget across the
+        # keywords still to run, with 45s as the floor rather than the ceiling.
+        keywords_left = max(1, len(keywords) - list(keywords).index(kw))
+        per_keyword_timeout = min(max(45.0, remaining / keywords_left), remaining)
         try:
             reels = await asyncio.wait_for(
                 _cdp_search_keyword(kw, max_results),
@@ -914,17 +841,13 @@ async def browse_instagram_reels(
 
     total = sum(len(v) for v in results.values())
 
-    # If CDP approach found no results, fall back to browser-use agent
+    # The documented fallback is discover_reels.py, which uses public search
+    # indexes and does not require a third-party model credential.
     if total == 0 and cdp_failed:
-        remaining = time_remaining()
-        if remaining > 30:
-            print("Phase 1 CDP found no results. Falling back to browser-use agent...", file=sys.stderr)
-            search_task = _build_search_task(keywords, max_results)
-            agent_timeout = min(120, int(remaining) - 10)
-            agent_data = await _run_agent(search_task, keywords=keywords, max_steps=35, timeout_seconds=agent_timeout)
-            if agent_data and "results" in agent_data:
-                results = agent_data["results"]
-                total = sum(len(v) for v in results.values())
+        print(
+            "Phase 1 CDP found no results. Use discover_reels.py for keyless indexed discovery.",
+            file=sys.stderr,
+        )
 
     if total == 0:
         print("Phase 1: No results found.", file=sys.stderr)
@@ -990,19 +913,24 @@ async def browse_instagram_reels(
                 reel.setdefault("follower_count", None)
         return results
 
-    phase2_timeout = min(90, int(remaining) - 5)
     capped_urls = high_view_urls[:10]
-    print(f"Phase 2: Getting detailed metrics for {len(capped_urls)} reels... (timeout: {phase2_timeout}s)")
-    detail_task = _build_detail_task(capped_urls)
-    detail_data = await _run_agent(detail_task, max_steps=25, timeout_seconds=phase2_timeout)
+    print(f"Phase 2: Getting public page metadata for {len(capped_urls)} reels...")
+    from discover_reels import fetch_reel
 
-    # Merge detail data back into results
-    video_details = {}
-    if detail_data and "video_details" in detail_data:
-        video_details = detail_data["video_details"]
-        print(f"Phase 2 complete: got details for {len(video_details)} reels")
-    else:
-        print("Phase 2: Could not parse detail results.", file=sys.stderr)
+    fetched = await asyncio.gather(
+        *(asyncio.to_thread(fetch_reel, url) for url in capped_urls)
+    )
+    video_details = {
+        url: {
+            "caption": detail.get("caption"),
+            "username": detail.get("handle", "").lstrip("@"),
+            "like_count": detail.get("likes"),
+            "comment_count": detail.get("comments"),
+        }
+        for url, detail in zip(capped_urls, fetched, strict=True)
+        if detail
+    }
+    print(f"Phase 2 complete: got details for {len(video_details)} reels")
 
     for reels in results.values():
         for reel in reels:
@@ -1044,6 +972,12 @@ def filter_outliers(
     An outlier reel has:
     - At least `min_views` views (default 50k)
     - A view-to-follower ratio of at least `min_view_follower_ratio` (default 5x)
+
+    Instagram no longer exposes a play count on the surfaces this skill reads, so
+    `view_count` is routinely 0 while `like_count` is present. Scoring those reels
+    on views alone rejects every one of them and reports "0 outliers" for a niche
+    that is actually busy. Fall back to likes (at a tenth of the view floor, the
+    usual like-to-view order of magnitude) whenever views are missing.
     """
     filtered = {}
     for keyword, reels in results.items():
@@ -1051,7 +985,11 @@ def filter_outliers(
         for reel in reels:
             views = reel.get("view_count")
             followers = reel.get("follower_count")
-            if not isinstance(views, (int, float)):
+            if not isinstance(views, (int, float)) or views <= 0:
+                likes = reel.get("like_count")
+                if not isinstance(likes, (int, float)) or likes < max(1, min_views // 10):
+                    continue
+                outliers.append({**reel, "outlier_basis": "likes"})
                 continue
             if views < min_views:
                 continue

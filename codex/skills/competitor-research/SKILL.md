@@ -7,7 +7,7 @@ description: Three-phase competitive intelligence — Phase 1 identifies true co
 
 Three-phase competitive intelligence tool:
 
-1. **Phase 1 — Competitor Discovery**: Identify TRUE competitors using capability cluster analysis with Gemini Google Search grounding
+1. **Phase 1 — Competitor Discovery**: Identify TRUE competitors using capability cluster analysis and authenticated AdAnt web research
 2. **Phase 2 — TikTok Presence**: Research each competitor's TikTok account, followers, content strategy, and viral videos
 3. **Phase 3 — Report Generation**: Generate a markdown competitor analysis report combining both data sets
 
@@ -23,7 +23,11 @@ This skill does proper competitive intelligence AND social presence analysis in 
 ## Prerequisites
 
 - `uv` (Python package manager)
-- `GEMINI_API_KEY` environment variable set (in `.env` or shell)
+- Node.js/npm for `npx @anyloop/adant-cli`
+- AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
+
+Never request a Gemini or other upstream model key. The runtime uses a temporary
+AdAnt agent session and the user's AdAnt account.
 
 ## Quick Start
 
@@ -73,7 +77,7 @@ uv run --project skills/competitor-research/runtime \
 
 ## Phase 1: Competitor Discovery
 
-Uses Gemini with Google Search grounding for web-verified competitive intelligence.
+Uses authenticated AdAnt web research for source-linked competitive intelligence.
 
 ### Capability Cluster Analysis
 

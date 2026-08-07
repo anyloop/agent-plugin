@@ -5,7 +5,8 @@ description: One-shot initial social content research — user provides a produc
   plus natural-language context, then the workflow runs product research, competitor
   research, and all three platform researches (TikTok, Instagram Reels + Meta Ads,
   YouTube Shorts), and generates a Social Content Research deck (not a pitch — no
-  pricing or deliverables, closes with an About Adant AI past-records page).
+  pricing or deliverables, closes with an About Adant AI past-records page and a
+  Sample Content Strategy section of copy-paste Adant messages).
 workdir: anyt_workspace_initial_social_content_research
 ---
 
@@ -21,14 +22,15 @@ Give this workflow a **product URL + whatever you know in natural language**, an
 3. **Keyword Research** — platform-native keywords per platform (TikTok, Instagram, YouTube)
 4. **Platform Browsing** — `browse-tiktok-research`, `browse-instagram-reels`, `browse-meta-ads-library`, `browse-youtube-shorts`
 5. **Content Curation** — ~10 contents per platform (5 brand/competitor + 5 organic creator), diverse formats, max 3 videos per account
-6. **Report** — `social-content-research-report` skill builds the 13-slide Social Content Research deck as `{product_name}_social_content_research_{date}` (PDF + MD, plus a clickable HTML review copy)
+6. **Report** — `social-content-research-report` skill builds the 20-slide Social Content Research deck (13 research + Sample Content Strategy) as `{product_name}_social_content_research_{date}` (PDF + MD, plus a clickable HTML review copy)
 
-**This is a research report, not a pitch**: no pricing page, no deliverables page. The final "Let's connect" slide carries a one-page intro to Adant AI's past records.
+**This is a research report, not a pitch**: no pricing page, no deliverables page. The "Let's connect" slide (13) carries a one-page intro to Adant AI's past records, and the deck then closes with a **Sample Content Strategy** section: the 5 strongest inspiration videos from this research, each rendered as a copy-paste Adant message in the `social-content-strategist` block shape, plus the adant.ai link again on the final slide.
 
 **Prerequisites:**
-- `GEMINI_API_KEY` in `.env`
+- AdAnt CLI authentication (`npx @anyloop/adant-cli auth login` when needed). AdAnt owns
+  all upstream model credentials; never request a Gemini or other provider key.
 - For TikTok/Instagram browsing: be logged into TikTok/Instagram in Chrome at least once (the browse skills import your session into a separate research browser). YouTube Shorts and Meta Ads Library browsing need no login.
-- If a platform browse hits a login wall, fall back to Gemini + Google Search grounded research (presence-research skills pattern) plus oEmbed metadata for that platform, and note the fallback in the report data.
+- If a platform browse hits a login wall, use the documented public-search/indexed-page fallback plus oEmbed or og-tag metadata, and note the fallback in the report data.
 </note>
 
 <input id="product-info" label="Product Information">
@@ -193,7 +195,7 @@ uv run --project skills/browse-tiktok-research/runtime \
   -o {brandFolder}/browse_tiktok.json
 ```
 
-Note: TikTok search results show **likes**, not views. If the browse hits a login wall, fall back to Gemini + Google Search grounded video discovery (search "site:tiktok.com" + keywords) and TikTok oEmbed for metadata; record `"source": "search-fallback"` in the JSON.
+Note: TikTok search results show **likes**, not views. If the browse hits a login wall, use web search with `site:tiktok.com` queries and TikTok oEmbed metadata; record `"source": "search-fallback"` in the JSON. Do not request a search-model API key.
 
 **Output:** `{brandFolder}/browse_tiktok.json` + summary `{brandFolder}/browse_tiktok_top.md` (top 30 by likes)
 
@@ -223,7 +225,7 @@ uv run --project skills/browse-instagram-reels/runtime \
   -o {brandFolder}/browse_instagram_discovered.json
 ```
 
-Try `--min-likes 50000` first; drop to `10000` (the hard floor) only if the niche is thin. This floor applies only to organic creator discovery. Source official brand/competitor Reels separately from confirmed handles and keep the top available posts regardless of engagement. `instagram-presence-research` (Gemini-grounded) remains the last resort for competitor handles; record whichever fallback was used.
+Try `--min-likes 50000` first; drop to `10000` (the hard floor) only if the niche is thin. This floor applies only to organic creator discovery. Source official brand/competitor Reels separately from confirmed handles and keep the top available posts regardless of engagement. Use public web results and verified Instagram pages as the last resort for competitor handles; record whichever fallback was used.
 
 **Output:** `{brandFolder}/browse_instagram.json` + `{brandFolder}/browse_instagram_top.md`
 </task>
@@ -312,8 +314,40 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
    - `meta_ads` — 6 ads from `ads_research.json` (filter `advertiser` to real target brands); include each ad's `ad_id` so the deck cards deep-link to the specific ad (`https://www.facebook.com/ads/library/?id={ad_id}`), not a keyword search
    - `formats` — 4 format cards synthesizing what works cross-platform
    - `connect` — About Adant AI product overview: keep the capability-card defaults, use `contact@anyloop.ai`, and include case-study identities, URLs, or performance metrics only when they are verified public information or explicitly approved by the user
+   - `strategies` — the Sample Content Strategy section (see the sub-step below)
 
-2. Build HTML + markdown (validates diversity rules + unfilled placeholders). Final report files are named `{product_name}_social_content_research_{date}` (lowercase product slug from `brand_folder`, date as `YYYY-MM-DD`):
+2. **Sample Content Strategy** — pick the **top 5 inspiration videos** out of everything curated in Step 5 and turn each into one copy-paste Adant message.
+
+   Selection: rank by engagement first, then by how cleanly the hook maps onto this product, then by format diversity. Hard rules: **max one video per account**, **at least two platforms represented**, no video that already appears twice in the deck, and organic creator picks still obey the engagement floor. Prefer videos whose format the product can actually stage (a screen demo beats a stunt the product cannot reproduce).
+
+   Read `skills/social-content-strategist/SKILL.md` before writing these — the block shape below is that skill's, and the deck renders the same **General Instructions** verbatim from `content-strategy-generator`, once, on the section opener. Per strategy, write only:
+
+   ```text
+   analyze <inspiration url>, and use a UGC avatar: <one-sentence avatar>
+
+   Hook to keep: <one sentence>
+
+   What to change: <one sentence - how the product swaps in>
+
+   Add text overlay:
+   <2-3 short overlay lines, last one the product tag>
+   ```
+
+   No full scripts, no timelines, no per-strategy repetition of the general instructions. The avatar is a suggestion only — never generate an image for it. Each entry goes into `report_data.json` as:
+
+   ```json
+   {"strategies": {
+     "headline": "…", "intro": "…", "closingHeadline": "…", "closingCopy": "…",
+     "items": [{"title": "…", "platform": "tiktok", "format": "POV SKIT",
+                "metric": "1.2M likes", "posted": "YYYY-MM-DD", "handle": "@x",
+                "url": "https://…", "thumb": "thumbnails/tiktok-1.jpg",
+                "why_this_video": "…", "avatar": "…", "hook_to_keep": "…",
+                "what_to_change": "…", "overlays": ["…", "…", "Product: tagline"]}]}}
+   ```
+
+   Fewer than 5 qualifying videos: ship what qualifies and say so in the delivery note rather than padding with weak picks. Omit `strategies` entirely and the deck falls back to 13 slides.
+
+3. Build HTML + markdown (validates diversity rules + unfilled placeholders). Final report files are named `{product_name}_social_content_research_{date}` (lowercase product slug from `brand_folder`, date as `YYYY-MM-DD`):
 
 ```bash
 uv run --project skills/social-content-research-report/runtime \
@@ -323,7 +357,7 @@ uv run --project skills/social-content-research-report/runtime \
   --md {brandFolder}/{product_name}_social_content_research_{date}.md
 ```
 
-3. Render PDF:
+4. Render PDF:
 
 ```bash
 python3 skills/slide-pdf-generator/runtime/to_pdf.py \
@@ -331,7 +365,7 @@ python3 skills/slide-pdf-generator/runtime/to_pdf.py \
   {brandFolder}/{product_name}_social_content_research_{date}.pdf --wait 8
 ```
 
-4. Check: exactly 13 pages, no gray thumbnail boxes, no overflow clipping, no pricing/deliverables anywhere. Copy stays tight per the skill's length guidance (findings ≤ 2 sentences, intros 1-2 sentences, every sentence carries a number or a decision).
+5. Check: exactly 20 pages (13 research + strategy opener + 5 strategies + closing), no gray thumbnail boxes, no overflow clipping, no pricing/deliverables anywhere. Every strategy message must name a URL that also appears on a research slide. Copy stays tight per the skill's length guidance (findings ≤ 2 sentences, intros 1-2 sentences, every sentence carries a number or a decision).
 
 **Output:** `{brandFolder}/{product_name}_social_content_research_{date}.pdf` + `.md` (+ `.html` clickable review copy)
 </task>
@@ -354,7 +388,7 @@ python3 skills/slide-pdf-generator/runtime/to_pdf.py \
 ├── thumbnails/
 ├── {product_name}_social_content_research_{date}.html   (clickable review copy)
 ├── {product_name}_social_content_research_{date}.md     (markdown version)
-└── {product_name}_social_content_research_{date}.pdf    (13 landscape pages)
+└── {product_name}_social_content_research_{date}.pdf    (20 landscape pages)
 ```
 
 **Follow-ups:** run the full `tiktok-research.anyt` / `instagram-research.anyt` / `youtube-shorts-research.anyt` for two-round keyword expansion + hand-picked deep dives, or `pitch-slides-report.anyt` when it's time to pitch (pricing + deliverables live there).

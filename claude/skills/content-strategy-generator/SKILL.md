@@ -1,6 +1,6 @@
 ---
 name: content-strategy-generator
-description: Generate 5-10 copy-paste-ready content strategies for a product from Gemini-analyzed trending videos. Reads the initial research report (md/pdf), excludes past inspiration videos and concept-duplicates via the strategy history, adapts scripts/text overlays to the product while keeping the source hook and viral format, and writes the strategies markdown + updated history. Use as the final step of the social-content-strategist workflow.
+description: Generate 5-10 copy-paste-ready content strategies for a product from AdAnt-analyzed trending videos. Uses authenticated AdAnt inference, excludes past inspiration videos and concept duplicates, adapts source hooks and overlays, and updates strategy history without requiring a third-party model key.
 ---
 
 # Content Strategy Generator
@@ -9,7 +9,7 @@ Two scripts power `workflows/social-content-strategist.anyt`:
 
 ## `mine_report_keywords.py` — expand research from example videos (report-driven or standalone)
 
-Works from the initial report's example videos (`--report`, md or pdf), from **client-provided videos they like** (repeatable `--video URL` — standalone mode, no report needed), or both. Collects captions (initial-research browse JSONs via `--captions-from`, with oEmbed / og-tag network fallback), mines the hashtags and caption phrasings those winners actually use, and has Gemini synthesize NEW per-platform search keywords grounded by `--description` (deduped against `--base-keywords`). Run it in the strategist's Step 1 so the trend browse rides the proven language of the niche.
+Works from the initial report's example videos (`--report`, md or pdf), from **client-provided videos they like** (repeatable `--video URL` — standalone mode, no report needed), or both. Collects captions (initial-research browse JSONs via `--captions-from`, with oEmbed / og-tag network fallback), mines the hashtags and caption phrasings those winners actually use, and has authenticated AdAnt synthesize NEW per-platform search keywords grounded by `--description` (deduped against `--base-keywords`). Run it in the strategist's Step 1 so the trend browse rides the proven language of the niche.
 
 ```bash
 uv run --project skills/content-strategy-generator/runtime \
@@ -66,7 +66,7 @@ And produces:
 
 1. **URL hard-exclusion** — candidate URL appears in `history.strategies[].inspiration_url` or `history.excluded_urls` → dropped.
 2. **Analysis gate** — candidates whose analysis is missing or `status != ok` → dropped.
-3. **Concept-similarity filter** — Gemini compares each candidate's fingerprint (viral format + hook + concept summary) against past strategy concepts; "same format AND same core idea" → dropped. Same broad format with a genuinely different angle survives.
+3. **Concept-similarity filter** — authenticated AdAnt compares each candidate's fingerprint (viral format + hook + concept summary) against past strategy concepts; "same format AND same core idea" → dropped. Same broad format with a genuinely different angle survives.
 4. **Minimum-engagement rule** — candidates need **≥50K views/likes**; when fewer than the target count clear 50K, the floor relaxes to **≥10K**; anything under 10K is always dropped.
 
 Exit code 2 when nothing survives — the workflow should widen/refresh the trend browse (adjacent formats, new keywords) and retry.
@@ -88,9 +88,11 @@ uv run --project skills/content-strategy-generator/runtime \
 |---|---|
 | `--count` | Target strategies, clamped 5-10 (default 8) |
 | `--history-out` | Custom path for updated history (default: overwrite `--history`) |
-| `--model` | Gemini model (default `gemini-2.5-flash`) |
-
 ## Prerequisites
 
-- `GEMINI_API_KEY` in `.env` / `.env.production`
-- `uv` (deps: python-dotenv, pymupdf)
+- Node.js/npm for `npx @anyloop/adant-cli`
+- AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
+- `uv` (including pymupdf for PDF input)
+
+Never request an upstream model-provider key. The scripts create short-lived AdAnt
+agent sessions, use the authenticated result, and remove those temporary sessions.

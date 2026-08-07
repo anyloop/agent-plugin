@@ -27,9 +27,13 @@ import urllib.parse
 from collections import Counter
 from pathlib import Path
 
+from strategy_slides import build_strategy_section, strategy_markdown
+
 TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "deck.html"
 
 PLATFORM_PILL = {"tiktok": "TIKTOK", "instagram": "REELS", "youtube": "YT SHORTS"}
+
+RESEARCH_SLIDES = 13
 
 MAX_PER_ACCOUNT = 3
 TARGET_PER_PLATFORM = 10
@@ -53,12 +57,20 @@ def parse_metric(metric: str) -> int:
 
 
 def build_vid_grid(
-    videos: list[dict], platform: str, *, enforce_engagement_floor: bool = True
+    videos: list[dict], platform: str, *, enforce_engagement_floor: bool = True,
+    empty_note: str | None = None,
 ) -> str:
     """Build a <div class="vid-grid vid-grid--N"> block from a list of video dicts.
 
     Each video dict: {url, thumb, handle, metric, format}
+
+    `empty_note` replaces the default empty-state sentence. Pass it whenever the
+    slot is empty for a reason other than the engagement floor - a login wall or
+    a failed fallback is a coverage gap, and saying "nothing cleared the floor"
+    would report it as a finding about the niche.
     """
+    if not videos and empty_note:
+        return f'<div class="vid-empty">{empty_note}</div>'
     if not videos and not enforce_engagement_floor:
         return ('<div class="vid-empty">No brand or competitor content was found. '
                 'The slot is open.</div>')
@@ -106,6 +118,30 @@ def build_ads_grid(ads: list[dict], cropped: bool = False) -> str:
             f"    </a>"
         )
     return f'<div class="{cls}">\n' + "\n".join(cards) + "\n  </div>"
+
+
+def build_case_row(connect: dict) -> str:
+    """Build the closing slide's case-study phones, or nothing when none are supplied.
+
+    Case studies are opt-in: they may only carry verified public or user-approved
+    evidence. With no cases the row is omitted entirely rather than rendering
+    empty phone frames.
+    """
+    cases = [i for i in (1, 2, 3) if connect.get(f"case{i}_brand")]
+    if not cases:
+        return ""
+    cards = []
+    for i in cases:
+        cards.append(
+            f'        <div class="case-card">\n'
+            f'          <a href="{connect.get(f"case{i}_url", "#")}" target="_blank">'
+            f'<div class="small-phone"><div class="pf">TIKTOK</div>'
+            f'<img src="{connect.get(f"case{i}_thumb", "")}" alt="{connect[f"case{i}_brand"]}"></div></a>\n'
+            f'          <div class="case-info"><div class="b">{connect[f"case{i}_brand"]}</div>'
+            f'<div class="s">{connect.get(f"case{i}_stat", "")}</div></div>\n'
+            f"        </div>"
+        )
+    return '<div class="case-row">\n' + "\n".join(cards) + "\n      </div>"
 
 
 def validate_platform(name: str, section: dict) -> list[str]:
@@ -218,6 +254,7 @@ def build_markdown(data: dict) -> str:
         if conn.get(f"case{i}_brand"):
             lines.append(f"- {conn[f'case{i}_brand']} — {conn.get(f'case{i}_stat', '')}: {conn.get(f'case{i}_url', '')}")
     lines += ["", f"{conn.get('connectContact', '')} · {conn.get('connectUrl', '')}", ""]
+    lines += strategy_markdown(data)
     return "\n".join(lines)
 
 
@@ -258,11 +295,17 @@ def main() -> None:
             section.get("brand_videos", []),
             pkey,
             enforce_engagement_floor=False,
+            empty_note=section.get("brand_empty_note"),
         )
-        grids[creator_key] = build_vid_grid(section.get("creator_videos", []), pkey)
+        grids[creator_key] = build_vid_grid(
+            section.get("creator_videos", []),
+            pkey,
+            empty_note=section.get("creator_empty_note"),
+        )
 
     ads = data.get("meta_ads", {})
     grids["adsGridHtml"] = build_ads_grid(ads.get("ads", []), cropped=ads.get("cropped", False))
+    grids["caseRowHtml"] = build_case_row(data.get("connect", {}))
 
     # ── Flat placeholder map ────────────────────────────────────────────
     placeholders = {}
@@ -281,6 +324,9 @@ def main() -> None:
     placeholders.update(data.get("formats", {}))
     placeholders.update(data.get("connect", {}))
     placeholders.update(grids)
+
+    strategy_html, strategy_pages = build_strategy_section(data, RESEARCH_SLIDES + 1, PLATFORM_PILL)
+    placeholders["strategySectionHtml"] = strategy_html
 
     for k, v in placeholders.items():
         html = html.replace(f"{{{{{k}}}}}", str(v))
@@ -308,6 +354,10 @@ def main() -> None:
         b, c = len(section.get("brand_videos", [])), len(section.get("creator_videos", []))
         print(f"  {label}: {b} brand/competitor + {c} organic creator = {b + c} contents")
     print(f"  Meta Ads: {len(ads.get('ads', []))} creatives")
+    strategies = data.get("strategies", {}).get("items", [])
+    if strategies:
+        print(f"  Sample Content Strategy: {len(strategies)} strategies over {strategy_pages} slides")
+    print(f"  Total slides: {RESEARCH_SLIDES + strategy_pages}")
 
 
 if __name__ == "__main__":

@@ -1,11 +1,11 @@
 ---
 name: trend-video-understanding
-description: Download a short-form video and analyze it deeply with Gemini video understanding — clone-video Pass-1 narrative analysis plus a compact concept fingerprint (hook, viral format, concept summary, adaptability notes). Use for every inspiration-video candidate in the social-content-strategist workflow so concepts can be compared, deduped against history, and adapted to a product.
+description: Download a short-form video and analyze it deeply through AdAnt's authenticated video-understanding API — narrative analysis plus a compact concept fingerprint (hook, viral format, concept summary, adaptability notes). Users do not supply a Gemini or other model-provider key.
 ---
 
 # Trend Video Understanding
 
-Download any TikTok / Instagram Reel / YouTube Short via yt-dlp, upload it to the Gemini Files API, and run video understanding twice:
+Download any TikTok / Instagram Reel / YouTube Short via yt-dlp, then send the local file through `npx @anyloop/adant-cli media analyze`. AdAnt owns the upstream model credential and charges usage to the authenticated AdAnt account. The structured response contains:
 
 1. **Narrative pass** — the same Pass-1 analysis prompt as `workflows/clone-video.anyt` Step 2 (visual style, setting, expressions, body mechanics, complete story, verbatim text overlays, verbatim dialogue, scene-by-scene breakdown). Anti-hallucination rules included (no invented dialogue, no invented expressions).
 2. **Concept fingerprint** — structured JSON: `hook`, `hook_type`, `viral_format`, `concept_summary`, `why_it_works`, `text_overlays`, `dialogue_or_voiceover`, `music_style`, `character`, `setting`, `product_shown`, `adaptability_notes`.
@@ -14,8 +14,12 @@ The fingerprint is what downstream strategy generation uses to (a) avoid suggest
 
 ## Prerequisites
 
-- `GEMINI_API_KEY` in `.env` / `.env.production`
-- `uv` (deps: yt-dlp, python-dotenv)
+- Node.js/npm for `npx @anyloop/adant-cli`
+- AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
+- `uv` and `yt-dlp`
+
+Never ask the user for a Gemini key. If authentication is missing, request AdAnt
+login only. The CLI uploads local media and calls `/v1/media.video.analyze`.
 
 ## Usage
 
@@ -32,7 +36,7 @@ uv run --project skills/trend-video-understanding/runtime \
 | `--url` | Video URL (required) |
 | `-o` | Output JSON path (required). **Skips the run if the file already exists** — safe to re-run batches. |
 | `--context` | Optional niche/product context appended to the analysis prompt |
-| `--model` | Gemini model (default `gemini-2.5-flash`) |
+| `--model` | Optional AdAnt video-understanding model override; omit for the server default |
 | `--work-dir` | Keep downloads here instead of a temp dir |
 | `--keep-video` | Don't delete the downloaded video (only with `--work-dir`) |
 

@@ -1,21 +1,20 @@
 ---
 name: browse-tiktok-research
-description: Search TikTok for videos by keywords with filters (sort, time range, duration) and generate research reports. Uses browser-use with a persistent Chrome profile. Login once, then search freely. Use when the user wants to research TikTok content, find trending videos, analyze competitors, or discover relevant content for marketing.
+description: Search TikTok for videos by keywords with filters (sort, time range, duration) and generate research reports. Uses direct Chrome CDP automation with a persistent research profile. Login once, then search freely; no model-provider API key is required.
 ---
 
 # Browse TikTok Research
 
-Search TikTok by keywords using an AI-powered browser agent. Login once to TikTok in a research browser, then run keyword searches that return video URLs with engagement metrics (views, likes, comments) and summary reports.
+Search TikTok by keywords using direct Chrome automation. Login once to TikTok in a research browser, then run keyword searches that return video URLs with engagement metrics (views, likes, comments) and summary reports.
 
 ## Prerequisites
 
 - `uv` (Python package manager)
 - Google Chrome installed
-- `GEMINI_API_KEY` environment variable set (in `.env` or `.env.production`)
 
 ## How It Works
 
-Uses [browser-use](https://github.com/browser-use/browser-use) with Chrome CDP (Chrome DevTools Protocol). **Your main Chrome is never closed.** The skill launches a separate research browser instance that imports your TikTok session from Chrome on first run.
+Uses Chrome CDP (Chrome DevTools Protocol). **Your main Chrome is never closed.** The skill launches a separate research browser instance that imports your TikTok session from Chrome on first run.
 
 - **Login:** Just be logged into TikTok in your regular Chrome. Run `--login` to open TikTok in your browser if needed.
 - **Browsing:** A separate research browser opens with CDP enabled, using an imported copy of your session. Your main Chrome stays open and untouched.

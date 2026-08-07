@@ -10,7 +10,7 @@ copied and pasted straight into Adant (https://adant.ai), plus an updated histor
 
 Core rules:
 - Past inspiration videos (history) are hard-excluded by URL.
-- Concepts too similar to past strategies are excluded via Gemini fingerprint comparison.
+- Concepts too similar to past strategies are excluded through authenticated AdAnt comparison.
 - Adapted scripts / text overlays keep the source hook and viral format - small changes only.
 
 Usage:
@@ -28,22 +28,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 import time
-import urllib.request
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 _skill_dir = Path(__file__).resolve().parent.parent
-_project_root = _skill_dir.parent.parent
-for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
-    if env_file.exists():
-        load_dotenv(env_file)
+_plugin_root = _skill_dir.parent.parent
+sys.path.insert(0, str(_plugin_root / "runtime"))
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={key}"
+from adant_agent import ask_adant  # noqa: E402
 
 GENERAL_INSTRUCTIONS = """Analyze [INSPIRATION VIDEO URL]
 with character as [YOUR AVATAR IMAGE], no text overlay. Only regenerate the first frame for review. You can ask to change character cloth, background setting and anything.
@@ -56,40 +50,6 @@ Just mention in the instruction using natural language"""
 
 def log(msg: str) -> None:
     print(msg, flush=True)
-
-
-def call_gemini(prompt: str, api_key: str, model: str = "gemini-2.5-flash",
-                json_mode: bool = True, temperature: float = 0.5,
-                max_tokens: int = 32768, retries: int = 2) -> dict | str:
-    body: dict = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": temperature, "maxOutputTokens": max_tokens},
-    }
-    if json_mode:
-        body["generationConfig"]["response_mime_type"] = "application/json"
-    last_err: Exception | None = None
-    for attempt in range(retries + 1):
-        try:
-            req = urllib.request.Request(
-                GEMINI_URL.format(model=model, key=api_key),
-                data=json.dumps(body).encode(),
-                headers={"Content-Type": "application/json"}, method="POST")
-            with urllib.request.urlopen(req, timeout=600) as resp:
-                result = json.loads(resp.read().decode())
-            parts = result["candidates"][0]["content"]["parts"]
-            text = "".join(p["text"] for p in parts if "text" in p)
-            if not json_mode:
-                return text
-            if "```json" in text:
-                text = text.split("```json", 1)[1].split("```", 1)[0]
-            elif "```" in text:
-                text = text.split("```", 1)[1].split("```", 1)[0]
-            return json.loads(re.sub(r",\s*([}\]])", r"\1", text.strip()))
-        except Exception as e:  # noqa: BLE001
-            last_err = e
-            if attempt < retries:
-                time.sleep(10)
-    raise RuntimeError(f"Gemini call failed after {retries + 1} attempts: {last_err}")
 
 
 MIN_VIEWS_PREFERRED = 50_000
@@ -145,14 +105,8 @@ def main() -> None:
     parser.add_argument("--history", help="Strategy history JSON (past batches / user-provided past inspiration videos)")
     parser.add_argument("--history-out", help="Where to write the updated history (default: --history path, or {product}_strategy_history.json next to output)")
     parser.add_argument("--count", type=int, default=8, help="Target number of strategies (5-10)")
-    parser.add_argument("--model", default="gemini-2.5-flash")
     parser.add_argument("-o", "--output", required=True, help="Output markdown path")
     args = parser.parse_args()
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("GEMINI_API_KEY not set", file=sys.stderr)
-        sys.exit(1)
 
     count = max(5, min(10, args.count))
     if args.report:
@@ -225,7 +179,7 @@ videos are the same concept even if the creator differs). A shared broad format 
 different angle/hook/story is NOT a duplicate.
 
 Return JSON: {{"verdicts": [{{"url": "...", "too_similar": true/false, "reason": "one line"}}]}}"""
-        verdicts = call_gemini(novelty_prompt, api_key, args.model, temperature=0.2)
+        verdicts = ask_adant(novelty_prompt, title=f"Strategy dedupe: {args.product_name}")
         similar = {v["url"] for v in verdicts.get("verdicts", []) if v.get("too_similar")}
         for v in verdicts.get("verdicts", []):
             if v.get("too_similar"):
@@ -247,7 +201,7 @@ INITIAL RESEARCH REPORT (context on the product, niche, competitors, what works)
 {report_text}
 ---
 
-ANALYZED TREND-VIDEO CANDIDATES (each was watched and analyzed with Gemini video understanding):
+ANALYZED TREND-VIDEO CANDIDATES (each was watched and analyzed through AdAnt video understanding):
 ---
 {json.dumps([{"url": c["url"], "platform": c.get("platform"), "handle": c.get("handle"), "metric": c.get("metric"), "posted": c.get("posted"), "fingerprint": c["fingerprint"]} for c in usable], indent=1, ensure_ascii=False)}
 ---
@@ -281,7 +235,7 @@ Return JSON:
   "concept_summary": "<2 sentences - stored in history to prevent future repeats>"
 }}]}}"""
     log(f"Generating {n} strategies...")
-    gen = call_gemini(gen_prompt, api_key, args.model, temperature=0.7)
+    gen = ask_adant(gen_prompt, title=f"Content strategies: {args.product_name}")
     strategies = gen.get("strategies", [])[:n]
     if len(strategies) < 5:
         log(f"Warning: only {len(strategies)} strategies generated (target {n})")

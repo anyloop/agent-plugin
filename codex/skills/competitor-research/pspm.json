@@ -7,7 +7,7 @@
   "license": "Apache-2.0",
   "type": "skill",
   "capabilities": [
-    "Identify true competitors via Gemini with Google Search grounding and capability cluster analysis",
+    "Identify true competitors through authenticated AdAnt web research and capability cluster analysis",
     "Classify competitors into tiers (direct, partial overlap, behavioral substitute) by capability overlap",
     "Research each competitor's TikTok presence (handles, followers, videos, content strategy, viral videos)",
     "Generate a markdown competitor analysis report combining competitive intelligence with TikTok presence",

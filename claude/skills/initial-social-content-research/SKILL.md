@@ -4,14 +4,17 @@ description: >-
   Run end-to-end initial social content research from a product URL and brief:
   research the product and competitors, discover TikTok, Instagram Reels, Meta
   Ads, and YouTube Shorts content, curate cross-platform examples, and generate
-  a 13-slide AdAnt research report. Use when an agent needs a first-pass social
+  a 20-slide AdAnt research report that closes with copy-paste Adant messages
+  for the top 5 inspiration videos. Use when an agent needs a first-pass social
   landscape, competitor/content audit, or research deck for a product or brand.
 ---
 
 # Initial Social Content Research
 
-Produce a source-labeled research workspace and a 13-page content research deck.
-Treat this as research, not a sales pitch: exclude pricing and deliverables.
+Produce a source-labeled research workspace and a 20-page content research deck:
+13 research pages, then a Sample Content Strategy section that turns the 5
+strongest inspiration videos into copy-paste Adant messages. Treat this as
+research, not a sales pitch: exclude pricing and deliverables.
 
 ## Resolve paths and inputs
 
@@ -32,11 +35,15 @@ Treat this as research, not a sales pitch: exclude pricing and deliverables.
 
 ## Preflight
 
-- Require Python 3.11+, `uv`, Google Chrome, and `GEMINI_API_KEY` in the process
-  environment. Never write secrets into the plugin or a project `.env` file.
+- Require Python 3.11+, `uv`, Node.js/npm, and Google Chrome. Confirm AdAnt CLI
+  authentication with a read-only command such as `npx @anyloop/adant-cli credit balance`;
+  if missing, ask for `npx @anyloop/adant-cli auth login`. Never request a Gemini or other
+  upstream model-provider key and never write credentials into the plugin or project.
 - Explain that TikTok and Instagram may require an interactive login in the
   dedicated research browser. Do not copy, expose, or log cookie contents.
-- Read a component skill's `SKILL.md` before invoking its runtime.
+- Read a component skill's `SKILL.md` before invoking its runtime. Model-backed
+  components use authenticated AdAnt agent or media API calls; browsing and report
+  components remain deterministic/local.
 - Preserve raw source URLs and label fallbacks in JSON. Never present inferred
   or search-fallback metrics as directly browsed platform data.
 
@@ -62,17 +69,27 @@ Treat this as research, not a sales pitch: exclude pricing and deliverables.
    account, and cover at least three formats per platform.
 6. **Report data:** assemble `report_data.json` from evidence, not invented
    claims. Include direct platform/ad URLs, source labels, and local thumbnails.
-7. **Report:** run `social-content-research-report`, then
+7. **Sample content strategy:** pick the 5 strongest inspiration videos from the
+   curated set — rank by engagement, then cloneability and format diversity, at
+   most one per account and at least two platforms. Write each as a
+   `strategies.items` entry using the `social-content-strategist` block shape
+   (avatar, hook to keep, what to change, 2-3 overlay lines). Read that skill's
+   `SKILL.md` first; the deck reuses its General Instructions verbatim.
+8. **Report:** run `social-content-research-report`, then
    `slide-pdf-generator`, using absolute runtime paths under `PLUGIN_ROOT` and
    output paths under `WORKSPACE_ROOT`.
 
 ## Verify and deliver
 
 - Confirm the HTML, Markdown, and PDF exist.
-- Confirm the PDF has exactly 13 landscape pages, no placeholder/gray thumbnail
-  boxes, no clipped content, and no pricing or deliverables.
+- Confirm the PDF has exactly 20 landscape pages (13 research + opener + 5
+  strategies + closing), no placeholder/gray thumbnail boxes, no clipped
+  content, and no pricing or deliverables.
 - Confirm every featured example has a usable URL, account, metric, format, and
   source label; disclose missing or fallback platform coverage.
+- Confirm each of the 5 strategy messages names a real inspiration URL that also
+  appears in the research slides, and that no URL or account repeats across
+  them.
 - Return clickable paths to the report and a short inventory of intermediate
   artifacts. Do not claim completion if the report renderer or required
   validation fails.

@@ -8,7 +8,7 @@
   "type": "skill",
   "capabilities": [
     "Fetch and parse a product website for positioning copy and social links",
-    "Research the product via Gemini with Google Search grounding (app stores, press, socials)",
+    "Research the product through an authenticated AdAnt agent session (app stores, press, socials)",
     "Fold authoritative user notes (natural language) into the structured profile",
     "Produce competitor candidates, keyword seeds, and positioning hooks for downstream research",
     "Emit the brand folder slug used by the initial-social-content-research workflow"

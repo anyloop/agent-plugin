@@ -4,8 +4,7 @@ version = "0.1.0"
 description = "Browse Meta Ad Library by keywords for competitive ad research"
 requires-python = ">=3.11,<4.0"
 dependencies = [
-    "browser-use>=0.12.0",
-    "playwright>=1.58.0",
+    "python-dotenv>=1.0.0",
     "websockets>=13.0",
 ]
 

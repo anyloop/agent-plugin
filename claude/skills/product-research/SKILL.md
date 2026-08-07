@@ -1,6 +1,6 @@
 ---
 name: product-research
-description: Turn a product website URL plus free-form natural-language notes into a structured client profile (name, description, vertical, target audience, niche label, keyword seeds, competitor candidates, brand folder slug). Uses Gemini with Google Search grounding. The entry point of the initial-social-content-research workflow — use when a user gives just a URL and a sentence or two of context and you need structured research inputs.
+description: Turn a product website URL plus free-form natural-language notes into a web-researched structured client profile (name, description, vertical, target audience, niche label, keyword seeds, competitor candidates, brand folder slug). Uses the authenticated AdAnt CLI, so users do not supply third-party model keys. The entry point of the initial-social-content-research workflow.
 ---
 
 # Product Research
@@ -10,7 +10,11 @@ Turn `URL + natural language` into the structured client profile that every down
 ## Prerequisites
 
 - `uv` (Python package manager)
-- `GEMINI_API_KEY` environment variable set (in `.env` or `.env.production`)
+- Node.js/npm for `npx @anyloop/adant-cli`
+- AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
+
+Never ask the user for a Gemini or other model-provider API key. AdAnt owns the
+upstream model credentials and accounts for usage through the user's AdAnt login.
 
 ## Quick Start
 
@@ -35,7 +39,7 @@ uv run --project skills/product-research/runtime \
 ## How It Works
 
 1. Fetches the website text directly (title, copy, footer links).
-2. Calls Gemini 2.5 Flash with Google Search grounding to research the product: app store listings, press, social handles, competitor candidates.
+2. Starts an isolated authenticated AdAnt agent session to research app-store listings, press, social handles, and competitor candidates, then removes that temporary session.
 3. The user's notes override inference — if notes say "focus on dating now", the niche label, keyword seeds, and competitor list center dating.
 4. App detection: `is_app` is true only when the primary product is a mobile/consumer app (app-store links, "download the app" CTAs). It stays false for hardware, physical products, services, and web SaaS even when they include a companion app. When true, `keyword_seeds` include "xxx app" variants ("spark app", "mint finance app", "best dating apps") — plain common-word app names can be ambiguous in social search and the "app" suffix returns more relevant results. Downstream keyword skills (tiktok-keyword-research, instagram-keyword-research) apply the same rule to brand and competitor keywords.
 

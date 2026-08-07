@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TikTok Browse - AI-powered TikTok research using browser-use.
+TikTok Browse - deterministic TikTok research through Chrome CDP.
 
 Uses a persistent Chrome profile with CDP (Chrome DevTools Protocol).
 On first run, you log into TikTok once. Subsequent runs reuse the session.
@@ -34,9 +34,6 @@ _project_root = _skill_dir.parent.parent
 for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
     if env_file.exists():
         load_dotenv(env_file)
-
-from browser_use import Agent
-from browser_use.browser import BrowserProfile, BrowserSession
 
 from config import (
     DEFAULT_DURATION,
@@ -743,16 +740,6 @@ def _recover_from_agent_history(result, keywords: list[str] | None = None) -> di
     return None
 
 
-def _create_browser_session() -> BrowserSession:
-    """Create a new browser session connected to Chrome CDP."""
-    return BrowserSession(
-        browser_profile=BrowserProfile(
-            cdp_url=f"http://localhost:{CDP_PORT}",
-            is_local=True,
-        )
-    )
-
-
 # ---------------------------------------------------------------------------
 # Video date extraction from TikTok video IDs
 # ---------------------------------------------------------------------------
@@ -1078,73 +1065,6 @@ def _merge_video_data(file_data: dict, history_videos: list[dict]) -> dict:
                     video["uploader"] = hist["uploader"]
 
     return file_data
-
-
-async def _run_agent(
-    task: str,
-    keywords: list[str] | None = None,
-    max_steps: int = 30,
-    timeout_seconds: int = 120,
-) -> dict | None:
-    """Run a browser-use agent with the given task and return parsed JSON.
-
-    Args:
-        task: The natural language task for the agent.
-        keywords: Keywords being searched (for result recovery).
-        max_steps: Maximum agent steps before forced stop (default 30).
-        timeout_seconds: Hard timeout in seconds (default 120 = 2 minutes).
-    """
-    from browser_use import ChatGoogle
-
-    # Clean up stale temp files from previous runs so recovery only finds current data
-    _cleanup_old_agent_files()
-
-    start_time = time.time()
-    browser_session = _create_browser_session()
-    llm = ChatGoogle(model="gemini-2.5-flash")
-    agent = Agent(task=task, llm=llm, browser_session=browser_session, max_steps=max_steps)
-
-    result_obj = None
-    try:
-        result_obj = await asyncio.wait_for(agent.run(), timeout=timeout_seconds)
-
-        final_result = result_obj.final_result()
-        if final_result:
-            parsed = _try_parse_json_results(final_result)
-            if parsed is not None:
-                return parsed
-    except asyncio.TimeoutError:
-        print(f"Agent timed out after {timeout_seconds}s. Recovering partial results...", file=sys.stderr)
-    except Exception as e:
-        print(f"Error during agent run: {e}", file=sys.stderr)
-
-    # Try recovering from temp files
-    file_data = _recover_results_from_files(since_timestamp=start_time)
-
-    # Try recovering extract history for titles/views
-    history_videos = []
-    if result_obj and hasattr(result_obj, "history") and result_obj.history:
-        for entry in result_obj.history:
-            if not hasattr(entry, "result") or not entry.result:
-                continue
-            for r in entry.result:
-                if hasattr(r, "extracted_content") and r.extracted_content:
-                    videos = _parse_markdown_video_list(r.extracted_content)
-                    if videos:
-                        history_videos.extend(videos)
-
-    if file_data is not None:
-        if history_videos:
-            file_data = _merge_video_data(file_data, history_videos)
-        return file_data
-
-    # Fall back to history-only recovery
-    if result_obj:
-        recovered = _recover_from_agent_history(result_obj, keywords=keywords)
-        if recovered is not None:
-            return recovered
-
-    return None
 
 
 async def browse_tiktok(

@@ -27,25 +27,12 @@ from __future__ import annotations
 import argparse
 import html as html_mod
 import json
-import os
 import re
 import sys
 import time
 import urllib.parse
 import urllib.request
 from collections import Counter
-from pathlib import Path
-
-try:
-    from dotenv import load_dotenv
-
-    _skill_dir = Path(__file__).resolve().parent.parent
-    _project_root = _skill_dir.parent.parent
-    for _env in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
-        if _env.exists():
-            load_dotenv(_env)
-except ImportError:
-    pass
 
 BOT_UA = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 BROWSER_UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -84,41 +71,8 @@ def _extract_reel_urls(hrefs: list[str], max_results: int) -> list[str]:
     return urls[:max_results]
 
 
-def gemini_search_reels(query: str, max_results: int = 12) -> list[str]:
-    """Find indexed reel URLs via Gemini + Google Search grounding.
-
-    Model-listed URLs can be stale or invented - every URL is later validated by
-    fetch_reel() (og-tags must resolve), so hallucinations are dropped, not trusted.
-    """
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        return []
-    prompt = (
-        f"Use Google Search to find popular Instagram Reels about: {query}\n"
-        "Search for indexed reel pages (site:instagram.com/reel or site:instagram.com inurl:reel).\n"
-        f"Return ONLY a JSON array (no prose) of up to {max_results} full instagram.com reel URLs "
-        'you actually found in search results, e.g. ["https://www.instagram.com/reel/ABC123/", ...]'
-    )
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "tools": [{"google_search": {}}],
-        "generationConfig": {"temperature": 0.2, "maxOutputTokens": 2048},
-    }).encode()
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=body, headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=180) as r:
-            result = json.loads(r.read().decode())
-        text = "".join(p.get("text", "") for p in result["candidates"][0]["content"]["parts"])
-    except Exception as e:  # noqa: BLE001
-        log(f"    gemini search failed for '{query}': {e}")
-        return []
-    return _extract_reel_urls(re.findall(r"https://www\.instagram\.com/\S+", text), max_results)
-
-
 def ddg_search_reels(query: str, max_results: int = 12) -> list[str]:
-    """Indexed-reel search: DuckDuckGo HTML, Bing, then Gemini+Google-Search grounding."""
+    """Find indexed Reel URLs through public DuckDuckGo and Bing results."""
     q = urllib.parse.quote(f"site:instagram.com/reel {query}")
     for name, url, pause in (
         ("ddg", f"https://html.duckduckgo.com/html/?q={q}", 2.5),
@@ -133,10 +87,10 @@ def ddg_search_reels(query: str, max_results: int = 12) -> list[str]:
             time.sleep(pause)
             if found:
                 return found
-        except Exception as e:  # noqa: BLE001
+        except Exception as e:
             log(f"    {name} search failed for '{query}': {e}")
             time.sleep(pause)
-    return gemini_search_reels(query, max_results)
+    return []
 
 
 def fetch_reel(url: str) -> dict | None:

@@ -1,22 +1,21 @@
 ---
 name: browse-instagram-reels
-description: Browse Instagram Reels by keywords to find viral content for brand research. Uses browser-use with a persistent Chrome profile. Login once to Instagram, then search freely. Returns Reel URLs with engagement metrics (views, likes, comments). Use when researching Instagram Reels content, finding trending videos, or analyzing competitor presence on Instagram.
+description: Browse Instagram Reels by keywords to find viral content for brand research. Uses direct Chrome CDP automation with a persistent profile and a public-index fallback. Login once to Instagram, then search freely; no model-provider API key is required.
 ---
 
 # Browse Instagram Reels
 
-Search Instagram Reels by keywords using an AI-powered browser agent. Login once, then run keyword searches that return Reel URLs with engagement metrics.
+Search Instagram Reels by keywords using direct Chrome automation. Login once, then run keyword searches that return Reel URLs with engagement metrics.
 
 ## Prerequisites
 
 - `uv` (Python package manager)
 - Google Chrome installed
-- `GEMINI_API_KEY` environment variable set
 - Logged into Instagram in your Chrome browser
 
 ## How It Works
 
-Uses [browser-use](https://github.com/browser-use/browser-use) with Chrome CDP. **Your main Chrome is never closed.** The skill launches a separate research browser that imports your Instagram session.
+Uses Chrome CDP. **Your main Chrome is never closed.** The skill launches a separate research browser that imports your Instagram session. If direct search yields no results, use `discover_reels.py`; it uses public search indexes and Reel page metadata without an AI-provider credential.
 
 ## Quick Start
 

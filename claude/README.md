@@ -21,8 +21,10 @@ If authentication needs an interactive terminal, run:
 sh "${CLAUDE_PLUGIN_ROOT}/skills/adant-claude-setup/scripts/login-adant.sh"
 ```
 
-The AdAnt account uses this single MCP login. Local social-research adapters
-may additionally require Python 3.11+, `uv`, Chrome, a Gemini API key, and an
+Social-research model work reuses AdAnt's authenticated CLI and server-side
+credentials. If the CLI has not been authorized on this machine, run
+`npx @anyloop/adant-cli auth login`; no Gemini or other model-provider API key is needed.
+Local adapters may additionally require Python 3.11+, `uv`, Chrome, and an
 interactive TikTok or Instagram session.
 
 ## Support

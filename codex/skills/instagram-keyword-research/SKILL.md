@@ -10,7 +10,11 @@ Generate Instagram-native search keywords from a client description, website URL
 ## Prerequisites
 
 - `uv` (Python package manager)
-- `GEMINI_API_KEY` environment variable set
+- Node.js/npm for `npx @anyloop/adant-cli`
+- AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
+
+The runtime uses authenticated AdAnt inference. Never ask the user for a Gemini
+or other model-provider API key.
 
 ## Quick Start
 

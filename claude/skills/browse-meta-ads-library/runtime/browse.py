@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Meta Ad Library Browse - AI-powered competitive ad research using browser-use.
+Meta Ad Library Browse - deterministic competitive ad research through Chrome CDP.
 
 Uses a persistent Chrome profile with CDP (Chrome DevTools Protocol).
 No login required — Meta Ad Library is publicly accessible.

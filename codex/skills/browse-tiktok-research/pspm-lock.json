@@ -3,13 +3,5 @@
   "lockfileVersion": 3,
   "registryUrl": "https://registry.pspm.dev",
   "packages": {},
-  "githubPackages": {
-    "github:browser-use/browser-use": {
-      "version": "d2272ab",
-      "resolved": "https://github.com/browser-use/browser-use",
-      "integrity": "sha256-Q7L8LTGY1oKIzQT3LJMCxS7a252vM9h5344MmG33Hso=",
-      "gitCommit": "d2272ab13197de353a08f6aa7325ea1c28d4bce5",
-      "gitRef": "HEAD"
-    }
-  }
+  "githubPackages": {}
 }

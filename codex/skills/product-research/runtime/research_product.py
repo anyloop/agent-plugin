@@ -20,19 +20,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 import urllib.request
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 _skill_dir = Path(__file__).resolve().parent.parent
-_project_root = _skill_dir.parent.parent
-for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
-    if env_file.exists():
-        load_dotenv(env_file)
+_plugin_root = _skill_dir.parent.parent
+sys.path.insert(0, str(_plugin_root / "runtime"))
+
+from adant_agent import ask_adant  # noqa: E402
 
 
 def fetch_website(url: str) -> str:
@@ -51,70 +48,12 @@ def fetch_website(url: str) -> str:
         return ""
 
 
-def _call_gemini(prompt: str, api_key: str, timeout: int = 180, use_search: bool = True) -> tuple[dict, list[dict]]:
-    """Call Gemini with optional Google Search grounding. Returns (parsed_json, grounding_sources)."""
-    tools = [{"google_search": {}}] if use_search else []
-
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 16384,
-        },
-        **({"tools": tools} if tools else {}),
-    }).encode()
-
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        result = json.loads(resp.read().decode())
-
-    parts = result["candidates"][0]["content"]["parts"]
-    text = "".join(part["text"] for part in parts if "text" in part)
-
-    grounding_sources = []
-    grounding_metadata = result["candidates"][0].get("groundingMetadata", {})
-    for chunk in grounding_metadata.get("groundingChunks", []):
-        web = chunk.get("web", {})
-        if web:
-            grounding_sources.append({"title": web.get("title", ""), "uri": web.get("uri", "")})
-
-    if "```json" in text:
-        text = text.split("```json", 1)[1].split("```", 1)[0]
-    elif "```" in text:
-        text = text.split("```", 1)[1].split("```", 1)[0]
-
-    cleaned = text.strip()
-    cleaned = re.sub(r",\s*([}\]])", r"\1", cleaned)
-    cleaned = re.sub(r"[\x00-\x1f]", " ", cleaned)
-
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError:
-        last_brace = cleaned.rfind("}")
-        if last_brace > 0:
-            candidate = cleaned[:last_brace + 1]
-            depth = candidate.count("{") - candidate.count("}")
-            if depth > 0:
-                candidate += "}" * depth
-            parsed = json.loads(candidate)
-        else:
-            raise
-
-    return parsed, grounding_sources
-
-
 def slugify(name: str) -> str:
     slug = name.lower().replace(" ", "-")
     return re.sub(r"[^a-z0-9-]", "", slug)
 
 
-def research_product(url: str, notes: str, website_text: str, api_key: str) -> dict:
+def research_product(url: str, notes: str, website_text: str) -> dict:
     """Build a structured client profile from the URL, notes, and live web research."""
 
     notes_section = f"\n**User notes (natural language, treat as authoritative context):**\n{notes}" if notes else ""
@@ -151,7 +90,8 @@ Return ONLY valid JSON:
   ],
   "keyword_seeds": ["8-12 social-native search keyword seeds for this niche, informed by the focus"],
   "positioning_hooks": ["3-5 angles/hooks that make this product interesting in short-form content"],
-  "brand_folder": "lowercase-hyphen slug of client_name"
+  "brand_folder": "lowercase-hyphen slug of client_name",
+  "research_sources": [{{"title": "source title", "uri": "https://source.example/page"}}]
 }}
 
 RULES:
@@ -160,12 +100,11 @@ RULES:
 - keyword_seeds must be phrases people actually search on TikTok/Instagram/YouTube, not marketing jargon.
 - If is_app is true, keyword_seeds MUST include "app"-suffixed variants for the client and top competitors (e.g., "spark app", "mint finance app", "best dating apps"). Plain common-word app names can be ambiguous in social search ("spark" → fireworks/electricity, "mint" → herbs/candy), and the "xxx app" form returns more relevant results.
 - Verify the client_name against the website — do not guess from the domain alone.
-- Be factual; every competitor must be a real, operating product."""
+- Be factual; every competitor must be a real, operating product.
+- Use web research and include direct source URLs in research_sources."""
 
-    print("  Researching product via Gemini with Google Search grounding...")
-    parsed, sources = _call_gemini(prompt, api_key)
-    if sources:
-        parsed["research_sources"] = sources
+    print("  Researching product through authenticated AdAnt...")
+    parsed = ask_adant(prompt, title=f"Product research: {url}")
     if not parsed.get("brand_folder"):
         parsed["brand_folder"] = slugify(parsed.get("client_name", "client"))
     else:
@@ -180,15 +119,10 @@ def main() -> None:
     parser.add_argument("-o", "--output", default=None, help="Save profile JSON to file")
     args = parser.parse_args()
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY not set", file=sys.stderr)
-        sys.exit(1)
-
     print(f"Fetching website: {args.url}")
     website_text = fetch_website(args.url)
 
-    profile = research_product(args.url, args.notes, website_text, api_key)
+    profile = research_product(args.url, args.notes, website_text)
 
     print(f"\nClient: {profile.get('client_name')}")
     print(f"Vertical: {profile.get('vertical')}")

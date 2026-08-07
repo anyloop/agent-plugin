@@ -22,6 +22,11 @@ available:
 codex mcp login adant
 ```
 
+Run the reconnect command in your system terminal and finish sign-in in your
+regular Chrome or Safari browser. If Google times out in Codex's built-in
+browser, return to the AdAnt authorization page, copy its full address, and
+paste it into the regular browser while the command keeps running.
+
 Verify the installation with:
 
 ```bash
@@ -51,8 +56,10 @@ Generation spends AdAnt credits. The skills require an explicit confirmation
 before submitting credit-spending work and derive project ownership from the
 authorized AdAnt account.
 
-The AdAnt account uses the single MCP login above. Local research adapters may
-also require Python 3.11+, `uv`, Chrome, a Gemini API key, and an interactive
+Social-research model work reuses AdAnt's authenticated CLI and server-side
+credentials. If the CLI has not been authorized on this machine, run
+`npx @anyloop/adant-cli auth login`; no Gemini or other model-provider API key is needed.
+Local adapters may also require Python 3.11+, `uv`, Chrome, and an interactive
 TikTok or Instagram session. They store browser state outside the plugin via
 `ADANT_SOCIAL_DATA_DIR` and must never expose cookies or credentials.
 

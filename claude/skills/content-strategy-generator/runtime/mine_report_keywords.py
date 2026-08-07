@@ -23,7 +23,6 @@ from __future__ import annotations
 import argparse
 import html as html_mod
 import json
-import os
 import re
 import sys
 import urllib.parse
@@ -31,13 +30,11 @@ import urllib.request
 from collections import Counter
 from pathlib import Path
 
-from dotenv import load_dotenv
-
 _skill_dir = Path(__file__).resolve().parent.parent
-_project_root = _skill_dir.parent.parent
-for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
-    if env_file.exists():
-        load_dotenv(env_file)
+_plugin_root = _skill_dir.parent.parent
+sys.path.insert(0, str(_plugin_root / "runtime"))
+
+from adant_agent import ask_adant  # noqa: E402
 
 GENERIC_TAGS = {
     "fyp", "fypage", "foryou", "foryoupage", "viral", "trending", "shorts", "reels",
@@ -57,7 +54,7 @@ def extract_urls(report_path: Path) -> list[str]:
         text = "\n".join(page.get_text() for page in doc)
         links = []
         for page in doc:
-            links += [l.get("uri", "") for l in page.get_links()]
+            links += [link.get("uri", "") for link in page.get_links()]
         doc.close()
         text += "\n" + "\n".join(links)
     else:
@@ -126,24 +123,6 @@ def fetch_caption(url: str) -> str:
     return ""
 
 
-def call_gemini(prompt: str, api_key: str, model: str = "gemini-2.5-flash") -> dict:
-    body = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.5, "maxOutputTokens": 8192,
-                             "response_mime_type": "application/json"},
-    }
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}",
-        data=json.dumps(body).encode(),
-        headers={"Content-Type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=300) as resp:
-        result = json.loads(resp.read().decode())
-    text = "".join(p["text"] for p in result["candidates"][0]["content"]["parts"] if "text" in p)
-    if "```" in text:
-        text = text.split("```json" if "```json" in text else "```", 1)[1].split("```", 1)[0]
-    return json.loads(re.sub(r",\s*([}\]])", r"\1", text.strip()))
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mine keywords/hashtags from example videos (report-driven or standalone)")
     parser.add_argument("--report", help="Initial research report (.md or .pdf). Optional in standalone mode.")
@@ -157,14 +136,8 @@ def main() -> None:
     parser.add_argument("--product-name", required=True)
     parser.add_argument("--niche", required=True, help="Niche label, e.g. 'food scanner apps'")
     parser.add_argument("--base-keywords", help="Existing trend_keywords.json to avoid duplicating")
-    parser.add_argument("--model", default="gemini-2.5-flash")
     parser.add_argument("-o", "--output", required=True, help="Output expanded_keywords.json")
     args = parser.parse_args()
-
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("GEMINI_API_KEY not set", file=sys.stderr)
-        sys.exit(1)
 
     urls = []
     if args.report:
@@ -239,8 +212,8 @@ Produce NEW search keywords that ride the language the winning videos actually u
 Return JSON:
 {{"mined_hashtags": {json.dumps(top_tags[:25])},
  "tiktok": ["..."], "instagram": ["..."], "youtube": ["..."]}}"""
-    log("Synthesizing expanded keywords with Gemini...")
-    expanded = call_gemini(prompt, api_key, args.model)
+    log("Synthesizing expanded keywords through authenticated AdAnt...")
+    expanded = ask_adant(prompt, title=f"Expanded keywords: {args.product_name}")
     expanded["source"] = "mined from initial report example videos"
     expanded["captions_found"] = len(captions)
 

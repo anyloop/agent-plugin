@@ -2,7 +2,7 @@
 """
 Competitor Research — Three-phase competitive intelligence.
 
-Phase 1: Identify true competitors via Gemini with Google Search grounding
+Phase 1: Identify true competitors via authenticated AdAnt web research
 Phase 2: Research each competitor's TikTok presence (handles, followers, content strategy)
 Phase 3: Generate a competitor analysis report (markdown)
 
@@ -28,19 +28,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import urllib.request
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-# Load env files
 _skill_dir = Path(__file__).resolve().parent.parent
-_project_root = _skill_dir.parent.parent
-for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
-    if env_file.exists():
-        load_dotenv(env_file)
+_plugin_root = _skill_dir.parent.parent
+sys.path.insert(0, str(_plugin_root / "runtime"))
+
+from adant_agent import ask_adant  # noqa: E402
 
 
 def fetch_website(url: str) -> str:
@@ -58,112 +54,16 @@ def fetch_website(url: str) -> str:
         return ""
 
 
-def _call_gemini(prompt: str, api_key: str, timeout: int = 120, use_search: bool = True) -> tuple[dict, list[dict]]:
-    """Call Gemini with optional Google Search grounding. Returns (parsed_json, grounding_sources)."""
-    import re as _re
-
-    tools = [{"google_search": {}}] if use_search else []
-
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 16384,
-        },
-        **({"tools": tools} if tools else {}),
-    }).encode()
-
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        result = json.loads(resp.read().decode())
-
-    # Extract text from response (may have multiple parts with grounding)
-    parts = result["candidates"][0]["content"]["parts"]
-    text = ""
-    for part in parts:
-        if "text" in part:
-            text += part["text"]
-
-    # Extract grounding metadata
-    grounding_sources = []
-    grounding_metadata = result["candidates"][0].get("groundingMetadata", {})
-    for chunk in grounding_metadata.get("groundingChunks", []):
-        web = chunk.get("web", {})
-        if web:
-            grounding_sources.append({
-                "title": web.get("title", ""),
-                "uri": web.get("uri", ""),
-            })
-
-    # Strip markdown code blocks
-    if "```json" in text:
-        text = text.split("```json", 1)[1].split("```", 1)[0]
-    elif "```" in text:
-        text = text.split("```", 1)[1].split("```", 1)[0]
-
-    # Clean common LLM JSON issues
-    cleaned = text.strip()
-    cleaned = _re.sub(r",\s*([}\]])", r"\1", cleaned)
-    cleaned = _re.sub(r'[\x00-\x1f]', ' ', cleaned)
-
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError:
-        last_brace = cleaned.rfind("}")
-        if last_brace > 0:
-            candidate = cleaned[:last_brace + 1]
-            depth = 0
-            for c in candidate:
-                if c == "{":
-                    depth += 1
-                elif c == "}":
-                    depth -= 1
-            if depth != 0:
-                candidate += "}" * depth
-            parsed = json.loads(candidate)
-        else:
-            raise
-
-    return parsed, grounding_sources
+def _call_adant_json(prompt: str, title: str) -> tuple[dict, list[dict]]:
+    """Run authenticated AdAnt research and return its JSON plus cited sources."""
+    parsed = ask_adant(prompt, title=title)
+    sources = parsed.get("research_sources", []) if isinstance(parsed, dict) else []
+    return parsed, sources
 
 
-def _call_gemini_text(prompt: str, api_key: str, timeout: int = 120) -> str:
-    """Call Gemini and return raw text (for markdown report generation)."""
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 16384,
-        },
-    }).encode()
-
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        result = json.loads(resp.read().decode())
-
-    text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-    # Strip markdown code block wrappers
-    if text.startswith("```markdown"):
-        text = text[len("```markdown"):].strip()
-    if text.startswith("```"):
-        text = text[3:].strip()
-    if text.endswith("```"):
-        text = text[:-3].strip()
-
-    return text
+def _call_adant_text(prompt: str, title: str) -> str:
+    """Run authenticated AdAnt synthesis and return Markdown text."""
+    return ask_adant(prompt, json_output=False, title=title)
 
 
 # ---------------------------------------------------------------------------
@@ -175,10 +75,9 @@ def research_competitors(
     description: str,
     website_text: str,
     known_competitors: list[str],
-    api_key: str,
     max_competitors: int = 15,
 ) -> dict:
-    """Phase 1: Find true competitors using Gemini with Google Search grounding."""
+    """Phase 1: Find true competitors through authenticated AdAnt web research."""
 
     known_section = ""
     if known_competitors:
@@ -293,8 +192,8 @@ IMPORTANT:
 - overlap_count must match the length of capability_overlap
 - competitive_strength and competitive_weakness should be honest and specific"""
 
-    print("  Phase 1: Calling Gemini with Google Search grounding...")
-    parsed, grounding_sources = _call_gemini(prompt, api_key, timeout=180)
+    print("  Phase 1: Researching through authenticated AdAnt...")
+    parsed, grounding_sources = _call_adant_json(prompt, f"Competitors: {client}")
 
     # Add grounding sources
     if grounding_sources:
@@ -315,12 +214,10 @@ IMPORTANT:
 def research_tiktok_presence(
     client: str,
     competitors: list[dict],
-    api_key: str,
     client_description: str = "",
 ) -> dict:
     """Phase 2: Research TikTok presence for client and all competitors via Google Search."""
 
-    competitor_names = [c["name"] for c in competitors]
     competitor_list = "\n".join(
         f"- {c['name']} ({c.get('website', 'unknown')})" for c in competitors
     )
@@ -448,7 +345,7 @@ Return ONLY valid JSON:
 - This documents the thoroughness of the search"""
 
     print("  Phase 2: Researching TikTok presence via Google Search...")
-    parsed, grounding_sources = _call_gemini(prompt, api_key, timeout=180)
+    parsed, grounding_sources = _call_adant_json(prompt, f"TikTok presence: {client}")
 
     if grounding_sources:
         parsed["tiktok_research_sources"] = grounding_sources
@@ -515,7 +412,6 @@ def generate_report(
     client: str,
     competitor_data: dict,
     tiktok_data: dict | None,
-    api_key: str,
 ) -> str:
     """Phase 3: Generate a markdown competitor analysis report."""
 
@@ -656,7 +552,7 @@ Only include if data is available.
 Return ONLY the Markdown report."""
 
     print("  Phase 3: Generating competitor analysis report...")
-    return _call_gemini_text(prompt, api_key, timeout=120)
+    return _call_adant_text(prompt, f"Competitor report: {client}")
 
 
 # ---------------------------------------------------------------------------
@@ -719,7 +615,7 @@ def format_summary(result: dict) -> str:
     # Landscape summary
     summary = result.get("competitive_landscape_summary", {})
     if summary:
-        lines.append(f"\nLANDSCAPE SUMMARY:")
+        lines.append("\nLANDSCAPE SUMMARY:")
         lines.append(f"  Market maturity: {summary.get('market_maturity', 'unknown')}")
         lines.append(f"  Competitive intensity: {summary.get('competitive_intensity', 'unknown')}")
         lines.append(f"  Key insight: {summary.get('key_insight', '')}")
@@ -753,11 +649,6 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY not set", file=sys.stderr)
-        sys.exit(1)
-
     known_competitors = [c.strip() for c in args.competitors.split(",") if c.strip()] if args.competitors else []
 
     website_text = ""
@@ -771,7 +662,7 @@ def main() -> None:
         print(f"  Known competitors to verify: {', '.join(known_competitors)}")
 
     result = research_competitors(
-        args.client, args.description, website_text, known_competitors, api_key, args.max_competitors
+        args.client, args.description, website_text, known_competitors, args.max_competitors
     )
 
     # Print summary
@@ -789,7 +680,7 @@ def main() -> None:
         competitors_list = result.get("competitors", [])
         if competitors_list:
             tiktok_data = research_tiktok_presence(
-                args.client, competitors_list, api_key, args.description
+                args.client, competitors_list, args.description
             )
 
             # Merge TikTok data into main result
@@ -805,7 +696,7 @@ def main() -> None:
 
             # Print TikTok summary
             summary = tiktok_data.get("summary", {})
-            print(f"\n  TikTok Presence Summary:")
+            print("\n  TikTok Presence Summary:")
             print(f"    Competitors with meaningful presence: {summary.get('with_meaningful_presence', 0)}")
             print(f"    Competitors with account, no content: {summary.get('with_account_no_content', 0)}")
             print(f"    No account: {summary.get('no_account', 0)}")
@@ -818,7 +709,7 @@ def main() -> None:
 
     # Phase 3: Report Generation
     if args.report:
-        report_md = generate_report(args.client, result, tiktok_data, api_key)
+        report_md = generate_report(args.client, result, tiktok_data)
 
         report_path = args.report_output or (
             str(Path(args.output).parent / "competitor_report.md") if args.output else "competitor_report.md"

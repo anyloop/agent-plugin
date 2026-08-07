@@ -2,7 +2,7 @@
 """
 TikTok Keyword Research — Generate TikTok-native keywords from client context.
 
-Uses Gemini to analyze client description, website, and competitors to produce
+Uses authenticated AdAnt to analyze client description, website, and competitors and produce
 a structured keyword list optimized for TikTok search/discovery.
 
 Usage:
@@ -17,19 +17,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import urllib.request
 from pathlib import Path
 
-from dotenv import load_dotenv
-
-# Load env files
 _skill_dir = Path(__file__).resolve().parent.parent
-_project_root = _skill_dir.parent.parent
-for env_file in [_skill_dir / ".env", _project_root / ".env", _project_root / ".env.production"]:
-    if env_file.exists():
-        load_dotenv(env_file)
+_plugin_root = _skill_dir.parent.parent
+sys.path.insert(0, str(_plugin_root / "runtime"))
+
+from adant_agent import ask_adant  # noqa: E402
 
 
 def fetch_website(url: str) -> str:
@@ -53,10 +49,9 @@ def generate_keywords(
     description: str,
     website_text: str,
     competitors: list[str],
-    api_key: str,
     max_keywords: int = 15,
 ) -> dict:
-    """Call Gemini to generate TikTok-native keywords."""
+    """Use AdAnt to generate TikTok-native keywords."""
 
     competitor_section = ""
     if competitors:
@@ -164,57 +159,7 @@ Return ONLY valid JSON:
   ]
 }}"""
 
-    body = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 8192,
-            "responseMimeType": "application/json",
-        },
-    }).encode()
-
-    req = urllib.request.Request(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}",
-        data=body,
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-
-    with urllib.request.urlopen(req, timeout=60) as resp:
-        result = json.loads(resp.read().decode())
-
-    text = result["candidates"][0]["content"]["parts"][0]["text"].strip()
-
-    # Strip markdown code blocks
-    if "```json" in text:
-        text = text.split("```json", 1)[1].split("```", 1)[0]
-    elif "```" in text:
-        text = text.split("```", 1)[1].split("```", 1)[0]
-
-    # Clean common LLM JSON issues
-    import re as _re
-    cleaned = text.strip()
-    cleaned = _re.sub(r",\s*([}\]])", r"\1", cleaned)  # trailing commas
-    cleaned = _re.sub(r'[\x00-\x1f]', ' ', cleaned)  # control chars
-    # Fix unterminated strings by truncating at last valid closing brace
-    try:
-        parsed = json.loads(cleaned)
-    except json.JSONDecodeError:
-        # Try to salvage by finding the last complete JSON object
-        last_brace = cleaned.rfind("}")
-        if last_brace > 0:
-            candidate = cleaned[:last_brace + 1]
-            # Balance brackets
-            depth = 0
-            for i, c in enumerate(candidate):
-                if c == "{": depth += 1
-                elif c == "}": depth -= 1
-            if depth != 0:
-                # Try adding closing brackets
-                candidate += "}" * depth
-            parsed = json.loads(candidate)
-        else:
-            raise
+    parsed = ask_adant(prompt, title=f"TikTok keywords: {client}")
 
     # Collect tiktok_native keywords to exclude from round 1
     categories = parsed.get("keyword_categories", {})
@@ -268,11 +213,6 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY not set", file=sys.stderr)
-        sys.exit(1)
-
     competitors = [c.strip() for c in args.competitors.split(",") if c.strip()] if args.competitors else []
 
     website_text = ""
@@ -281,7 +221,7 @@ def main() -> None:
         website_text = fetch_website(args.website)
 
     print(f"Generating TikTok keywords for: {args.client} (max {args.max_keywords})")
-    result = generate_keywords(args.client, args.description, website_text, competitors, api_key, args.max_keywords)
+    result = generate_keywords(args.client, args.description, website_text, competitors, args.max_keywords)
 
     output = json.dumps(result, indent=2)
 

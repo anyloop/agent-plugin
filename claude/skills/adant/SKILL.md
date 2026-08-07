@@ -25,8 +25,17 @@ job management, and adapter fallback.
 2. Use `adant-cli` when the request includes a local file, needs image editing
    or video analysis, or no AdAnt MCP tools are connected.
 3. If neither surface is available, explain how to connect
-   `https://api.adant.ai/mcp` or run `npx adant-cli auth login`. Do not improvise
+   `https://api.adant.ai/mcp` or run `npx @anyloop/adant-cli auth login`. Do not improvise
    a generation call with unrelated tools.
+
+If the AdAnt MCP is installed but needs authorization, ask the user to run the
+host's reconnect command in their own system terminal (`codex mcp login adant`
+for Codex or `claude mcp login plugin:adant:adant` for Claude Code) and complete
+the flow in their regular browser. If an embedded browser opens and Google
+times out, have them copy the AdAnt authorization-page address into Chrome or
+Safari while the login command remains open. Opening the page is not evidence
+of authentication: claim success only after the command completes and a real
+read-only AdAnt MCP call succeeds.
 
 ## Remote MCP workflow
 
@@ -82,42 +91,42 @@ analysis remain CLI workflows.
 
 ## CLI workflow
 
-Prefer `npx adant-cli` so the user does not need a global installation. If a
+Prefer `npx @anyloop/adant-cli` so the user does not need a global installation. If a
 command reports that authentication is missing, run:
 
 ```bash
-npx adant-cli auth login
+npx @anyloop/adant-cli auth login
 ```
 
 Useful discovery and accounting commands:
 
 ```bash
-npx adant-cli credit balance
-npx adant-cli media model list --json
+npx @anyloop/adant-cli credit balance
+npx @anyloop/adant-cli media model list --json
 ```
 
 Generate media:
 
 ```bash
-npx adant-cli media image generate --prompt "..." --model gpt-image-2 -o output.png
-npx adant-cli media video generate --prompt "..." --model seedance-2.0 --download -o output.mp4
-npx adant-cli media audio generate --text "..." -o output.mp3
+npx @anyloop/adant-cli media image generate --prompt "..." --model gpt-image-2 -o output.png
+npx @anyloop/adant-cli media video generate --prompt "..." --model seedance-2.0 --download -o output.mp4
+npx @anyloop/adant-cli media audio generate --text "..." -o output.mp3
 ```
 
 Local-file and analysis workflows belong on the CLI:
 
 ```bash
-npx adant-cli media image edit --image ./input.png --prompt "..." -o edited.png
-npx adant-cli media analyze --video ./input.mp4 --prompt "..." --json -o analysis.json
-npx adant-cli media clone-analysis --video ./input.mp4 -o analysis/
+npx @anyloop/adant-cli media image edit --image ./input.png --prompt "..." -o edited.png
+npx @anyloop/adant-cli media analyze --video ./input.mp4 --prompt "..." --json -o analysis.json
+npx @anyloop/adant-cli media clone-analysis --video ./input.mp4 -o analysis/
 ```
 
 Inspect a durable job. Use `--wait` inside one CLI invocation instead of
 repeatedly launching the CLI in an agent loop:
 
 ```bash
-npx adant-cli media job get JOB_ID --session-id SESSION_ID
-npx adant-cli media job get JOB_ID --session-id SESSION_ID --wait --timeout 900 -o output.mp4
+npx @anyloop/adant-cli media job get JOB_ID --session-id SESSION_ID
+npx @anyloop/adant-cli media job get JOB_ID --session-id SESSION_ID --wait --timeout 900 -o output.mp4
 ```
 
 Before a credit-spending CLI command, show the command and get confirmation.
@@ -139,7 +148,7 @@ cancel it, and stopping its active agent turn does not imply that a submitted
 media job was canceled.
 
 When the user explicitly wants a terminal-driven creative session, use the
-CLI's `session` commands and inspect `npx adant-cli session --help` first so the
+CLI's `session` commands and inspect `npx @anyloop/adant-cli session --help` first so the
 available workflow catalog drives the command.
 
 ## Result contract
