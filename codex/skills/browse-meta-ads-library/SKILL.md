@@ -52,6 +52,8 @@ uv run --project runtime runtime/browse.py "skincare" --advertiser "Example Skin
 
 The Meta Ad Library (https://www.facebook.com/ads/library/) is a public transparency tool. No login is required.
 
+Searches run in a headless research browser that never opens a window or takes focus, and every browser this skill launches — including `screenshot_ads.py` — is muted with autoplay blocked (`--mute-audio`, `--autoplay-policy=document-user-activation-required`), so video-heavy ad cards never play sound over your work.
+
 **All searches use `search_type=keyword_unordered`** and `is_targeted_country=false` for the broadest possible match. The URL format is:
 `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&is_targeted_country=false&media_type=all&q={query}&search_type=keyword_unordered`
 

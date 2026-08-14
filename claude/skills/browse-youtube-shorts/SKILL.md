@@ -14,7 +14,9 @@ Search YouTube Shorts by keywords using a headless research browser. YouTube sea
 
 ## How It Works
 
-Uses a separate headless Chrome instance driven via Chrome DevTools Protocol (CDP). **Your main Chrome is never touched.** The skill launches a dedicated research browser on a unique port (9336) with its own profile directory.
+Uses a separate headless Chrome instance driven via Chrome DevTools Protocol (CDP). **Your main Chrome is never touched.** The skill launches a dedicated research browser on a unique port (9336) with its own profile directory — no window, no dock icon, no focus stealing.
+
+The research browser is muted with autoplay blocked (`--mute-audio`, `--autoplay-policy=document-user-activation-required`), so Shorts never play sound over your work.
 
 ## Quick Start
 

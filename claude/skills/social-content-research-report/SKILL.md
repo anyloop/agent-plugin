@@ -5,7 +5,7 @@ description: >-
   Sample Content Strategy section, landscape 16:9, Adant AI brand) from
   cross-platform research data — TikTok, Instagram Reels + Meta Ads, YouTube
   Shorts. Content-focused, NOT a pitch: no pricing, no deliverables. ~10
-  contents per platform (brand/competitor + organic creators), diverse formats,
+  contents per platform (brand/competitor first, then organic creators), diverse formats,
   max 3 videos per account. Closes with a one-page About Adant AI product
   overview, then copy-paste Adant messages for the top inspiration videos.
   Use with the initial-social-content-research workflow.
@@ -26,7 +26,7 @@ Generate a **Social Content Research** deck: 1280×720 landscape slides in the *
 ## Slide Catalog (13 research slides + 7 strategy slides when `strategies` is supplied)
 
 1. **Cover (dark)** — "Social Content Research" category, client name in giant serif, subtitle, prepared-for, date
-2. **Executive Summary** — 3 numbered findings + "What This Means For Content" block
+2. **Executive Summary** — 3 numbered findings + "What This Means For Content". Lead on the **content-type distribution** (which types are occupied and at what ceiling), not a platform recap — platforms get slides 5-11. Every finding carries a measured number.
 3. **The Landscape** — tight 2-3 sentence paragraph + big hero stat card
 4. **Competitive Field** — 3 tier rows (leader / active / the opening)
 5. **TikTok — Brand & Competitor Content** — 5 portrait video cards
@@ -36,7 +36,7 @@ Generate a **Social Content Research** deck: 1280×720 landscape slides in the *
 9. **Meta Ads — Creative Reference** — 3×2 ad creative grid (each card deep-links to its specific ad in the Ad Library via `ad_id`; keyword search only as fallback)
 10. **YouTube Shorts — Brand & Competitor** — 5 cards
 11. **YouTube Shorts — Organic Creators** — 5 cards
-12. **Content Format Patterns** — 2×2 format cards synthesizing what works cross-platform
+12. **Content Format Patterns** — 2×2 cards for the **four content types** (branded/owned IP · branded commercial · educational story/animation · UGC testimonial; swap or add a type where the category differs). Each card names who occupies that type and its measured ceiling, so the slide maps open ground instead of listing styles.
 13. **About Adant AI (dark)** — headline "Research to action. *Built for you.*", concise product overview, 3 capability cards, optional case-study phones populated only with verified public or user-approved evidence, adant.ai button + `contact@anyloop.ai`
 
 ### Sample Content Strategy (slides 14+, only when `strategies.items` is non-empty)
@@ -45,15 +45,30 @@ Generate a **Social Content Research** deck: 1280×720 landscape slides in the *
 15–19. **One slide per strategy** — the inspiration video card (9:16 thumbnail, handle, metric) beside a copy-paste message in the exact `generate_strategies.py` shape:
 
 ```text
-analyze <inspiration url>, and use a UGC avatar: <one-sentence avatar>
+analyze <inspiration url>
 
-Hook to keep: <one sentence>
+Avatar: <TYPE> — <specific look>
 
-What to change: <one sentence — how the product swaps in>
+Keep: <what carries over, and why>
 
-Add text overlay:
-<2-3 short overlay lines, last one the product tag>
+Change: <how the product swaps in>
+
+Overlay:
+<2-3 short lines, last one the product tag>
 ```
+
+One idea per line, url alone on the first — that is what keeps the block
+copyable out of the PDF without unintended breaks. Blank separators render as
+an empty `.msg-gap` div, never `&nbsp;`, so a copy cannot pick up an invisible
+U+00A0 that pastes as hidden garbage.
+
+**A PDF text layer is one run per rendered line however it is built**, so a
+viewer copy always carries those line breaks. `build_deck.py` therefore also
+writes `{output_stem}_strategies.txt` beside the deck — every message in full,
+select-all-and-paste — and the markdown deck carries the same blocks fenced.
+Point the reader at the .txt when they want to copy, at the PDF when they want
+to present. `keep` / `change` supersede
+`hook_to_keep` / `what_to_change`; the renderer still accepts the old keys.
 
 20. **Start creating (dark)** — closing headline, the adant.ai button again, and `contact@anyloop.ai`
 
@@ -61,11 +76,14 @@ The section is rendered by `runtime/strategy_slides.py`, which also numbers the 
 
 ## Content Rules (the whole point of this report)
 
+- **Slide order is fixed: brand/competitor first, then organic creator, per platform.** Brand content establishes the category context and positioning before the deck shows creator formats a reader can adapt. The body stays organised BY PLATFORM — content types are a cross-cutting tag, never a regrouping.
 - **~10 contents per platform** — 5 brand/competitor + 5 organic creator per platform (8+ acceptable, flag below that). Meta Ads adds 6 more creatives on the Instagram side.
 - **Minimum engagement (organic creators only)** — creator cards need **≥50K views/likes**; when a niche is thin, the floor relaxes to **≥10K**, never lower. `build_deck.py` warns on 10K-50K creator cards and flags anything under 10K for removal. **Brand/competitor cards have no engagement floor at all**: never pre-filter them at 10K (or any other threshold); show the top official posts available because weak brand numbers are themselves a finding. If no official brand/competitor content is found, the deck renders a brand-specific empty state without implying that a view floor was applied.
 - **Max 3 videos per account** across a platform — enforced by `build_deck.py` as a warning (`--strict` makes it fail). Diversity of voices beats depth on one account.
+- **On-category only** — every card must show the client's or a named competitor's product, show the job the product does, or state the problem it solves. Content that merely shares a technology, aesthetic, or topic does not qualify no matter how it performs, and it usually performs better: an AI-generated crime drama at 301K likes and an "Usher but make it AI" remix at 104K both out-ranked every genuine AI-character-app post in one run. Curate for relevance first, then rank the survivors by engagement.
 - **Diverse content formats** — each video card carries a format tag (POV SKIT, TALKING HEAD, STREET INTERVIEW, UGC DEMO, MEME, VLOG…). Aim for 3+ distinct formats per platform; the validator flags less.
 - **No market-state claims** the research can't support. No pricing, no deliverables, no engagement scope anywhere. When a slot is empty because a platform was never reached (login wall, dead fallback), set `brand_empty_note` / `creator_empty_note` to say so — the default empty state blames the engagement floor, which turns a coverage gap into a false finding about the niche.
+- **An empty result is never a market claim.** `meta_ads.empty_note` must describe the capture, not the category: "these advertisers returned no ads in this run" is supportable, "nobody in this category advertises" is not. One deck asserted a whole category ran no paid social while Alarmy, Opal and WakeClock were all live — the searches had silently returned zero for five of six queries.
 
 ## Usage
 
@@ -157,9 +175,10 @@ python3 skills/slide-pdf-generator/runtime/to_pdf.py \
         "url": "https://www.tiktok.com/@examplecreator/video/1",
         "thumb": "thumbnails/tiktok-1.jpg",
         "why_this_video": "One sentence carrying the number or decision that earned it a slot.",
-        "avatar": "one-sentence UGC avatar suggestion, no image generation",
-        "hook_to_keep": "one sentence",
-        "what_to_change": "one sentence — how the product swaps in",
+        "avatar": "TYPE — specific look. UGC / Animation (3D|anime|2D|Pixar|claymation|ink-wash) / Commercial / Cinematic actor / Narrator-only / Product-only, derived from the video's analysis — never defaulted to UGC",
+        "keep": "the reuse axis and why: the hook | the viral format | the visual style | the structure | the pacing | the format inverted",
+        "change": "one sentence — how the product swaps in",
+        "style": "optional extra art-direction line",
         "overlays": ["short overlay line", "second line", "Example Product: Ingredient Scanner"]
       }
     ]

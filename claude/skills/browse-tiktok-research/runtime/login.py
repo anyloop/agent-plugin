@@ -118,6 +118,7 @@ def import_from_chrome() -> bool:
                 viewport={"width": 1280, "height": 720},
                 locale="en-US",
                 channel="chrome",
+                args=["--mute-audio", "--autoplay-policy=document-user-activation-required"],
             )
 
             page = context.new_page()
@@ -169,6 +170,7 @@ def login_and_save_cookies(timeout_seconds: int = 180) -> bool:
             viewport={"width": 1280, "height": 800},
             locale="en-US",
             channel="chrome",
+            args=["--mute-audio", "--autoplay-policy=document-user-activation-required"],
         )
 
         page = context.pages[0] if context.pages else context.new_page()

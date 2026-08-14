@@ -57,6 +57,14 @@ CDP_PROFILE_DIR = (
     if _runtime_data_dir
     else _skill_dir / "data"
 ) / "research-profile"
+TIKTOK_AUTH_COOKIES = ('sessionid', 'sessionid_ss', 'sid_tt')
+
+# TikTok is wall-to-wall video and headless Chrome still plays audio
+# through the system output device. Mute every browser we
+# launch and stop clips autoplaying at all, so research never makes noise over
+# the user's music, call or work.
+MUTED_ARGS = ("--mute-audio", "--autoplay-policy=document-user-activation-required")
+
 _research_chrome_process = None
 
 
@@ -164,6 +172,7 @@ def _ensure_chrome_with_cdp() -> bool:
             "--no-default-browser-check",
             "--disable-gpu",
             "--window-size=1280,720",
+            *MUTED_ARGS,
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -193,9 +202,40 @@ def _stop_research_browser() -> None:
 
 
 def _check_tiktok_login() -> bool:
-    """Check if cookies file exists in the CDP profile (rough login check)."""
-    cookies_file = CDP_PROFILE_DIR / "Default" / "Cookies"
-    return cookies_file.exists()
+    """True when the research profile holds a live TikTok session cookie.
+
+    Reads only cookie names and expiries from Chrome's cookie DB; the values are
+    encrypted and we never touch them. The previous check was "does the Cookies
+    file exist", which is true after any browser launch, signed in or not, so a
+    signed-out profile looked authenticated forever.
+    """
+    import shutil
+    import sqlite3
+    import tempfile
+
+    source = CDP_PROFILE_DIR / "Default" / "Cookies"
+    if not source.exists():
+        return False
+    tmp_dir = Path(tempfile.mkdtemp(prefix="tiktok-cookies-"))
+    try:
+        copy = tmp_dir / "Cookies"
+        shutil.copy2(source, copy)  # Chrome keeps the original locked
+        # Chrome stores expiry in microseconds since 1601-01-01.
+        cutoff = int((time.time() + 11644473600) * 1_000_000)
+        conn = sqlite3.connect(f"file:{copy}?mode=ro", uri=True)
+        try:
+            rows = conn.execute(
+                "SELECT host_key FROM cookies WHERE name IN (?, ?, ?) "
+                "AND length(encrypted_value) > 0 AND (is_persistent = 0 OR expires_utc > ?)",
+                (*TIKTOK_AUTH_COOKIES, cutoff),
+            ).fetchall()
+        finally:
+            conn.close()
+        return any("tiktok.com" in host for (host,) in rows)
+    except Exception:
+        return False
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 def login_to_tiktok() -> None:
@@ -222,6 +262,7 @@ def login_to_tiktok() -> None:
             f"--user-data-dir={CDP_PROFILE_DIR}",
             "--no-first-run",
             "--no-default-browser-check",
+            *MUTED_ARGS,
             "https://www.tiktok.com/login",
         ],
         stdout=subprocess.DEVNULL,
@@ -1412,6 +1453,11 @@ Examples:
     parser.add_argument("keywords", nargs="*", help="Keywords to search for")
     parser.add_argument("--login", action="store_true", help="Open TikTok login page to sign in")
     parser.add_argument(
+        "--login-check",
+        action="store_true",
+        help="Print TikTok session state as JSON and exit; opens and launches nothing",
+    )
+    parser.add_argument(
         "-n",
         "--max-results",
         type=int,
@@ -1469,6 +1515,10 @@ Examples:
 
     args = parser.parse_args()
 
+    if args.login_check:
+        print(json.dumps({"platform": "tiktok", "logged_in": _check_tiktok_login()}))
+        return
+
     if args.login:
         login_to_tiktok()
         return
@@ -1478,11 +1528,13 @@ Examples:
 
     max_results = min(args.max_results, MAX_RESULTS_PER_KEYWORD)
 
-    # Prompt to login if no CDP profile exists yet
+    # A missing session must not abort the run, and nothing may pop up on its
+    # own. Say plainly that signing in is what makes this platform usable, and
+    # let the caller relay that; only an explicit --login opens a window.
     if not _check_tiktok_login():
-        print("No TikTok session found. Run with --login first to sign in:")
+        print("No TikTok session. TikTok search returns very little signed out, so this capture will be thin.")
+        print("  Sign in once for real results:")
         print("  uv run --project runtime runtime/browse.py --login")
-        return
 
     filter_desc = []
     if args.sort_by != "relevance":

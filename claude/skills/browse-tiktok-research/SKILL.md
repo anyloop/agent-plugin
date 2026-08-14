@@ -16,17 +16,21 @@ Search TikTok by keywords using direct Chrome automation. Login once to TikTok i
 
 Uses Chrome CDP (Chrome DevTools Protocol). **Your main Chrome is never closed.** The skill launches a separate research browser instance that imports your TikTok session from Chrome on first run.
 
-- **Login:** Just be logged into TikTok in your regular Chrome. Run `--login` to open TikTok in your browser if needed.
-- **Browsing:** A separate research browser opens with CDP enabled, using an imported copy of your session. Your main Chrome stays open and untouched.
-- **Session persistence:** The research browser profile is stored in `data/cdp-profile/`. Cookies are imported once and persist across runs.
+- **Browsing:** A separate headless research browser runs the searches — no window, no dock icon, nothing to click away. Your main Chrome stays open and untouched.
+- **Muted by default:** every browser this skill launches runs with `--mute-audio` and autoplay blocked (`--autoplay-policy=document-user-activation-required`), so a feed of short-form video never plays sound over your work.
+- **Login:** sign in once with `--login`; the session persists in the research profile across runs. **Signed out, TikTok search returns almost nothing**, so getting signed in is what makes this skill useful — see below.
+- **Session persistence:** the research browser profile lives under `data/research-profile/`.
 
 ## Quick Start
 
 Run from the skill folder (`skills/browse-tiktok-research/`):
 
 ```bash
-# Step 1: Login to TikTok (only needed once)
+# Step 1: Sign in to TikTok (only needed once — opens a browser window)
 uv run --project runtime runtime/browse.py --login
+
+# Check whether a session exists (opens and launches nothing)
+uv run --project runtime runtime/browse.py --login-check
 
 # Step 2: Search keywords
 uv run --project runtime runtime/browse.py "skincare routine"
@@ -45,7 +49,8 @@ uv run --project runtime runtime/browse.py "AI tools" -n 20 -o output/ai_researc
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--login` | Open TikTok login page (run once) | - |
+| `--login` | Open the TikTok sign-in window (run once) | - |
+| `--login-check` | Print `{"logged_in": bool}` and exit; opens nothing | - |
 | `-n, --max-results` | Max results per keyword | `10` |
 | `-o, --output` | Save JSON report to file | stdout |
 | `--json` | Output raw JSON | formatted text |
@@ -91,6 +96,18 @@ uv run --project runtime runtime/browse.py "AI tools" -n 20 -o output/ai_researc
 
 ### Video metadata fields:
 `url`, `title`, `uploader`, `view_count`, `like_count`, `comment_count`, `duration`
+
+## Signing in matters here
+
+TikTok search is close to empty signed out, so a session is the difference
+between research and an empty file. Nothing pops up on its own: a run without a
+session prints a one-line request and carries on, and only `--login` — which you
+run deliberately — opens a window. If you are driving this from an agent, ask
+the user to run `--login` once rather than repeating searches that cannot work.
+
+Session state is read from the profile's cookie store (cookie names and expiries
+only — the values are encrypted and this skill never touches them), so an
+expired session is reported as signed out instead of silently scraping nothing.
 
 ## Re-login
 

@@ -46,6 +46,11 @@ CDP_PROFILE_DIR = (
     if _runtime_data_dir
     else _skill_dir / "data"
 ) / "research-profile"
+# Ad cards and Shorts are video-heavy, and headless Chrome still plays audio
+# through the system output device. Mute every browser we launch and stop clips
+# autoplaying at all, so research never makes noise over the user's work.
+MUTED_ARGS = ("--mute-audio", "--autoplay-policy=document-user-activation-required")
+
 _research_chrome_process = None
 
 
@@ -110,6 +115,7 @@ def _ensure_chrome_with_cdp() -> bool:
             "--no-default-browser-check",
             "--disable-gpu",
             "--window-size=1280,720",
+            *MUTED_ARGS,
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

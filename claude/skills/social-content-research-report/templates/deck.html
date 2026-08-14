@@ -663,11 +663,20 @@
     background: var(--card);
     padding: 15px 18px;
     font-family: 'JetBrains Mono', monospace;
-    font-size: 11.5px; line-height: 1.62;
+    font-size: 10.5px; line-height: 1.66;
     color: var(--body-strong);
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
   }
+  /* One element per visual line, pre-wrapped in Python. `pre` stops the browser
+     re-wrapping (which fragments PDF text runs out of order) and there is no
+     overflow-wrap, so words are never split mid-character on copy. */
+  .msg-line {
+    white-space: pre;
+    overflow-wrap: normal;
+    word-break: keep-all;
+  }
+  /* Separator rows hold rhythm without putting a character in the PDF text
+     layer, so a copy never picks up a stray non-breaking space. */
+  .msg-gap { height: 0.72em; }
 
   .strat-close { padding: 56px 72px 46px; justify-content: center; align-items: center; }
   .strat-close-inner {
@@ -780,7 +789,7 @@
   <div class="page-num">04</div>
 </div>
 
-<!-- ═══════════════════ SLIDE 05 — TIKTOK: BRAND & COMPETITOR CONTENT ═══════════════════ -->
+<!-- ═══════════════════ SLIDE 05 — TIKTOK — BRAND & COMPETITOR CONTENT ═══════════════════ -->
 <div class="slide slide-vids">
   <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
   <div class="section-label">TikTok — Brand &amp; Competitor Content</div>
@@ -790,7 +799,7 @@
   <div class="page-num">05</div>
 </div>
 
-<!-- ═══════════════════ SLIDE 06 — TIKTOK: ORGANIC CREATOR CONTENT ═══════════════════ -->
+<!-- ═══════════════════ SLIDE 06 — TIKTOK — ORGANIC CREATOR CONTENT ═══════════════════ -->
 <div class="slide slide-vids">
   <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
   <div class="section-label">TikTok — Organic Creator Content</div>
@@ -800,7 +809,7 @@
   <div class="page-num">06</div>
 </div>
 
-<!-- ═══════════════════ SLIDE 07 — INSTAGRAM: BRAND & COMPETITOR REELS ═══════════════════ -->
+<!-- ═══════════════════ SLIDE 07 — INSTAGRAM — BRAND & COMPETITOR REELS ═══════════════════ -->
 <div class="slide slide-vids">
   <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
   <div class="section-label">Instagram — Brand &amp; Competitor Reels</div>
@@ -810,7 +819,7 @@
   <div class="page-num">07</div>
 </div>
 
-<!-- ═══════════════════ SLIDE 08 — INSTAGRAM: ORGANIC CREATOR REELS ═══════════════════ -->
+<!-- ═══════════════════ SLIDE 08 — INSTAGRAM — ORGANIC CREATOR REELS ═══════════════════ -->
 <div class="slide slide-vids">
   <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
   <div class="section-label">Instagram — Organic Creator Reels</div>
@@ -832,20 +841,20 @@
   <div class="page-num">09</div>
 </div>
 
-<!-- ═══════════════════ SLIDE 10 — YOUTUBE SHORTS: BRAND & COMPETITOR ═══════════════════ -->
+<!-- ═══════════════════ SLIDE 10 — YOUTUBE SHORTS — BRAND & COMPETITOR ═══════════════════ -->
 <div class="slide slide-vids">
   <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
-  <div class="section-label">YouTube Shorts — Brand &amp; Competitor Content</div>
+  <div class="section-label">YouTube Shorts — Brand &amp; Competitor</div>
   <div class="section-title">{{ytBrandHeadline}}</div>
   <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{ytBrandIntro}}</p>
   {{ytBrandGridHtml}}
   <div class="page-num">10</div>
 </div>
 
-<!-- ═══════════════════ SLIDE 11 — YOUTUBE SHORTS: ORGANIC CREATORS ═══════════════════ -->
+<!-- ═══════════════════ SLIDE 11 — YOUTUBE SHORTS — ORGANIC CREATORS ═══════════════════ -->
 <div class="slide slide-vids">
   <div class="brand-mark"><div class="dot"></div>ADANT AI</div>
-  <div class="section-label">YouTube Shorts — Organic Creator Content</div>
+  <div class="section-label">YouTube Shorts — Organic Creators</div>
   <div class="section-title">{{ytCreatorHeadline}}</div>
   <p class="body-text" style="max-width: 960px; margin-bottom: 4px;">{{ytCreatorIntro}}</p>
   {{ytCreatorGridHtml}}

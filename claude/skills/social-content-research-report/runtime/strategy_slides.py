@@ -22,6 +22,7 @@ strategy, matching the strategy report.
 from __future__ import annotations
 
 import html
+import textwrap
 
 # Verbatim from content-strategy-generator/runtime/generate_strategies.py so the
 # deck and the strategy report hand the reader the same instructions.
@@ -35,18 +36,86 @@ Just mention in the instruction using natural language"""
 
 
 def strategy_message(strategy: dict) -> str:
-    """Build the copy-paste message body for one strategy (plain text)."""
+    """Build the copy-paste message body for one strategy (plain text).
+
+    One idea per line, each short enough never to wrap. The url sits alone so a
+    long TikTok permalink can never push the avatar onto a second line.
+
+    `avatar` names a TYPE and a look — the reference video decides which, so an
+    animated reference never yields a "UGC avatar". `keep` names WHAT is being
+    reused (hook, viral format, visual style, structure, pacing) rather than
+    always the hook. Legacy keys still render so older report_data keeps working.
+    """
     overlays = [line for line in strategy.get("overlays", []) if line][:3]
-    return "\n".join([
-        f"analyze {strategy.get('url', '')}, and use a UGC avatar: {strategy.get('avatar', '')}",
+    avatar = strategy.get("avatar", "")
+    keep = strategy.get("keep") or strategy.get("hook_to_keep", "")
+    change = strategy.get("change") or strategy.get("what_to_change", "")
+    lines = [
+        f"analyze {strategy.get('url', '')}",
         "",
-        f"Hook to keep: {strategy.get('hook_to_keep', '')}",
+        f"Avatar: {avatar}",
         "",
-        f"What to change: {strategy.get('what_to_change', '')}",
+        f"Keep: {keep}",
         "",
-        "Add text overlay:",
-        *overlays,
-    ])
+        f"Change: {change}",
+    ]
+    if strategy.get("style"):
+        lines += ["", f"Style: {strategy['style']}"]
+    lines += ["", "Overlay:", *overlays]
+    return "\n".join(lines)
+
+
+# Characters that fit one line of the message block: ~838px of usable width at
+# 10.5px JetBrains Mono (0.6em advance = 6.3px), with margin. Wrapping happens
+# HERE, at spaces, never in the browser — see message_lines. A message whose
+# lines all fit pastes as the exact text the author wrote, with no wrap points
+# at all; build_deck warns when one does not.
+MSG_WRAP_COLS = 130
+
+
+def overlong_message_lines(strategy: dict) -> list[str]:
+    """Logical lines that will have to wrap — the caller warns so they get cut.
+
+    A wrapped line still copies correctly, but it lands in the paste with a line
+    break the author did not write. Keeping every line inside MSG_WRAP_COLS is
+    what makes the pasted message byte-identical to the intended one.
+    """
+    return [
+        line
+        for line in strategy_message(strategy).split("\n")
+        if len(line) > MSG_WRAP_COLS
+    ]
+
+
+def message_lines(strategy: dict) -> list[str]:
+    """Physical lines of the copy-paste message, ready to render one-per-element.
+
+    Soft-wrapping this text in CSS makes the PDF uncopyable. Chrome's printToPDF
+    turns a `white-space: pre-wrap` block into fragmented text runs that extract
+    OUT OF ORDER, and `overflow-wrap: anywhere` splits words mid-character — a
+    real copy came back as "analyze https://www.youtub / music / b / ed / long
+    takes / e.com/shorts/..." with the avatar text interleaved into the URL.
+
+    Wrapping in Python instead means every visual line is a known string that
+    becomes its own element, so the PDF holds one text run per line in document
+    order and a copy round-trips. Words are never broken: `break_long_words` is
+    off, so a long URL overflows its line rather than being cut in half.
+    """
+    out: list[str] = []
+    for logical in strategy_message(strategy).split("\n"):
+        if not logical:
+            out.append("")
+            continue
+        out.extend(
+            textwrap.wrap(
+                logical,
+                width=MSG_WRAP_COLS,
+                break_long_words=False,
+                break_on_hyphens=False,
+            )
+            or [""]
+        )
+    return out
 
 
 def _opener_slide(section: dict, page: int) -> str:
@@ -78,7 +147,16 @@ def _opener_slide(section: dict, page: int) -> str:
 
 
 def _strategy_slide(strategy: dict, index: int, total: int, page: int, pill: str) -> str:
-    message = html.escape(strategy_message(strategy))
+    # One element per visual line: keeps PDF text runs in document order and
+    # lets a copy round-trip. Blank lines need a non-breaking space to hold height.
+    # Blank separators carry NO text: a &nbsp; spacer copies out of the PDF as an
+    # invisible U+00A0, which then pastes into a prompt box as hidden garbage.
+    # An empty div sized by CSS keeps the rhythm without entering the text layer.
+    message = "".join(
+        f'<div class="msg-line">{html.escape(line)}</div>' if line
+        else '<div class="msg-gap"></div>'
+        for line in message_lines(strategy)
+    )
     meta_bits = [
         strategy.get("format", ""),
         strategy.get("platform_label", pill),

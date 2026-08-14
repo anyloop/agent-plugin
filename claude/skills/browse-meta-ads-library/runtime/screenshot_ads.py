@@ -46,7 +46,11 @@ def screenshot_ad_cards(
     results = []
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        # Ad cards are mostly video — never let them make noise or autoplay.
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--mute-audio", "--autoplay-policy=document-user-activation-required"],
+        )
         page = browser.new_page(
             viewport={"width": viewport_width, "height": viewport_height}
         )

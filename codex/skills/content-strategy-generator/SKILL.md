@@ -46,16 +46,33 @@ And produces:
 1. **Strategies markdown** — header + footer tell the reader to copy a strategy's message and paste it into **Adant** (https://adant.ai); a single **General Instructions** section (analyze → first-frame review → script rewrite → Seedance 2.0 generation) applies to every strategy and is NOT repeated per strategy. Each strategy is **concise — one short copyable message**, focused only on the inspiration video, the avatar, what to keep, and what to change:
 
    ```text
-   analyze <inspiration url>, and use a UGC avatar: <one-sentence avatar>
+   analyze <inspiration url>
 
-   Hook to keep: <one sentence>
+   Avatar: <TYPE> — <specific look>
 
-   What to change: <one sentence - how the product swaps in>
+   Keep: <what carries over, and why>
 
-   Add text overlay:
+   Change: <how the product swaps in>
+
+   Overlay:
    <short overlay line>
    <product tag, e.g. "Example Product: Ingredient Scanner">
    ```
+
+   One idea per line, url alone on the first, so the block copies out of a PDF
+   without unintended breaks.
+
+   **`Avatar:` names a type, derived from that video's analysis** — UGC,
+   Animation (say the style: 3D / anime / 2D / Pixar-style / claymation /
+   ink-wash), Commercial/TVC, Cinematic actor, Narrator-only, or Product-only.
+   Read `fingerprint.character`, `setting` and the narrative visual-style notes;
+   an animated or studio-lit reference must never come back as a UGC avatar.
+
+   **`Keep:` names the reuse axis, and it varies per video** — the hook, the
+   viral format, the visual style (borrow the look, tell a different story), the
+   structure, the pacing, or the format inverted. Choose from `hook_type`,
+   `viral_format` and `why_it_works`; a batch where every entry keeps the hook
+   has not read its analyses.
 
    A `.json` with the raw strategies is saved next to the `.md` (same name) for re-rendering or downstream use.
 

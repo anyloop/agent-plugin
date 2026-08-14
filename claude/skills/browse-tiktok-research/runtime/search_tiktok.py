@@ -276,6 +276,7 @@ def _launch_context(p, headless: bool = True) -> BrowserContext:
         viewport={"width": 1280, "height": 720},
         locale="en-US",
         channel="chrome",
+        args=["--mute-audio", "--autoplay-policy=document-user-activation-required"],
     )
 
 

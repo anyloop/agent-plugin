@@ -40,8 +40,14 @@ maintaining history so later batches do not repeat URLs or concepts.
   AdAnt CLI authentication with `npx @anyloop/adant-cli credit balance`; if missing, ask
   for `npx @anyloop/adant-cli auth login`. Never request a Gemini or other upstream model
   key. `TIKAPI_KEY` remains optional for the documented TikTok fallback only.
-- Explain any interactive TikTok or Instagram login before opening the dedicated
-  research browser. Do not copy, expose, or log cookie contents.
+- Browsing runs in headless research browsers: no windows, no focus stealing, and
+  every browser muted with autoplay blocked, so a feed of short-form video never
+  plays over the user's work.
+- **Get the user signed in to TikTok and Instagram before browsing them.** Signed
+  out, those two return almost nothing. Check with each skill's `--login-check`
+  (opens and launches nothing) and, when it reports `logged_in: false`, ask the
+  user in chat to run that skill's `--login` once; nothing opens a window on its
+  own. Do not copy, expose, or log cookie contents.
 - Read a component skill's `SKILL.md` before invoking its runtime.
 - Keep source URLs and source labels through every transformation.
 
@@ -74,8 +80,17 @@ maintaining history so later batches do not repeat URLs or concepts.
 
 - Confirm the requested number of strategies was produced and history updated.
 - Confirm every strategy cites a usable inspiration URL and contains a concise
-  hook-to-keep, adaptation direction, avatar suggestion, and 2–3 overlay lines;
+  reuse axis, adaptation direction, avatar suggestion, and 2–3 overlay lines;
   reject full scripts or timeline-heavy output.
+- Confirm each avatar names a TYPE grounded in that video's analysis — UGC,
+  animation (with the style: 3D, anime, 2D, Pixar-style, claymation, ink-wash),
+  commercial/TVC, cinematic actor, narrator-only, or product-only. An animated
+  or studio reference must never yield a "UGC avatar"; read
+  `fingerprint.character`, `setting` and the narrative visual-style notes.
+- Confirm the reuse axis VARIES across the batch and is justified per video:
+  keep the hook, the viral format, the visual style, the structure, the pacing,
+  or the format inverted. A batch where every entry says "keep the hook" has not
+  read its own analyses.
 - Confirm no URL appears in prior history, exclusions, example videos, or twice
   in the new batch. Confirm analyzed concepts are not near-duplicates.
 - Return clickable paths to the strategy Markdown and history JSON, plus a short

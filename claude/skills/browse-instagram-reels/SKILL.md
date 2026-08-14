@@ -11,17 +11,23 @@ Search Instagram Reels by keywords using direct Chrome automation. Login once, t
 
 - `uv` (Python package manager)
 - Google Chrome installed
-- Logged into Instagram in your Chrome browser
 
 ## How It Works
 
-Uses Chrome CDP. **Your main Chrome is never closed.** The skill launches a separate research browser that imports your Instagram session. If direct search yields no results, use `discover_reels.py`; it uses public search indexes and Reel page metadata without an AI-provider credential.
+Uses Chrome CDP in a separate **headless** research browser — no window, no dock icon, nothing to click away. **Your main Chrome is never touched.**
+
+Every browser this skill launches runs with `--mute-audio` and autoplay blocked (`--autoplay-policy=document-user-activation-required`), so a Reels feed never plays sound over your work.
+
+**Signed out, Instagram walls most search results**, so signing in once is what makes this skill useful. Nothing pops up on its own: a run without a session prints a one-line request and carries on, and only `--login` — which you run deliberately — opens a window. If direct search yields no results, use `discover_reels.py`; it needs no login at all.
 
 ## Quick Start
 
 ```bash
-# Step 1: Login to Instagram (only needed once)
+# Step 1: Sign in to Instagram (only needed once — opens a browser window)
 uv run --project runtime runtime/browse.py --login
+
+# Check whether a session exists (opens and launches nothing)
+uv run --project runtime runtime/browse.py --login-check
 
 # Step 2: Search keywords
 uv run --project runtime runtime/browse.py "skincare routine"
@@ -37,7 +43,8 @@ uv run --project runtime runtime/browse.py "AI tools" -n 20 -o output/reels_rese
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--login` | Open Instagram login page (run once) | - |
+| `--login` | Open the Instagram sign-in window (run once) | - |
+| `--login-check` | Print `{"logged_in": bool}` and exit; opens nothing | - |
 | `-n, --max-results` | Max results per keyword | `10` |
 | `-o, --output` | Save JSON report to file | stdout |
 | `--json` | Output raw JSON | formatted |

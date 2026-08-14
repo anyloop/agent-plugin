@@ -29,7 +29,8 @@ Give this workflow a **product URL + whatever you know in natural language**, an
 **Prerequisites:**
 - AdAnt CLI authentication (`npx @anyloop/adant-cli auth login` when needed). AdAnt owns
   all upstream model credentials; never request a Gemini or other provider key.
-- For TikTok/Instagram browsing: be logged into TikTok/Instagram in Chrome at least once (the browse skills import your session into a separate research browser). YouTube Shorts and Meta Ads Library browsing need no login.
+- Browsing runs in headless research browsers: no windows, no focus stealing, every browser muted with autoplay blocked. Research feeds are wall-to-wall short-form video and must never play over the user's work.
+- **TikTok and Instagram need a session** — signed out they return almost nothing, so getting the user signed in is the difference between research and an empty file. Check with `--login-check` (opens and launches nothing) and, when it reports `logged_in: false`, ask the user to run that skill's `--login` once. Nothing opens a window on its own. YouTube Shorts and Meta Ads Library need no login.
 - If a platform browse hits a login wall, use the documented public-search/indexed-page fallback plus oEmbed or og-tag metadata, and note the fallback in the report data.
 </note>
 
@@ -175,6 +176,21 @@ For YouTube, derive `{brandFolder}/keywords_youtube.json` from the TikTok keywor
 
 **App products (`product_profile.json → is_app`):** when the client is an app, use "xxx app" keyword variants everywhere organic search happens — "spark app", "mint finance app", "best dating apps" — plain common-word app names can be ambiguous in social search. The keyword skills apply this automatically; carry it into the YouTube keyword derivation too. (Meta Ads Library `--advertiser` names stay the exact brand name.)
 
+**Split the keywords into two sets, and browse both.** The keyword skills return
+mostly *theme* terms ("AI story generator", "app blocker"), which surface the
+biggest content in the broad space rather than the product's category. Derive a
+second **product set** and keep it separate:
+
+- every confirmed competitor's **product name** as searched by real users (`character ai`, `polybuzz`, `janitor ai`, `talkie ai`, `alarmy app`, `opal app`, `brick app`)
+- `{client name}` and `{client name} app`
+- `apps like {leading competitor}` / `{leading competitor} alternative`
+
+Store as `keywords_{platform}_products.json` alongside the theme set. Step 4
+runs both sweeps per platform and merges the pools before curation. The theme
+sweep tells you what the space rewards; the product sweep is what actually fills
+the relevance gate, and skipping it is the single most common way this workflow
+produces an off-category deck.
+
 **Output:** `{brandFolder}/keywords_tiktok.json`, `keywords_instagram.json`, `keywords_youtube.json`
 </task>
 
@@ -249,6 +265,47 @@ uv run --project skills/browse-meta-ads-library/runtime \
 
 **Immediately** download creatives from each ad's `creative_urls` (signed CDN URLs expire in hours) into `{brandFolder}/thumbnails/ad-{slug}.jpg`.
 
+### Finding the real advertisers inside the noise
+
+Keyword search returns mostly unrelated brands, and the genuine competitor is
+usually sitting in that noise under its **Facebook Page name** — the product
+name plus a tagline, not the product name alone:
+
+| You searched | The advertiser is actually called |
+|---|---|
+| `Alarmy` | `Alarmy - My Daily Success Habits` |
+| `Opal` | `Opal・#1 Screen Time App` |
+| `one sec` | `one sec app` |
+| `AppBlock` | *(returned `Opal・#1 Screen Time App`)* |
+
+Select on the **`advertiser` page name containing the product token**, not on ad
+copy — unrelated advertisers use the same vocabulary ("focus", "screen time",
+"block") and will pass a text filter. Searching a competitor's name also
+surfaces *other* competitors: `WakeClock - Alarm Challenge` only appeared under
+the `Alarmy` query and was in nobody's competitor list. Feed anything you find
+this way back into the competitor set.
+
+### Per-query validation (this step fails silently)
+
+`browse.py` reports one aggregate count — `Search complete: 25 ads collected
+across 6 query(ies)` — which looks like success even when five of the six
+queries returned nothing. Check `summary.keyword_breakdown` per query:
+
+```bash
+python3 -c "import json;print({k:v['ad_count'] for k,v in json.load(open('{brandFolder}/ads_research.json'))['summary']['keyword_breakdown'].items()})"
+```
+
+A query at `0` while others return 17-25 is a **capture failure, not an absence
+of ads**. Re-run those advertisers **one per invocation** (the scraper degrades
+after the first query in a batch) and merge the results. Meta also rate-limits,
+so a zero can persist for a genuinely-advertising brand across several attempts.
+
+**Never conclude "nobody in this category advertises" from keyword search.** A
+zero is only ever evidence about the capture, not about the market. Report the
+ads you confirmed and say which advertisers you could not get a clean read on;
+one run reported a whole category as running no paid social when Alarmy, Opal
+and WakeClock were all live at the time.
+
 **Output:** `{brandFolder}/ads_research.json`, `ads_research_top.md`, ad thumbnails
 </task>
 
@@ -277,9 +334,73 @@ From the browse results + competitor presence data, curate per platform:
 
 - **5 brand/competitor contents** — official brand accounts (client's competitors, ideally across several brands)
 - **5 organic creator contents** — non-brand creators winning in the niche
+- **Product relevance (hard, applied FIRST):** see the gate below. Rank on engagement only *after* filtering for relevance, never before
 - **Minimum engagement (organic creators, hard):** creator content needs **>=50K views/likes**; if the niche can't fill the slots at 50K, relax the floor to **>=10K**, never lower. **Brand/competitor content has no engagement floor at all** - never pre-filter official posts at 10K (or any other threshold); curate the top ones available regardless of views because weak brand numbers are a finding, not a gap
 - **Diversity rules (hard):** max **3 videos from the same account** per platform; aim for **3+ distinct content formats** per platform (POV skit, talking head, street interview, UGC demo, meme, vlog, screen demo…)
-- Label every video with `handle`, `metric` (likes/views), and `format`
+- Label every video with `handle`, `metric` (likes/views), `format`, and `relevance` (which test below it passes)
+
+### The content-type taxonomy
+
+Content types are a **cross-cutting tag, not a structure**. The body of the deck
+stays organised BY PLATFORM (slides 5-11, brand/competitor then organic creator
+for each — category context leads into adaptable formats) — that is how a reader navigates it. Tag every curated card with the
+type it belongs to, then let the *distribution* of those tags drive three places
+only: the **executive summary**, the **formats slide**, and the **strategy
+section**. Never reorder or regroup the platform slides around types.
+
+Most categories use four types:
+
+1. **Branded / owned IP** — the brand's own channel, fronted by a recurring
+   figure: a real person (founder, host) or a virtual/character IP. Highest
+   trust, slowest to build, and the type most often left empty.
+2. **Branded commercial** — TVC, paid social, product spots. Meta Ads is the
+   read here; an empty Ad Library means the category competes organically.
+3. **Educational** — the idea taught or dramatised. Suits story and animation,
+   and the register follows the brand (ink-wash for a classics app, bright 2D
+   for a kids product). This is where generation replaces hand-made scale.
+4. **UGC / testimonial** — real users narrating their own journey with the
+   product or the idea behind it. Cheapest to seed, hardest to fake.
+
+Do not force content into four boxes when the category genuinely uses another:
+add a type (creator code-drop, listicle placement, reaction/duet, comparison)
+when the evidence shows one, and say why it earned a slot.
+
+**Score each type, don't just name it.** For every type record: is anyone doing
+it, what does the ceiling look like, and who holds it. A type nobody occupies at
+any scale is an opportunity; a type one funded incumbent dominates is a fight.
+That scoring is what makes the summary, formats slide and strategy pages
+actionable rather than descriptive — one research run found three of four types
+unoccupied, which changed the recommendation from "post more" to "run three
+lanes in parallel". The platform slides carried exactly the same cards
+throughout; only the framing around them changed.
+
+### The relevance gate
+
+Engagement ranking on its own fills the deck with whatever is biggest in the
+*broad theme*, which is rarely the product's category. Keep a video only if it
+passes at least one test, and record which:
+
+1. **Product** — the client's product or a **named competitor product** appears, is demoed, or is being reacted to
+2. **Category** — the thing the product does is being done on screen, with or without an app (a phone locking itself, a character replying, a comic being generated)
+3. **Problem** — the audience states the exact problem the product solves, in their own words ("I keep scrolling instead of studying", "I cannot stop talking to it")
+
+Reject anything that only shares a *technology, aesthetic, or topic* with the
+product. Those posts often out-perform on-category ones by 3-5x, which is
+exactly why an engagement-first pass keeps selecting them.
+
+Observed failures worth recognising, all of which cleared the engagement floor
+comfortably and told the client nothing:
+
+| Product | Video that slipped through | Why it fails |
+|---|---|---|
+| AI character chat app | AI-generated crime drama, 301K likes | AI-made, but no character to talk to and no app |
+| AI character chat app | "Usher but make it AI", 104K likes | shares the technology, not the job |
+| AI character chat app | AI-video character-consistency tutorial, 90K likes | a filmmaking tip, not a consumer use case |
+| Focus / anti-procrastination app | "how parents wake you up", 296K likes | matches the *persona*, but nothing is being focused or blocked |
+
+If a platform cannot fill 5 relevant slots, **run the targeted sweep in Step 3
+before lowering the bar**, and only then ship fewer cards with the gap
+disclosed. A short on-category set beats a full off-category one.
 
 Fetch thumbnails into `{brandFolder}/thumbnails/`:
 
@@ -307,33 +428,83 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
 
 1. Consolidate everything into `{brandFolder}/report_data.json` following the schema in `skills/social-content-research-report/SKILL.md`:
    - `cover` — client name, subtitle, `{preparedFor from @product-info}`, current month/year
-   - `exec` — 3 findings + "what this means for content" from the cross-platform evidence
+   - `exec` — 3 findings + "what this means for content". Lead with the **content-type distribution** (which of the four types are occupied, by whom, at what ceiling) rather than a platform-by-platform recap; the reader already gets platforms on slides 5-11. State the opportunity as which types are open. Every finding carries a measured number.
    - `landscape` — tight copy + ONE hero stat (the most striking number found)
    - `competitive` — 3 tier rows from `competitors_confirmed.json` + presence data
    - `platforms.tiktok/instagram/youtube` — the curated 5+5 video lists from Step 5
    - `meta_ads` — 6 ads from `ads_research.json` (filter `advertiser` to real target brands); include each ad's `ad_id` so the deck cards deep-link to the specific ad (`https://www.facebook.com/ads/library/?id={ad_id}`), not a keyword search
-   - `formats` — 4 format cards synthesizing what works cross-platform
+   - `formats` — the **four content types**, one card each, tagged `1 · BRANDED IP` / `2 · COMMERCIAL` / `3 · EDUCATIONAL` / `4 · UGC` (swap or add a type when the category uses a different one). Each description says who occupies the type and its measured ceiling, so the slide reads as a map of open ground rather than a list of styles.
    - `connect` — About Adant AI product overview: keep the capability-card defaults, use `contact@anyloop.ai`, and include case-study identities, URLs, or performance metrics only when they are verified public information or explicitly approved by the user
    - `strategies` — the Sample Content Strategy section (see the sub-step below)
 
 2. **Sample Content Strategy** — pick the **top 5 inspiration videos** out of everything curated in Step 5 and turn each into one copy-paste Adant message.
 
-   Selection: rank by engagement first, then by how cleanly the hook maps onto this product, then by format diversity. Hard rules: **max one video per account**, **at least two platforms represented**, no video that already appears twice in the deck, and organic creator picks still obey the engagement floor. Prefer videos whose format the product can actually stage (a screen demo beats a stunt the product cannot reproduce).
+   **Cover the types, not just the platforms.** Distribute the 5 strategies across the content types the evidence supports, weighted to where the client can realistically win — a type nobody occupies deserves a strategy even at a low view count, because the ceiling is a statement about competition, not about demand. Title each strategy with its type (`Type 1 · …`) so the section reads as a plan. State plainly when a type has no strategy and why (no evidence, or the client cannot produce it).
+
+   Selection: every candidate must already have passed the curation relevance gate — strategies come only from curated cards, so an off-category card becomes an off-category strategy. Within that pool rank by engagement, then by how cleanly the hook maps onto this product, then by format diversity. Hard rules: **max one video per account**, **at least two platforms represented**, no video that already appears twice in the deck, and organic creator picks still obey the engagement floor. Prefer videos whose format the product can actually stage (a screen demo beats a stunt the product cannot reproduce).
+
+   Sanity-check each pick by writing its `what_to_change` line first: if swapping the product in requires changing what the video *is about* rather than what it shows, the pick is off-category no matter how well it performed.
 
    Read `skills/social-content-strategist/SKILL.md` before writing these — the block shape below is that skill's, and the deck renders the same **General Instructions** verbatim from `content-strategy-generator`, once, on the section opener. Per strategy, write only:
 
    ```text
-   analyze <inspiration url>, and use a UGC avatar: <one-sentence avatar>
+   analyze <inspiration url>
 
-   Hook to keep: <one sentence>
+   Avatar: <TYPE> — <specific look>
 
-   What to change: <one sentence - how the product swaps in>
+   Keep: <what carries over, and why>
 
-   Add text overlay:
-   <2-3 short overlay lines, last one the product tag>
+   Change: <how the product swaps in>
+
+   Overlay:
+   <2-3 short lines, last one the product tag>
    ```
 
-   No full scripts, no timelines, no per-strategy repetition of the general instructions. The avatar is a suggestion only — never generate an image for it. Each entry goes into `report_data.json` as:
+   One idea per line and the url alone on the first, so a long permalink can
+   never push another field onto a wrapped second line.
+
+   ### Derive the avatar from the reference, never from habit
+
+   **Watch the video before writing the avatar.** Run `trend-video-understanding`
+   on every strategy pick and read `fingerprint.character`, `setting` and the
+   narrative pass's visual-style notes. Defaulting to "a UGC avatar" is the most
+   common failure here: it puts a phone-shot person in front of an animated
+   reference, a studio commercial, or a piece with no character at all.
+
+   Name a TYPE and then the specific look:
+
+   | Type | When the reference is | Say something like |
+   |---|---|---|
+   | **UGC** | phone-shot, handheld, one real person | `UGC — early-20s student at a desk, handheld, no makeup` |
+   | **Animation** | drawn or rendered — always name the style | `Animation (2D ink-wash)`, `Animation (3D Pixar-style)`, `Animation (anime)`, `Animation (claymation)` |
+   | **Commercial / TVC** | lit set, polished grade, product hero | `Commercial — studio-lit presenter, shallow depth of field` |
+   | **Drama / cinematic** | acted scene, film grade, blocking | `Cinematic actor — two-hander in a kitchen, warm film grade` |
+   | **Narrator only** | voice over b-roll or screen capture | `No on-camera person — screen recording with a calm voiceover` |
+   | **Product only** | the object is the subject | `No performer — product on a plain sweep, macro moves` |
+
+   Animation without a named style is not enough: `3d`, `anime`, `2d`, `Pixar`,
+   `claymation`, `paper-cut`, `ink-wash` all read completely differently, and the
+   right one usually follows the brand rather than the reference.
+
+   ### Pick the reuse axis per video — it is not always the hook
+
+   `Keep:` names WHAT is being carried over. Choose from the fingerprint's
+   `hook_type`, `viral_format`, `why_it_works` and the narrative visual-style
+   notes, and say it plainly:
+
+   - **the hook** — the opening beat is the whole reason it worked; reproduce it near-verbatim
+   - **the viral format** — the mechanic travels (list, POV, duet, before/after, reveal) while the opening can be rewritten
+   - **the visual style** — the look is the draw; borrow the grade, palette, typography and pacing but tell a different story
+   - **the structure** — the beat map and length carry it, not any single line
+   - **the pacing / edit rhythm** — cut cadence and sound design are the signature
+   - **the format, inverted** — same mechanic, opposite outcome, when a straight clone would read as a copy
+
+   Say which, and why this video earns that axis. A deck where all five say
+   "keep the hook" has not looked at the videos.
+
+   No full scripts, no timelines, no per-strategy repetition of the general
+   instructions. The avatar is a suggestion only — never generate an image for
+   it. Each entry goes into `report_data.json` as:
 
    ```json
    {"strategies": {
@@ -341,9 +512,14 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
      "items": [{"title": "…", "platform": "tiktok", "format": "POV SKIT",
                 "metric": "1.2M likes", "posted": "YYYY-MM-DD", "handle": "@x",
                 "url": "https://…", "thumb": "thumbnails/tiktok-1.jpg",
-                "why_this_video": "…", "avatar": "…", "hook_to_keep": "…",
-                "what_to_change": "…", "overlays": ["…", "…", "Product: tagline"]}]}}
+                "why_this_video": "…", "avatar": "Animation (2D ink-wash) — …",
+                "keep": "the viral format — …", "change": "…",
+                "style": "optional extra art-direction line",
+                "overlays": ["…", "…", "Product: tagline"]}]}}
    ```
+
+   `keep` / `change` supersede `hook_to_keep` / `what_to_change`; the renderer
+   still accepts the old keys so existing report data keeps building.
 
    Fewer than 5 qualifying videos: ship what qualifies and say so in the delivery note rather than padding with weak picks. Omit `strategies` entirely and the deck falls back to 13 slides.
 

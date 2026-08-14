@@ -27,7 +27,13 @@ import urllib.parse
 from collections import Counter
 from pathlib import Path
 
-from strategy_slides import build_strategy_section, strategy_markdown
+from strategy_slides import (
+    MSG_WRAP_COLS,
+    build_strategy_section,
+    overlong_message_lines,
+    strategy_markdown,
+    strategy_message,
+)
 
 TEMPLATE_PATH = Path(__file__).resolve().parent.parent / "templates" / "deck.html"
 
@@ -94,12 +100,20 @@ def build_vid_grid(
     return f'<div class="vid-grid vid-grid--{n}">\n' + "\n".join(cards) + "\n  </div>"
 
 
-def build_ads_grid(ads: list[dict], cropped: bool = False) -> str:
+def build_ads_grid(ads: list[dict], cropped: bool = False, empty_note: str | None = None) -> str:
     """Build the 3x2 Meta Ads grid. Each ad dict: {advertiser, thumb, ad_id?, query?}.
 
     Cards deep-link to the specific ad via ad_id; query/advertiser keyword
     search is only the fallback when no ad_id is present.
+
+    With no ads the slide would otherwise render an empty frame that reads as a
+    rendering fault. `empty_note` states why instead - "nobody in this category
+    advertises" is a finding, and it should be said rather than shown as blank.
     """
+    if not ads:
+        return f'<div class="vid-empty">{empty_note}</div>' if empty_note else (
+            '<div class="vid-empty">No ads matched this niche in the Ad Library.</div>'
+        )
     cls = "ads-grid ads-grid--cropped" if cropped else "ads-grid"
     cards = []
     for ad in ads[:6]:
@@ -228,6 +242,7 @@ def build_markdown(data: dict) -> str:
         section = platforms.get(key, {})
         if not section:
             continue
+        # Brand/competitor leads, then organic creator - same order as the slides.
         lines += [f"## {label} — Brand & Competitor", f"**{_plain(section.get('brand_headline', ''))}**", "", _plain(section.get("brand_intro", "")), ""]
         lines += vid_table(section.get("brand_videos", [])) + [""]
         lines += [f"## {label} — Organic Creators", f"**{_plain(section.get('creator_headline', ''))}**", "", _plain(section.get("creator_intro", "")), ""]
@@ -275,6 +290,15 @@ def main() -> None:
     for key, label in [("tiktok", "TikTok"), ("instagram", "Instagram"), ("youtube", "YouTube Shorts")]:
         if key in platforms:
             warnings += validate_platform(label, platforms[key])
+    # A message line wider than the block still copies correctly, but it lands in
+    # the paste with a line break the author never wrote. Warn so it gets cut.
+    for index, item in enumerate(data.get("strategies", {}).get("items", []), 1):
+        for line in overlong_message_lines(item):
+            warnings.append(
+                f"strategy {index} ({item.get('handle', '?')}): message line is "
+                f"{len(line)} chars, over the {MSG_WRAP_COLS} that fit — it will "
+                f"wrap in the paste. Shorten: {line[:56]}…"
+            )
     if warnings:
         print("Diversity warnings:")
         for w in warnings:
@@ -304,7 +328,9 @@ def main() -> None:
         )
 
     ads = data.get("meta_ads", {})
-    grids["adsGridHtml"] = build_ads_grid(ads.get("ads", []), cropped=ads.get("cropped", False))
+    grids["adsGridHtml"] = build_ads_grid(
+        ads.get("ads", []), cropped=ads.get("cropped", False), empty_note=ads.get("empty_note")
+    )
     grids["caseRowHtml"] = build_case_row(data.get("connect", {}))
 
     # ── Flat placeholder map ────────────────────────────────────────────
@@ -341,6 +367,20 @@ def main() -> None:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(html)
     print(f"Deck HTML written to {out}")
+
+    # Companion plain-text file: the deck is the artefact people present, but a
+    # PDF text layer is one run per rendered line no matter how it is built, so
+    # a viewer copy always carries the line breaks. This file is the frictionless
+    # source — select all, paste, done — and costs nothing to emit.
+    strategies = data.get("strategies", {}).get("items", [])
+    if strategies:
+        txt_out = out.with_name(f"{out.stem}_strategies.txt")
+        blocks = []
+        for index, item in enumerate(strategies, 1):
+            title = item.get("title", "")
+            blocks.append(f"# {index}. {title}\n{strategy_message(item)}")
+        txt_out.write_text("\n\n\n".join(blocks) + "\n")
+        print(f"Copy-paste strategies written to {txt_out}")
 
     if args.md:
         md_out = Path(args.md)
