@@ -18,7 +18,15 @@ Uses Chrome CDP in a separate **headless** research browser — no window, no do
 
 Every browser this skill launches runs with `--mute-audio` and autoplay blocked (`--autoplay-policy=document-user-activation-required`), so a Reels feed never plays sound over your work.
 
-**Signed out, Instagram walls most search results**, so signing in once is what makes this skill useful. Nothing pops up on its own: a run without a session prints a one-line request and carries on, and only `--login` — which you run deliberately — opens a window. If direct search yields no results, use `discover_reels.py`; it needs no login at all.
+**Signed out, Instagram walls most search results**, so signing in once is what
+makes this skill useful. Before searching, run `--login-check`. If it reports
+`logged_in: false`, tell the user that one dedicated, muted sign-in window is
+about to open, run `--login`, and ask them to sign in, close the window, and
+confirm. Open it at most once in the workflow, then re-run `--login-check`. If
+the user declines or the check still fails, do not open it again or keep
+prompting; use `discover_reels.py` and disclose the thinner coverage. A direct
+runtime search still never opens a window unexpectedly: only the skill's
+deliberate `--login` preflight does.
 
 ## Quick Start
 
@@ -44,7 +52,7 @@ uv run --project runtime runtime/browse.py "AI tools" -n 20 -o output/reels_rese
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--login` | Open the Instagram sign-in window (run once) | - |
-| `--login-check` | Print `{"logged_in": bool}` and exit; opens nothing | - |
+| `--login-check` | Print `{"logged_in": boolean \| null}` and exit; `null` means the session store was unreadable; opens nothing | - |
 | `-n, --max-results` | Max results per keyword | `10` |
 | `-o, --output` | Save JSON report to file | stdout |
 | `--json` | Output raw JSON | formatted |

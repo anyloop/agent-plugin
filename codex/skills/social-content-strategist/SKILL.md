@@ -45,9 +45,19 @@ maintaining history so later batches do not repeat URLs or concepts.
   plays over the user's work.
 - **Get the user signed in to TikTok and Instagram before browsing them.** Signed
   out, those two return almost nothing. Check with each skill's `--login-check`
-  (opens and launches nothing) and, when it reports `logged_in: false`, ask the
-  user in chat to run that skill's `--login` once; nothing opens a window on its
-  own. Do not copy, expose, or log cookie contents.
+  (opens and launches nothing). When it reports `logged_in: false`, tell the user
+  that one dedicated, muted sign-in window is about to open, then run that skill's
+  `--login` and ask them to sign in, close the window, and confirm. Open it at
+  most once per platform per workflow. After confirmation, re-run `--login-check`
+  before browsing. If the user declines or asks to skip, or the check still
+  fails, do not open it again or keep prompting; use the documented fallback and
+  disclose the thinner coverage. Do not copy, expose, or log cookie contents.
+- If the check reports `logged_in: null`, its cookie store was unreadable. Explain
+  that briefly and continue with the fallback without opening a sign-in window.
+- A local cookie can be revoked server-side. If every TikTok or Instagram query
+  returns zero despite `logged_in: true`, treat the session as expired. If that
+  platform's sign-in window has not opened in this workflow, use the same one-time
+  sign-in flow and retry once; otherwise use the fallback without another prompt.
 - Read a component skill's `SKILL.md` before invoking its runtime.
 - Keep source URLs and source labels through every transformation.
 

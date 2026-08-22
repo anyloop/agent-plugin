@@ -77,13 +77,21 @@ The section is rendered by `runtime/strategy_slides.py`, which also numbers the 
 ## Content Rules (the whole point of this report)
 
 - **Slide order is fixed: brand/competitor first, then organic creator, per platform.** Brand content establishes the category context and positioning before the deck shows creator formats a reader can adapt. The body stays organised BY PLATFORM — content types are a cross-cutting tag, never a regrouping.
-- **~10 contents per platform** — 5 brand/competitor + 5 organic creator per platform (8+ acceptable, flag below that). Meta Ads adds 6 more creatives on the Instagram side.
-- **Minimum engagement (organic creators only)** — creator cards need **≥50K views/likes**; when a niche is thin, the floor relaxes to **≥10K**, never lower. `build_deck.py` warns on 10K-50K creator cards and flags anything under 10K for removal. **Brand/competitor cards have no engagement floor at all**: never pre-filter them at 10K (or any other threshold); show the top official posts available because weak brand numbers are themselves a finding. If no official brand/competitor content is found, the deck renders a brand-specific empty state without implying that a view floor was applied.
+- **~10 contents per platform** — target 5 brand/competitor + 5 organic creator cards; **4 per page is the production minimum**. `build_deck.py --strict` rejects any page below four instead of allowing one full page to mask an empty sibling page. Meta Ads adds 6 more creatives on the Instagram side.
+- **Do not turn an empty card slot into report copy.** Hand a thin brand or creator pool back to `initial-social-content-research`; run every primary query batch, then reserve batches while the page remains below four. Continue toward five relevant cards from a 12-candidate buffer. The expansion must include entity-qualified content-type phrases and hashtags mined from relevant candidates. Never render below four cards; methodology stays in `curation_audit.json`, never on the slide.
+- **Minimum engagement (organic creators only)** — creator cards start at **≥50K views/likes**. Relax to **≥10K**, then **≥1K**, only after targeted product, competitor, use-case, content-type, and relevant-hashtag top-ups cannot fill five cards. A no-minimum verified-niche fallback is the last resolution when four relevant cards still cannot be filled at 1K. Any sub-50K floor requires `creator_top_up_complete: true` plus a concrete gap note; the relevance gate never relaxes. `build_deck.py` surfaces incomplete fallback evidence for review. **Brand/competitor cards have no engagement floor at all**: use the strongest official posts and disclosed or clearly attributable paid creator/KOC/KOL placements, because partnership UGC is part of the brand's distribution strategy.
 - **Max 3 videos per account** across a platform — enforced by `build_deck.py` as a warning (`--strict` makes it fail). Diversity of voices beats depth on one account.
 - **On-category only** — every card must show the client's or a named competitor's product, show the job the product does, or state the problem it solves. Content that merely shares a technology, aesthetic, or topic does not qualify no matter how it performs, and it usually performs better: an AI-generated crime drama at 301K likes and an "Usher but make it AI" remix at 104K both out-ranked every genuine AI-character-app post in one run. Curate for relevance first, then rank the survivors by engagement.
 - **Diverse content formats** — each video card carries a format tag (POV SKIT, TALKING HEAD, STREET INTERVIEW, UGC DEMO, MEME, VLOG…). Aim for 3+ distinct formats per platform; the validator flags less.
+- **Diverse content types** — once both platform pages meet the four-card minimum, require at least three distinct content types across them. Use content-type expansion queries before accepting a one-lane deck.
 - **No market-state claims** the research can't support. No pricing, no deliverables, no engagement scope anywhere. When a slot is empty because a platform was never reached (login wall, dead fallback), set `brand_empty_note` / `creator_empty_note` to say so — the default empty state blames the engagement floor, which turns a coverage gap into a false finding about the niche.
 - **An empty result is never a market claim.** `meta_ads.empty_note` must describe the capture, not the category: "these advertisers returned no ads in this run" is supportable, "nobody in this category advertises" is not. One deck asserted a whole category ran no paid social while Alarmy, Opal and WakeClock were all live — the searches had silently returned zero for five of six queries.
+- **Slides contain insights, not the audit trail.** Never put rejected candidates, excluded titles, failed or zero-result queries, blank captions, missing handles, threshold exceptions, or search methodology in reader-facing copy. Preserve all of that evidence in `curation_audit.json`. If a coverage limitation changes the conclusion, compress it to one clause and state only the resulting decision.
+- **Video-card pages get one short insight, maximum two sentences.** This applies to every `brand_intro`, `creator_intro`, and `meta_ads.intro`. Prefer one sentence; use two only when the second changes the decision. The cards already carry the account, metric, and format, so the intro must not narrate each card.
+
+Bad: "Canva has the highest eligible post at 57K. Several product candidates were excluded because handles were missing, four searches returned blank captions, and no official TPT or Tes channel appeared."
+
+Good: "Canva leads YouTube at 57K views; Twinkl and Teach Starter remain below 3K. Tutorials are the clearest brand format."
 
 ## Usage
 
@@ -107,6 +115,67 @@ python3 skills/slide-pdf-generator/runtime/to_pdf.py \
   {brandFolder}/{product_name}_social_content_research_{date}.html \
   {brandFolder}/{product_name}_social_content_research_{date}.pdf --wait 8
 ```
+
+4. Save it to AdAnt — see **Save to AdAnt** below.
+
+## Save to AdAnt (the handoff)
+
+The deck's copy-paste messages are the fallback. The real handoff saves the
+report into the user's AdAnt Drive, where every strategy has a **Start in
+Studio** button that opens a project with the brief as its first message.
+It needs the AdAnt Remote MCP (`adant_*` tools) — skip the whole section
+when those tools are not connected, and say so in the closing message.
+
+`runtime/handoff.py` does the file work around three MCP calls:
+
+```bash
+H="skills/social-content-research-report/runtime/handoff.py"
+# 1. list every thumbnail + the deck files → the adant_prepare_uploads input
+python3 $H manifest --data {brandFolder}/report_data.json \
+  --pdf {brandFolder}/{stem}.pdf --html {brandFolder}/{stem}.html \
+  --audit {brandFolder}/curation_audit.json -o {brandFolder}/.handoff/manifest.json
+```
+
+2. Call `adant_prepare_uploads` with the manifest's `files` array and write
+   the tool result to `{brandFolder}/.handoff/slots.json`.
+
+```bash
+# 3. PUT each file to its presigned URL → the adant_complete_uploads input
+python3 $H upload --manifest {brandFolder}/.handoff/manifest.json \
+  --slots {brandFolder}/.handoff/slots.json -o {brandFolder}/.handoff/uploads.json
+```
+
+4. Call `adant_complete_uploads` with `uploads.json`'s `uploads` array and
+   write the result to `{brandFolder}/.handoff/completed.json`.
+
+```bash
+# 5. assemble the adant_save_product_report input
+python3 $H payload --data {brandFolder}/report_data.json \
+  --manifest {brandFolder}/.handoff/manifest.json \
+  --completed {brandFolder}/.handoff/completed.json \
+  --uploads {brandFolder}/.handoff/uploads.json \
+  --source chatgpt -o {brandFolder}/.handoff/save.json
+```
+
+6. Call `adant_save_product_report` with `save.json`'s `payload`. The result
+   carries `url` (the Studio report page), `versionNo`, and `warnings[]`.
+
+Rules:
+
+- **Re-running for the same product in one conversation: pass
+  `--report-id <reportId>` from the previous save** so the new version joins
+  the existing report instead of forking a lineage on a renamed client.
+  Saving is append-only; nothing is overwritten.
+- `payload` writes each strategy's exact `message` (via `strategy_message`)
+  into the data — the web sends it verbatim, so never edit the brief by hand
+  after this step.
+- `--source` is `chatgpt`, `codex`, or `claude` — whichever host is running.
+- Read `warnings[]` back to the user in one line when non-empty (missing
+  thumbnails, empty `keep`/`change`, a `format` that is really a relationship
+  label). They are the server telling the skill what to fix next run.
+- Close with the link: "Saved to your AdAnt Drive — open it at <url> to read
+  the report and start any strategy in Studio." Keep the copy-paste blocks in
+  the PDF; they are the offline path.
 
 ## `report_data.json` Schema
 
@@ -223,6 +292,6 @@ Verify no placeholder images before PDF: `find thumbnails -name '*.jpg' -size -1
 - Video slides (`.slide-vids`): title 38px, intro 14px; the 9:16 grid auto-centers. If you change `.vid-grid--5` max-width (1000px), re-test that 5 cards + format pills fit.
 - Ads slide fits 6 square creatives; use `"cropped": true` only for Library-page screenshot crops.
 - No em/en dashes in body copy; use commas, colons, ` · `. Bold `<strong>` sparingly (numbers, brand names).
-- **Keep copy tight — the deck is visual, not an essay.** Hard length guidance: findings ≤ 2 sentences (~180 chars), platform/ads intros 1-2 sentences (~150 chars), tier descriptions ≤ 2 short sentences, format descriptions 1 sentence + one receipt number, recommendation ≤ 2 sentences. If a sentence doesn't carry a number or a decision, cut it.
+- **Keep copy tight — the deck is visual, not an essay.** Enforced budgets: cover subtitle ≤140 characters/2 sentences; findings, recommendation, and landscape copy ≤180 characters/2 sentences each; platform/ads intros ≤160 characters/2 sentences; tier and format descriptions ≤140 characters/1 sentence; strategy intro/closing ≤160 characters/2 sentences; `why_this_video` ≤140 characters/1 sentence. Prefer one sentence everywhere. Run `build_deck.py --strict`; oversized copy or audit-language on video-card pages fails validation. If a sentence explains the research process instead of carrying a number, insight, or decision, move it to `curation_audit.json`.
 - Strategy slides (`.strat-slide`) fit a message of roughly 12 monospace lines beside the 224px video card. Keep `why_this_video` to one sentence, `avatar` / `hook_to_keep` / `what_to_change` to one sentence each, and overlays to 3 short lines — a longer message overflows the card.
 - Put `<em>…</em>` around ONE key phrase in each headline (`execSummaryHeadline`, `landscapeHeadline`, platform headlines, `adsHeadline`, `formatsHeadline`) — it renders as the design system's italic terracotta accent. Never nest tags inside the `<em>`.

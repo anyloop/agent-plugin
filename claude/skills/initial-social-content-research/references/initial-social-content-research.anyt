@@ -21,7 +21,7 @@ Give this workflow a **product URL + whatever you know in natural language**, an
 2. **Competitor Research** — `competitor-research` skill finds true competitors (verified via web search)
 3. **Keyword Research** — platform-native keywords per platform (TikTok, Instagram, YouTube)
 4. **Platform Browsing** — `browse-tiktok-research`, `browse-instagram-reels`, `browse-meta-ads-library`, `browse-youtube-shorts`
-5. **Content Curation** — ~10 contents per platform (5 brand/competitor + 5 organic creator), diverse formats, max 3 videos per account
+5. **Content Curation** — target 5 brand/competitor + 5 organic creator cards per platform, with 4 per page as the delivery minimum, diverse formats, and max 3 videos per account
 6. **Report** — `social-content-research-report` skill builds the 20-slide Social Content Research deck (13 research + Sample Content Strategy) as `{product_name}_social_content_research_{date}` (PDF + MD, plus a clickable HTML review copy)
 
 **This is a research report, not a pitch**: no pricing page, no deliverables page. The "Let's connect" slide (13) carries a one-page intro to Adant AI's past records, and the deck then closes with a **Sample Content Strategy** section: the 5 strongest inspiration videos from this research, each rendered as a copy-paste Adant message in the `social-content-strategist` block shape, plus the adant.ai link again on the final slide.
@@ -30,7 +30,9 @@ Give this workflow a **product URL + whatever you know in natural language**, an
 - AdAnt CLI authentication (`npx @anyloop/adant-cli auth login` when needed). AdAnt owns
   all upstream model credentials; never request a Gemini or other provider key.
 - Browsing runs in headless research browsers: no windows, no focus stealing, every browser muted with autoplay blocked. Research feeds are wall-to-wall short-form video and must never play over the user's work.
-- **TikTok and Instagram need a session** — signed out they return almost nothing, so getting the user signed in is the difference between research and an empty file. Check with `--login-check` (opens and launches nothing) and, when it reports `logged_in: false`, ask the user to run that skill's `--login` once. Nothing opens a window on its own. YouTube Shorts and Meta Ads Library need no login.
+- **TikTok and Instagram need a session** — signed out they return almost nothing, so getting the user signed in is the difference between research and an empty file. Check with `--login-check` (opens and launches nothing). When it reports `logged_in: false`, tell the user that one dedicated, muted foreground sign-in window is about to open, run that skill's `--login` so it opens directly in front via Chrome, and ask them to sign in, close the window, and confirm. Open it at most once per platform per workflow, then re-run `--login-check`. If the user declines or asks to skip, or the check still fails, do not open it again or keep prompting; use the documented fallback and disclose the thinner coverage. The visible login window should be explicitly brought forward, stay muted, and block autoplay so it does not disrupt the user's work. YouTube Shorts and Meta Ads Library need no login.
+- If the check reports `logged_in: null`, its cookie store was unreadable. Explain that briefly and continue with the fallback without opening a sign-in window.
+- A local cookie can be revoked server-side. If every TikTok or Instagram query returns zero despite `logged_in: true`, treat the session as expired. If that platform's sign-in window has not opened in this workflow, use the same one-time sign-in flow and retry once; otherwise use the fallback without another prompt.
 - If a platform browse hits a login wall, use the documented public-search/indexed-page fallback plus oEmbed or og-tag metadata, and note the fallback in the report data.
 </note>
 
@@ -176,22 +178,57 @@ For YouTube, derive `{brandFolder}/keywords_youtube.json` from the TikTok keywor
 
 **App products (`product_profile.json → is_app`):** when the client is an app, use "xxx app" keyword variants everywhere organic search happens — "spark app", "mint finance app", "best dating apps" — plain common-word app names can be ambiguous in social search. The keyword skills apply this automatically; carry it into the YouTube keyword derivation too. (Meta Ads Library `--advertiser` names stay the exact brand name.)
 
-**Split the keywords into two sets, and browse both.** The keyword skills return
-mostly *theme* terms ("AI story generator", "app blocker"), which surface the
-biggest content in the broad space rather than the product's category. Derive a
-second **product set** and keep it separate:
+**Split keywords into four sets, and browse all four.** Theme terms surface
+the broad space, but product and brand-owned terms are what fill an on-category
+deck and expose the strongest official posts:
 
-- every confirmed competitor's **product name** as searched by real users (`character ai`, `polybuzz`, `janitor ai`, `talkie ai`, `alarmy app`, `opal app`, `brick app`)
-- `{client name}` and `{client name} app`
-- `apps like {leading competitor}` / `{leading competitor} alternative`
+- **Theme set:** broad category language for context only.
+- **Product set:** client and competitor product/model names plus high-intent
+  actions: `review`, `vs`, `comparison`, `sizing`, `fitting`, `setup`,
+  `maintenance`, `repair`, `test`, `best X for Y`. For apps, include explicit
+  `app`, `app review`, `apps like X`, and `X alternative` variants.
+- **Brand-owned set:** verified account/channel names paired with their own
+  products and models, e.g. `{brand} {model}`, `{brand} setup`, `{brand}
+  comparison`, and `{brand} review`.
+- **Content-type set:** entity-qualified phrases for missing lanes: `official`,
+  `founder story`, `behind the scenes`, `ad`, `commercial`, `product demo`,
+  `tutorial`, `how it works`, `comparison`, `honest review`, `customer story`,
+  `before after`, and `results`. Never search a bare format phrase without a
+  client, competitor, product, model, or precise use-case anchor.
 
-Store as `keywords_{platform}_products.json` alongside the theme set. Step 4
-runs both sweeps per platform and merges the pools before curation. The theme
-sweep tells you what the space rewards; the product sweep is what actually fills
-the relevance gate, and skipping it is the single most common way this workflow
-produces an off-category deck.
+Store the latter two as `keywords_{platform}_products.json` and
+`keywords_{platform}_brands.json`. Step 4 runs the sweeps separately and retains
+their query provenance. Never let a high-performing theme result displace a
+lower-reach video that actually demonstrates a product decision or service.
 
-**Output:** `{brandFolder}/keywords_tiktok.json`, `keywords_instagram.json`, `keywords_youtube.json`
+Derive a third **branded partnership set** for the client plus every confirmed
+Tier 1 and Tier 2 brand. It is a broad creator-candidate sweep, not a disclosure
+filter: likely UGC often uses only the product name or brand hashtag. For each
+brand include:
+
+- the exact brand name and its common product-name variant
+- the compact brand hashtag, stripping spaces and punctuation only when an
+  official hashtag is not already visible (`Wispr Flow` -> `#WisprFlow`)
+- non-disclosure product-use queries: `{brand} review`, `{brand} demo`,
+  `{brand} tutorial`, `{brand} app`, plus one brand-specific use case
+- `{brand} ad`, `{brand} sponsored`, `{brand} partner`, `{brand} partnership`,
+  `{brand} collaboration`, `partnered with {brand}`, and `{brand} ambassador`
+- platform-native disclosure combinations such as `#{compact_brand} #ad` and
+  `#{compact_brand} #sponsored`
+
+Store these separately as `keywords_{platform}_partnerships.json`. For every
+brand, run the exact name, hashtag, and at least two product-use queries even if
+the disclosure queries return results. Do not merge candidates into organic
+discovery before provenance is recorded: the query starts attribution, while
+video and creator-profile evidence determine whether the post belongs on the
+brand page or the organic page.
+
+When this produces more than 12 queries, browse one brand per invocation and
+merge the JSON pools. A single large batch can hit a platform timeout before the
+later competitors run, which creates false zeros in `keyword_breakdown`.
+
+**Output:** `{brandFolder}/keywords_tiktok.json`, `keywords_instagram.json`,
+`keywords_youtube.json`, and `keywords_{platform}_partnerships.json`
 </task>
 
 <task id="browse-tiktok" label="Step 4a: Browse TikTok">
@@ -202,7 +239,7 @@ Same flow as `tiktok-research.anyt` Step 4 (single round — hashtag expansion i
 ```bash
 uv run --project skills/browse-tiktok-research/runtime \
   skills/browse-tiktok-research/runtime/browse.py \
-  {top_keywords from keywords_tiktok.json, each in quotes} \
+  {product queries first, then theme queries; each in quotes} \
   --sort-by likes \
   --time-range {timeRange from @product-info} \
   -n 10 \
@@ -211,9 +248,40 @@ uv run --project skills/browse-tiktok-research/runtime \
   -o {brandFolder}/browse_tiktok.json
 ```
 
+Run the branded partnership set separately. Do not filter it to disclosure
+terms: plain brand, hashtag, review, demo, and tutorial queries are first-class
+inputs. Keep Phase 2 details enabled so the result includes current views, likes,
+follower count, caption, and uploader signals needed to distinguish KOCs/KOLs
+and evaluate distribution:
+
+```bash
+uv run --project skills/browse-tiktok-research/runtime \
+  skills/browse-tiktok-research/runtime/browse.py \
+  {queries from keywords_tiktok_partnerships.json, each in quotes} \
+  --sort-by likes \
+  --time-range {timeRange from @product-info} \
+  -n 20 \
+  --max-time 300 \
+  -o {brandFolder}/browse_tiktok_partnerships.json
+```
+
+Review `summary.keyword_breakdown` for every partnership query. A brand hashtag
+returning zero is a retry/fallback target, not proof the brand has no creator
+program. Resolve TikTok share URLs to permanent `@handle/video/{id}` URLs before
+curation and preserve the original URL as source evidence. For shortlisted
+creator posts, open `@handle` and record the public bio plus outbound link. A
+brand name/domain or `ambassador`/`partner` claim is relationship evidence; a
+generic Linktree URL is not unless its destination names or links the brand.
+
 Note: TikTok search results show **likes**, not views. If the browse hits a login wall, use web search with `site:tiktok.com` queries and TikTok oEmbed metadata; record `"source": "search-fallback"` in the JSON. Do not request a search-model API key.
 
-**Output:** `{brandFolder}/browse_tiktok.json` + summary `{brandFolder}/browse_tiktok_top.md` (top 30 by likes)
+Then run the verified brand-owned queries separately and write
+`browse_tiktok_brands.json`. Search results show **likes**, not views; do not
+silently relabel the metric.
+
+**Output:** `{brandFolder}/browse_tiktok.json`,
+`{brandFolder}/browse_tiktok_brands.json`,
+`{brandFolder}/browse_tiktok_partnerships.json`, and summaries
 
 Steps 4a-4d are independent — run them in parallel where possible.
 </task>
@@ -221,16 +289,26 @@ Steps 4a-4d are independent — run them in parallel where possible.
 <task id="browse-instagram" label="Step 4b: Browse Instagram Reels">
 ## Browse Instagram Reels
 
-Same flow as `instagram-research.anyt` Step 5, using ONLY `top_keywords` (organic keywords):
+Run product queries first for organic creators. Run verified brand handles and
+brand+product queries separately for official content:
 
 ```bash
 uv run --project skills/browse-instagram-reels/runtime \
   skills/browse-instagram-reels/runtime/browse.py \
-  {top_keywords from keywords_instagram.json} \
+  {product queries from keywords_instagram_products.json} \
   -n 10 \
   --min-views 50000 \
   -o {brandFolder}/browse_instagram.json
 ```
+
+Run `keywords_instagram_partnerships.json` as a separate browse with the same
+runtime and write `{brandFolder}/browse_instagram_partnerships.json`. Search both
+plain brand names and brand hashtags, plus review/demo/tutorial variants. On
+accepted Reels retain the caption, hashtags, tagged brand handle, creator handle,
+and any paid-partnership label or disclosure language. Inspect the creator bio
+and link-in-bio for the named brand/domain or an ambassador/partner claim. A
+hashtag alone opens the candidate; it neither proves payment nor disqualifies
+the Reel from further analysis.
 
 If Instagram requires login and no session is available — or the browse returns mostly low-view content — use the skill's **login-less discovery script**, which searches indexed reels, reads real og-tag metrics, and **self-expands with hashtags mined from accepted reels** until enough high-engagement content qualifies:
 
@@ -241,9 +319,19 @@ uv run --project skills/browse-instagram-reels/runtime \
   -o {brandFolder}/browse_instagram_discovered.json
 ```
 
-Try `--min-likes 50000` first; drop to `10000` (the hard floor) only if the niche is thin. This floor applies only to organic creator discovery. Source official brand/competitor Reels separately from confirmed handles and keep the top available posts regardless of engagement. Use public web results and verified Instagram pages as the last resort for competitor handles; record whichever fallback was used.
+Try `--min-likes 50000` first; drop to `10000` only if the relevant product
+pool is thin. This floor applies only to organic creators. For official content,
+inspect each verified account grid and run brand+product searches; collect at
+least 10 on-category candidates before selecting five when the platform exposes
+enough. Merge those with attributable creator placements from the partnership
+sweep. Keep owned posts regardless of engagement when they add distinct
+positioning evidence, but prefer stronger relevant partnership UGC when it
+better represents the brand's distribution strategy. Use public verified pages
+as the last resort and preserve source labels.
 
-**Output:** `{brandFolder}/browse_instagram.json` + `{brandFolder}/browse_instagram_top.md`
+**Output:** `{brandFolder}/browse_instagram.json`,
+`{brandFolder}/browse_instagram_brands.json`,
+`{brandFolder}/browse_instagram_partnerships.json`, and summaries
 </task>
 
 <task id="browse-meta-ads" label="Step 4c: Browse Meta Ads Library">
@@ -317,27 +405,180 @@ Same flow as `youtube-shorts-research.anyt` Step 4 (headless, no login needed):
 ```bash
 uv run --project skills/browse-youtube-shorts/runtime \
   skills/browse-youtube-shorts/runtime/browse.py \
-  {keywords from keywords_youtube.json, each in quotes} \
+  {product queries first, then theme queries; each in quotes} \
   -n 10 \
   --min-views 100000 \
   --time-range {timeRange mapped to today/week/month/year/all} \
   -o {brandFolder}/browse_youtube.json
 ```
 
-**Output:** `{brandFolder}/browse_youtube.json` + `{brandFolder}/browse_youtube_top.md`
+Run a second pass with verified channel names plus product/model terms and write
+`{brandFolder}/browse_youtube_brands.json`.
+
+Run a third sweep from `keywords_youtube_partnerships.json`, sorted by views,
+and write `{brandFolder}/browse_youtube_partnerships.json`. Include queries such
+as the plain brand, compact brand hashtag, `{brand} review`, `{brand} demo`,
+`{brand} tutorial`, `{brand} sponsored`, and `{brand} partner`. Inspect the
+Short title and description for brand tags, disclosures, affiliate links/codes,
+and calls to action. For shortlisted channels, inspect the public About text and
+outbound links for the brand/domain or ambassador/partner claims before assigning
+a relationship.
+
+**Output:** `{brandFolder}/browse_youtube.json`,
+`{brandFolder}/browse_youtube_brands.json`,
+`{brandFolder}/browse_youtube_partnerships.json`, and summaries
 </task>
+
+### Brand reach top-up and two-pool audit
+
+Do not use the first five official posts a browse happens to return. For each
+organic platform:
+
+Generate a repeatable gap/query plan before each top-up pass:
+
+```bash
+python3 skills/initial-social-content-research/runtime/discovery_policy.py \
+  --data {brandFolder}/report_data.json \
+  --profile {brandFolder}/product_profile.json \
+  --competitors {brandFolder}/competitors_confirmed.json \
+  --audit {brandFolder}/curation_audit.json \
+  -o {brandFolder}/discovery_top_up_plan.json
+```
+
+The plan emits ordered `passes` for each platform and pool. Run them in order:
+
+- Brand: `official-account`, `product-query`, `brand-hashtag`,
+  `partnership-query`, `retailer-distributor`, `content-type-expansion`,
+  `indexed-fallback`.
+- Creator: `exact-product`, `competitor-product`, `product-decision`,
+  `precise-problem`, `content-type-expansion`, `mined-hashtag`,
+  `indexed-fallback`.
+
+Each pool targets 12 relevant candidates for five cards, with four cards per
+page as the delivery minimum. The planner automatically mines hashtags only
+from specificity 2-3 candidates and emits up to three primary batches of eight
+queries per mode, preserving the remaining queries as reserve batches so later
+entities do not disappear behind a platform timeout. Run primary batches,
+re-curate, and run reserve batches only while the page remains below four. After each batch,
+merge and deduplicate candidates, apply the relevance gate, update
+`report_data.json`, and regenerate the plan. Stop only when every page has at
+least four qualified cards, continuing toward five from the candidate buffer.
+A zero-result capture advances to the next batch and indexed fallback; it never
+proves that relevant content does not exist. Query breadth, content-type lanes,
+and relevant hashtags expand before creator engagement floors relax; relevance
+and attribution never relax.
+
+1. Verify official accounts/channels from the competitor research or the linked
+   profile itself; record `official_account_verified: true` only with that proof.
+2. Collect candidates through both `official-account` and `product-query` modes.
+   Aim for 10+ relevant brand candidates across 3+ accounts. When coverage is
+   thinner, record a `brand_gap_note` instead of inventing completeness.
+3. If the selected official set is conspicuously low-reach, top up with product
+   names, model names, `review`, `setup`, `comparison`, `fitting`, and `test`,
+   including verified retailers or distributors for those same products.
+4. Filter for relevance, then rank by the platform's real metric. The
+   highest-reach eligible brand candidate must be selected. Any higher-reach
+   candidate omitted for diversity, duplication, recency, or unusable media
+   needs an explicit `exclusion_reason`.
+5. Keep brand and creator pools separate through curation. A paid or disclosed
+   brand partnership belongs in the brand pool; an independent review belongs
+   in the creator pool.
 
 <task id="curate-content" label="Step 5: Curate ~10 Contents per Platform">
 ## Select and Diversify the Content Set
 
 From the browse results + competitor presence data, curate per platform:
 
-- **5 brand/competitor contents** — official brand accounts (client's competitors, ideally across several brands)
+- **5 brand/competitor contents** — a deliberate mix of official/owned posts and creator-side branded UGC, influencer/KOC/KOL partnerships, ambassador posts, or attributable product integrations (ideally across several brands)
 - **5 organic creator contents** — non-brand creators winning in the niche
-- **Product relevance (hard, applied FIRST):** see the gate below. Rank on engagement only *after* filtering for relevance, never before
-- **Minimum engagement (organic creators, hard):** creator content needs **>=50K views/likes**; if the niche can't fill the slots at 50K, relax the floor to **>=10K**, never lower. **Brand/competitor content has no engagement floor at all** - never pre-filter official posts at 10K (or any other threshold); curate the top ones available regardless of views because weak brand numbers are a finding, not a gap
-- **Diversity rules (hard):** max **3 videos from the same account** per platform; aim for **3+ distinct content formats** per platform (POV skit, talking head, street interview, UGC demo, meme, vlog, screen demo…)
-- Label every video with `handle`, `metric` (likes/views), `format`, and `relevance` (which test below it passes)
+- **Delivery floor:** every brand and creator page must contain at least **4**
+  relevant cards. Five is still the target. A page below four fails production
+  validation instead of shipping as an empty or one-card page
+- **Product relevance (hard, applied FIRST):** every selected card needs a
+  supported relevance test, 2-3 specificity score, and concrete evidence. Rank
+  on engagement only after filtering for relevance, never before
+- **Minimum engagement (organic creators, adaptive):** creator content starts at
+  **>=50K views/likes**. If targeted product/model, competitor/domain, use-case,
+  compact-hashtag, and mined-hashtag top-ups still cannot fill five relevant
+  slots, relax to **>=10K**. Use **>=1K** only after all top-up modes complete.
+  If four relevant cards still cannot be filled, a no-minimum verified-niche
+  fallback is the last resolution; record `creator_top_up_complete: true` and a
+  concrete `creator_gap_note`. Never relax the relevance gate.
+  **Brand/competitor content has no hard engagement
+  floor** because useful owned posts may be small. Rank the relevant brand pool
+  by reach, distinct format, and relationship confidence; when partnership UGC
+  materially outperforms low-view official posts, show that distribution
+  strategy instead of filling the page with weak owned examples
+- **Diversity rules (hard):** max **3 videos from the same account** per platform;
+  require **3+ distinct content types** across the platform and aim for **3+
+  distinct content formats** (POV skit, talking head,
+  street interview, UGC demo, meme, vlog, screen demo…)
+- Label every video with `handle`, `metric` (likes/views), `format`, `source`,
+  and the full `relevance` object below. For creator-side brand content also
+  retain `relationship`, `relationship_confidence`, `relationship_evidence`,
+  `creator_profile_evidence`, `promotion_strength`, `promotion_evidence`, and
+  `discovery_query`
+
+### Analyze likely creator collaborations
+
+A caption is not the video. Before classifying shortlisted creator-side brand
+content, run `trend-video-understanding` with the named brand:
+
+```bash
+uv run --project skills/trend-video-understanding/runtime \
+  skills/trend-video-understanding/runtime/understand_video.py \
+  --url "{permanent post URL}" \
+  --brand "{brand or product name}" \
+  --context "{client niche and why this post was shortlisted}" \
+  -o {brandFolder}/video-analysis/brand-partnerships/{platform}-{post_id}.json
+```
+
+Use its evidence-based `promotion_strength` separately from relationship
+evidence:
+
+- **`none`** — the named product is absent; reject it from the brand set
+- **`incidental`** — briefly visible or named but not material; normally reject
+- **`integrated`** — central to the demo, story, problem, or outcome
+- **`direct`** — explicitly recommends, sells, or asks viewers to use, buy, or
+  download the product
+
+Retain `promotion_evidence`, `call_to_action`, and
+`creator_native_ugc_style`. UGC style describes the creative format; it is not
+proof of payment. Inspect the creator profile separately and save the exact bio
+excerpt, resolved brand URL/domain, stated ambassador/partner role, source URL,
+and date checked. A generic creator bio, an unresolved link hub, or a brand
+hashtag repeated only in the post is not independent profile evidence.
+
+### Brand relationship gate
+
+A creator post belongs in the brand/competitor set only when the brand-product
+relationship is directly attributable. Classify it before ranking:
+
+1. **`confirmed_paid`** — the platform shows a paid-partnership label, or the
+   caption/title/description contains an explicit disclosure (`#ad`,
+   `#sponsored`, `paid partnership`, `partnered with`, `Publicité`, or a local
+   equivalent) or unambiguous sponsorship statement.
+2. **`commercial_affiliate`** — an affiliate link, commission disclosure, promo
+   code, or creator-specific landing page proves a commercial relationship but
+   does not by itself prove a paid sponsorship. Label it `Affiliate creator
+   integration` unless another disclosure also supports `confirmed_paid`.
+3. **`potential_collaboration`** — no explicit disclosure exists, but the video
+   is `direct` creator-native promotion, or `integrated` with at least two
+   observable brand-forward signals, and independent profile evidence names the
+   brand/domain or claims an ambassador/partner relationship. Set
+   `relationship_confidence: medium`, label it `Potential creator collaboration`,
+   and state that it is unconfirmed.
+4. **`brand_attributed`** — the named product is shown or demonstrated and the
+   creator directly tags the brand or uses its brand hashtag, but payment is not
+   proven. Label the card `Creator product integration`, never `Sponsored`.
+5. **`owned`** — the post comes from a verified official or founder account.
+
+A brand hashtag alone is enough to enter discovery, not enough to confirm a
+relationship. Analyze rather than discard it. Reject generic hashtag stuffing
+when the product is absent or merely incidental. Do not infer KOC or KOL status
+from views alone; use creator/follower metadata when available and otherwise say
+`creator placement`. Keep caption, video-analysis, profile, and permanent-URL
+evidence separate so every report label is auditable.
 
 ### The content-type taxonomy
 
@@ -376,17 +617,39 @@ throughout; only the framing around them changed.
 
 ### The relevance gate
 
-Engagement ranking on its own fills the deck with whatever is biggest in the
-*broad theme*, which is rarely the product's category. Keep a video only if it
-passes at least one test, and record which:
+Engagement ranking on its own fills the deck with the biggest broad-theme post.
+Keep a video only when it passes one of these tests:
 
-1. **Product** — the client's product or a **named competitor product** appears, is demoed, or is being reacted to
-2. **Category** — the thing the product does is being done on screen, with or without an app (a phone locking itself, a character replying, a comic being generated)
-3. **Problem** — the audience states the exact problem the product solves, in their own words ("I keep scrolling instead of studying", "I cannot stop talking to it")
+1. `exact-client-product` (specificity 3) — the client product/model is named,
+   shown, demonstrated, reviewed, compared, fitted, set up, or serviced.
+2. `named-competitor-product` (specificity 3) — the same proof exists for a
+   confirmed competitor product/model.
+3. `product-decision-service` (specificity 2 or 3) — the creator compares,
+   chooses, sizes, fits, configures, maintains, repairs, or tests the exact kind
+   of product the client sells. The product is the subject, not background gear.
+4. `precise-product-problem` (specificity 2 or 3) — the caption, transcript, or
+   on-screen action states and demonstrates a concrete problem the product
+   solves.
+
+Record the proof on both the candidate and selected report card:
+
+```json
+"relevance": {
+  "test": "product-decision-service",
+  "specificity": 2,
+  "evidence": "The transcript compares 3/2 and 4/3 wetsuits by water temperature."
+}
+```
 
 Reject anything that only shares a *technology, aesthetic, or topic* with the
 product. Those posts often out-perform on-category ones by 3-5x, which is
 exactly why an engagement-first pass keeps selecting them.
+
+For physical products, visible category participation is not enough: skiing in
+snow gear, surfing on a board, or filming an outdoor montage does not pass unless
+the content makes a product/model, selection, setup, fit, maintenance, test, or
+precise product problem central. For apps, a generic lifestyle problem does not
+pass unless the app/product job is shown or explicitly discussed.
 
 Observed failures worth recognising, all of which cleared the engagement floor
 comfortably and told the client nothing:
@@ -416,7 +679,45 @@ yt-dlp --skip-download --write-thumbnail --convert-thumbnails jpg -o "{brandFold
 
 Verify: `find {brandFolder}/thumbnails -name '*.jpg' -size -15k -print` — re-capture anything under 15 KB.
 
-**Output:** curated content lists (feed directly into `report_data.json` in the next step), thumbnails
+Write `{brandFolder}/curation_audit.json` with, per platform:
+
+```json
+{
+  "brand_search_modes": ["official-account", "product-query", "brand-hashtag",
+    "partnership-query", "retailer-distributor", "content-type-expansion",
+    "indexed-fallback"],
+  "brand_candidates": [{"url": "…", "handle": "…", "metric": "…",
+    "format": "…", "official_account_verified": true, "selected": true,
+    "relevance": {"test": "named-competitor-product", "specificity": 3,
+      "evidence": "…"}}],
+  "creator_candidates": [{"url": "…", "handle": "…", "metric": "…",
+    "format": "…", "selected": false, "exclusion_reason": "general topic",
+    "relevance": {"test": "general-topic", "specificity": 1,
+      "evidence": "Outdoor montage shows the activity but never identifies or evaluates a product."}}],
+  "creator_floor": 50000,
+  "creator_search_modes": ["exact-product", "competitor-product",
+    "product-decision", "precise-problem", "content-type-expansion",
+    "mined-hashtag", "indexed-fallback"],
+  "brand_top_up_complete": false,
+  "creator_top_up_complete": false,
+  "brand_gap_note": "optional",
+  "creator_gap_note": "optional"
+}
+```
+
+Selected candidates use one of the four accepted relevance tests and specificity
+2–3. Rejected candidates may instead use `general-topic`, `incidental-product`,
+or `unverified-product` with specificity 0–1 so the audit preserves what was
+screened out. Every rejected candidate needs `exclusion_reason`. A 10K creator
+fallback needs `creator_gap_note`; a 1K fallback additionally requires
+`creator_top_up_complete: true`. Fewer than 12 candidates, fewer than five
+selections, or a creator floor below 50K requires every ordered mode in the
+matching `*_search_modes`, a concrete gap note, and
+`*_top_up_complete: true`. A zero creator floor is allowed only for verified,
+relevant niche cards after the full 50K → 10K → 1K sequence and every search
+mode has been exhausted.
+
+**Output:** `curation_audit.json`, curated lists, and thumbnails
 </task>
 
 <break id="review-content" label="Review Curated Content (optional)">
@@ -431,8 +732,8 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
    - `exec` — 3 findings + "what this means for content". Lead with the **content-type distribution** (which of the four types are occupied, by whom, at what ceiling) rather than a platform-by-platform recap; the reader already gets platforms on slides 5-11. State the opportunity as which types are open. Every finding carries a measured number.
    - `landscape` — tight copy + ONE hero stat (the most striking number found)
    - `competitive` — 3 tier rows from `competitors_confirmed.json` + presence data
-   - `platforms.tiktok/instagram/youtube` — the curated 5+5 video lists from Step 5
-   - `meta_ads` — 6 ads from `ads_research.json` (filter `advertiser` to real target brands); include each ad's `ad_id` so the deck cards deep-link to the specific ad (`https://www.facebook.com/ads/library/?id={ad_id}`), not a keyword search
+   - `platforms.tiktok/instagram/youtube` — the curated 5+5 video lists from Step 5; every card retains the audit's `relevance` object. On creator-side brand cards preserve the working relationship and promotion fields; set `content_type` or `relationship_label` to `Potential creator collaboration` for supported unconfirmed cases, never `Sponsored`. Keep every `brand_intro` and `creator_intro` to one short insight (two sentences and 160 characters maximum). Distinguish relationship types only when that changes the takeaway; put counts, verification detail, rejected candidates, and search methodology in `curation_audit.json`, never in the slide intro.
+   - `meta_ads` — 6 ads from `ads_research.json` (filter `advertiser` to real target brands); include each ad's `ad_id` so the deck cards deep-link to the specific ad (`https://www.facebook.com/ads/library/?id={ad_id}`), not a keyword search. Keep `intro` to one short insight (two sentences and 160 characters maximum); query coverage and rejected advertisers stay in `curation_audit.json`.
    - `formats` — the **four content types**, one card each, tagged `1 · BRANDED IP` / `2 · COMMERCIAL` / `3 · EDUCATIONAL` / `4 · UGC` (swap or add a type when the category uses a different one). Each description says who occupies the type and its measured ceiling, so the slide reads as a map of open ground rather than a list of styles.
    - `connect` — About Adant AI product overview: keep the capability-card defaults, use `contact@anyloop.ai`, and include case-study identities, URLs, or performance metrics only when they are verified public information or explicitly approved by the user
    - `strategies` — the Sample Content Strategy section (see the sub-step below)
@@ -523,7 +824,28 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
 
    Fewer than 5 qualifying videos: ship what qualifies and say so in the delivery note rather than padding with weak picks. Omit `strategies` entirely and the deck falls back to 13 slides.
 
-3. Build HTML + markdown (validates diversity rules + unfilled placeholders). Final report files are named `{product_name}_social_content_research_{date}` (lowercase product slug from `brand_folder`, date as `YYYY-MM-DD`):
+3. Validate the selected cards against the full candidate audit:
+
+```bash
+python3 skills/initial-social-content-research/runtime/validate_curation.py \
+  --data {brandFolder}/report_data.json \
+  --audit {brandFolder}/curation_audit.json \
+  --require-min-cards 4 \
+  --require-type-coverage
+```
+
+For a full five-card delivery, append `--require-full-cards`; the validator then
+requires exactly five brand and five creator cards on TikTok, Instagram, and
+YouTube.
+
+The validator rejects generic-topic creator cards, missing relevance evidence,
+brand posts that are neither verified official nor supported by relationship
+and promotion evidence, an omitted highest-reach eligible brand post,
+unexplained rejections, insufficient search modes, engagement-floor violations,
+and report/audit drift. Fix the research or disclose a real gap; do not weaken
+the validator to fill a slide.
+
+4. Build HTML + markdown (validates diversity rules + unfilled placeholders). Final report files are named `{product_name}_social_content_research_{date}` (lowercase product slug from `brand_folder`, date as `YYYY-MM-DD`):
 
 ```bash
 uv run --project skills/social-content-research-report/runtime \
@@ -533,7 +855,7 @@ uv run --project skills/social-content-research-report/runtime \
   --md {brandFolder}/{product_name}_social_content_research_{date}.md
 ```
 
-4. Render PDF:
+5. Render PDF:
 
 ```bash
 python3 skills/slide-pdf-generator/runtime/to_pdf.py \
@@ -541,7 +863,7 @@ python3 skills/slide-pdf-generator/runtime/to_pdf.py \
   {brandFolder}/{product_name}_social_content_research_{date}.pdf --wait 8
 ```
 
-5. Check: exactly 20 pages (13 research + strategy opener + 5 strategies + closing), no gray thumbnail boxes, no overflow clipping, no pricing/deliverables anywhere. Every strategy message must name a URL that also appears on a research slide. Copy stays tight per the skill's length guidance (findings ≤ 2 sentences, intros 1-2 sentences, every sentence carries a number or a decision).
+6. Check: exactly 20 pages (13 research + strategy opener + 5 strategies + closing), no gray thumbnail boxes, no overflow clipping, no pricing/deliverables anywhere. Every potential-collaboration card must have a saved promotion analysis plus independent profile evidence and must remain explicitly unconfirmed. Every strategy message must name a URL that also appears on a research slide. Run `build_deck.py --strict`: video-card and ads intros are one short insight, at most two sentences and 160 characters, and never contain rejected candidates, query coverage, blank-caption notes, missing-handle notes, or other audit methodology.
 
 **Output:** `{brandFolder}/{product_name}_social_content_research_{date}.pdf` + `.md` (+ `.html` clickable review copy)
 </task>
@@ -560,7 +882,9 @@ python3 skills/slide-pdf-generator/runtime/to_pdf.py \
 ├── browse_tiktok.json / browse_instagram.json / browse_youtube.json
 ├── browse_*_top.md
 ├── ads_research.json / ads_research_top.md
+├── curation_audit.json
 ├── report_data.json
+├── video-analysis/brand-partnerships/
 ├── thumbnails/
 ├── {product_name}_social_content_research_{date}.html   (clickable review copy)
 ├── {product_name}_social_content_research_{date}.md     (markdown version)

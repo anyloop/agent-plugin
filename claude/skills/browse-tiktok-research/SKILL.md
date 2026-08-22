@@ -14,7 +14,9 @@ Search TikTok by keywords using direct Chrome automation. Login once to TikTok i
 
 ## How It Works
 
-Uses Chrome CDP (Chrome DevTools Protocol). **Your main Chrome is never closed.** The skill launches a separate research browser instance that imports your TikTok session from Chrome on first run.
+Uses Chrome CDP (Chrome DevTools Protocol) with a dedicated persistent research
+profile. **Your main Chrome is never closed or read.** Sign in once through the
+skill's `--login` window, and later headless searches reuse that session.
 
 - **Browsing:** A separate headless research browser runs the searches — no window, no dock icon, nothing to click away. Your main Chrome stays open and untouched.
 - **Muted by default:** every browser this skill launches runs with `--mute-audio` and autoplay blocked (`--autoplay-policy=document-user-activation-required`), so a feed of short-form video never plays sound over your work.
@@ -50,7 +52,7 @@ uv run --project runtime runtime/browse.py "AI tools" -n 20 -o output/ai_researc
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--login` | Open the TikTok sign-in window (run once) | - |
-| `--login-check` | Print `{"logged_in": bool}` and exit; opens nothing | - |
+| `--login-check` | Print `{"logged_in": boolean \| null}` and exit; `null` means the session store was unreadable; opens nothing | - |
 | `-n, --max-results` | Max results per keyword | `10` |
 | `-o, --output` | Save JSON report to file | stdout |
 | `--json` | Output raw JSON | formatted text |
@@ -100,10 +102,14 @@ uv run --project runtime runtime/browse.py "AI tools" -n 20 -o output/ai_researc
 ## Signing in matters here
 
 TikTok search is close to empty signed out, so a session is the difference
-between research and an empty file. Nothing pops up on its own: a run without a
-session prints a one-line request and carries on, and only `--login` — which you
-run deliberately — opens a window. If you are driving this from an agent, ask
-the user to run `--login` once rather than repeating searches that cannot work.
+between research and an empty file. Before searching, run `--login-check`. If it
+reports `logged_in: false`, tell the user that one dedicated, muted sign-in
+window is about to open, run `--login`, and ask them to sign in, close the
+window, and confirm. Open it at most once in the workflow, then re-run
+`--login-check`. If the user declines or the check still fails, do not open it
+again or keep prompting; continue the direct browser signed out and disclose the
+thinner coverage. A direct runtime search still never opens a window
+unexpectedly: only the skill's deliberate `--login` preflight does.
 
 Session state is read from the profile's cookie store (cookie names and expiries
 only — the values are encrypted and this skill never touches them), so an

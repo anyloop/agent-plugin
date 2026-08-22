@@ -42,13 +42,14 @@ from config import (
 )
 
 CDP_PORT = 9334  # Different port — never conflicts with user's Chrome or TikTok skill (9333)
+CHROME_BIN = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 _runtime_data_dir = os.environ.get("ADANT_SOCIAL_DATA_DIR")
 CDP_PROFILE_DIR = (
     Path(_runtime_data_dir) / "browse-instagram-reels"
     if _runtime_data_dir
     else _skill_dir / "data"
 ) / "research-profile"
-INSTAGRAM_AUTH_COOKIES = ('sessionid', 'ds_user_id')
+INSTAGRAM_AUTH_COOKIE = "sessionid"
 
 # Reels are wall-to-wall video and headless Chrome still plays audio
 # through the system output device. Mute every browser we
@@ -57,6 +58,23 @@ INSTAGRAM_AUTH_COOKIES = ('sessionid', 'ds_user_id')
 MUTED_ARGS = ("--mute-audio", "--autoplay-policy=document-user-activation-required")
 
 _research_chrome_process = None
+
+
+def _foreground_visible_login_browser() -> None:
+    """Bring the visible Chrome login window to the front on macOS."""
+    if sys.platform != "darwin":
+        return
+    for _ in range(2):
+        try:
+            subprocess.run(
+                ["osascript", "-e", 'tell application "Google Chrome" to activate'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                check=False,
+            )
+        except Exception:
+            pass
+        time.sleep(0.25)
 
 
 def _is_research_browser_running() -> bool:
@@ -116,11 +134,24 @@ def _ensure_chrome_with_cdp() -> bool:
     """
     global _research_chrome_process
 
+    profile_owner_pid = _owned_research_browser_pid()
     if _is_research_browser_running():
+        listener_pid = _cdp_listener_pid()
+        if profile_owner_pid is None or listener_pid != profile_owner_pid:
+            print(
+                f"Port {CDP_PORT} is used by another browser; research was not started.",
+                file=sys.stderr,
+            )
+            return False
         print("Research browser already running.")
         return True
+    if profile_owner_pid is not None:
+        print(
+            "The Instagram sign-in browser is still open. Close it before starting research.",
+            file=sys.stderr,
+        )
+        return False
 
-    chrome_bin = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     CDP_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 
     # Clean up any stale lock files from previous crashed sessions
@@ -131,11 +162,11 @@ def _ensure_chrome_with_cdp() -> bool:
 
     _research_chrome_process = subprocess.Popen(
         [
-            chrome_bin,
+            CHROME_BIN,
             "--headless=new",
             f"--remote-debugging-port={CDP_PORT}",
             "--remote-allow-origins=*",
-            f"--user-data-dir={CDP_PROFILE_DIR}",
+            f"--user-data-dir={CDP_PROFILE_DIR.resolve()}",
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-gpu",
@@ -149,8 +180,15 @@ def _ensure_chrome_with_cdp() -> bool:
     for i in range(15):
         time.sleep(1)
         if _is_research_browser_running():
-            print("Research browser ready (headless).")
-            return True
+            if _cdp_listener_pid() == _research_chrome_process.pid:
+                print("Research browser ready (headless).")
+                return True
+            print(
+                f"Port {CDP_PORT} was claimed by another browser; research was not started.",
+                file=sys.stderr,
+            )
+            _stop_research_browser()
+            return False
         if i == 5:
             print("  Waiting for research browser...")
 
@@ -161,15 +199,21 @@ def _ensure_chrome_with_cdp() -> bool:
 def _stop_research_browser() -> None:
     """Stop the research browser and clean up locks."""
     global _research_chrome_process
-    if _research_chrome_process:
-        _research_chrome_process.terminate()
-        _research_chrome_process = None
-    # Clean up lock files so user's Chrome is never blocked
+    process = _research_chrome_process
+    if process is None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=5)
+    _research_chrome_process = None
     for lock_file in ["SingletonLock", "SingletonSocket", "SingletonCookie"]:
         (CDP_PROFILE_DIR / lock_file).unlink(missing_ok=True)
 
 
-def _check_instagram_login() -> bool:
+def _check_instagram_login() -> bool | None:
     """True when the research profile holds a live Instagram session cookie.
 
     Reads only cookie names and expiries from Chrome's cookie DB; the values are
@@ -193,17 +237,98 @@ def _check_instagram_login() -> bool:
         conn = sqlite3.connect(f"file:{copy}?mode=ro", uri=True)
         try:
             rows = conn.execute(
-                "SELECT host_key FROM cookies WHERE name IN (?, ?) "
+                "SELECT host_key FROM cookies WHERE name = ? "
                 "AND length(encrypted_value) > 0 AND (is_persistent = 0 OR expires_utc > ?)",
-                (*INSTAGRAM_AUTH_COOKIES, cutoff),
+                (INSTAGRAM_AUTH_COOKIE, cutoff),
             ).fetchall()
         finally:
             conn.close()
-        return any("instagram.com" in host for (host,) in rows)
+        return any(host == "instagram.com" or host.endswith(".instagram.com") for (host,) in rows)
     except Exception:
-        return False
+        return None
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def _command_has_exact_argument(command: str, argument: str) -> bool:
+    """Match one complete process argument, not a profile or port prefix."""
+    import re
+
+    return re.search(rf"(?<!\S){re.escape(argument)}(?=\s|$)", command) is not None
+
+
+def _owned_research_browser_pid() -> int | None:
+    """Find Chrome only when it owns this skill's exact profile."""
+    result = subprocess.run(
+        ["ps", "-axo", "pid=,command="],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    expected_profile = f"--user-data-dir={CDP_PROFILE_DIR.resolve()}"
+    for line in result.stdout.splitlines():
+        value, separator, command = line.strip().partition(" ")
+        if not separator:
+            continue
+        try:
+            pid = int(value)
+        except ValueError:
+            continue
+        if (
+            command.startswith(f"{CHROME_BIN} ")
+            and _command_has_exact_argument(command, expected_profile)
+        ):
+            return pid
+    return None
+
+
+def _cdp_listener_pid() -> int | None:
+    """Return the PID listening on the fixed CDP port, if it can be verified."""
+    result = subprocess.run(
+        ["lsof", "-nP", f"-iTCP:{CDP_PORT}", "-sTCP:LISTEN", "-t"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    for value in result.stdout.splitlines():
+        try:
+            return int(value.strip())
+        except ValueError:
+            continue
+    return None
+
+
+def _profile_is_available_for_login() -> bool:
+    """Never interrupt an active research or sign-in browser."""
+    return _owned_research_browser_pid() is None
+
+
+def _launch_visible_login_browser(url: str) -> None:
+    """Launch a foreground Chrome instance that cannot hide in an existing app."""
+    browser_args = [
+        f"--user-data-dir={CDP_PROFILE_DIR.resolve()}",
+        "--no-first-run",
+        "--no-default-browser-check",
+        *MUTED_ARGS,
+        "--new-window",
+        "--start-maximized",
+        url,
+    ]
+    if sys.platform == "darwin":
+        subprocess.run(
+            ["open", "-na", "Google Chrome", "--args", *browser_args],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        _foreground_visible_login_browser()
+        return
+
+    subprocess.Popen(
+        [CHROME_BIN, *browser_args],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
 
 
 def login_to_instagram() -> None:
@@ -213,29 +338,20 @@ def login_to_instagram() -> None:
     so the user can log into Instagram. The session persists in the research profile
     for future headless runs. The user's main Chrome is NOT affected.
     """
-    chrome_bin = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
     CDP_PROFILE_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Clean up stale locks
-    for lock_file in ["SingletonLock", "SingletonSocket", "SingletonCookie"]:
-        (CDP_PROFILE_DIR / lock_file).unlink(missing_ok=True)
-
+    if not _profile_is_available_for_login():
+        print(
+            "An Instagram research or sign-in browser is already open; close it before retrying.",
+            file=sys.stderr,
+        )
+        return
     print("Opening research browser for Instagram login...")
     print("(This is a SEPARATE browser — your main Chrome is not affected)")
+    print("The window is muted and should move to the foreground.")
     print("Log in to Instagram, then close this browser window.")
 
-    subprocess.Popen(
-        [
-            chrome_bin,
-            f"--user-data-dir={CDP_PROFILE_DIR}",
-            "--no-first-run",
-            "--no-default-browser-check",
-            *MUTED_ARGS,
-            "https://www.instagram.com/accounts/login/",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    _launch_visible_login_browser("https://www.instagram.com/accounts/login/")
 
     print("\nOnce logged in, close the research browser and run searches:")
     print('  uv run --project runtime runtime/browse.py "your keyword"')
@@ -1222,11 +1338,14 @@ Examples:
     # A missing session must not abort the run, and nothing may pop up on its
     # own. Say plainly that signing in is what makes this platform usable, and
     # let the caller relay that; only an explicit --login opens a window.
-    if not _check_instagram_login():
+    login_state = _check_instagram_login()
+    if login_state is False:
         print("No Instagram session. Instagram walls most search results, so this capture will be thin.")
         print("  discover_reels.py is the login-less fallback.")
         print("  Sign in once for real results:")
         print("  uv run --project runtime runtime/browse.py --login")
+    elif login_state is None:
+        print("Could not read Instagram session state; continuing without opening a sign-in window.")
 
     print(f"Instagram Reels Browse: {len(args.keywords)} keyword(s)")
     print("Connecting to Chrome via CDP...\n")
@@ -1276,4 +1395,7 @@ Examples:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        _stop_research_browser()

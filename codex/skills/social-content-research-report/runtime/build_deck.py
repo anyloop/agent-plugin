@@ -27,6 +27,7 @@ import urllib.parse
 from collections import Counter
 from pathlib import Path
 
+from copy_validation import validate_reader_copy
 from strategy_slides import (
     MSG_WRAP_COLS,
     build_strategy_section,
@@ -43,10 +44,13 @@ RESEARCH_SLIDES = 13
 
 MAX_PER_ACCOUNT = 3
 TARGET_PER_PLATFORM = 10
+TARGET_PER_PAGE = 5
+MIN_PER_PAGE = 4
+MIN_CONTENT_TYPES = 3
 
 
 MIN_VIEWS_PREFERRED = 50_000
-MIN_VIEWS_FLOOR = 10_000
+ALLOWED_CREATOR_FLOORS = (50_000, 10_000, 1_000, 0)
 
 
 def parse_metric(metric: str) -> int:
@@ -160,21 +164,43 @@ def build_case_row(connect: dict) -> str:
 
 def validate_platform(name: str, section: dict) -> list[str]:
     """Diversity checks for one platform: content count, per-account cap, format mix,
-    and the minimum-engagement rule (>=50K preferred, >=10K hard floor)."""
+    and the audit-backed adaptive creator-engagement floor."""
     warnings = []
     videos = section.get("brand_videos", []) + section.get("creator_videos", [])
+    creator_floor = section.get("creator_floor", MIN_VIEWS_PREFERRED)
+    if creator_floor not in ALLOWED_CREATOR_FLOORS:
+        warnings.append(
+            f"{name}: creator_floor must be one of {ALLOWED_CREATOR_FLOORS}"
+        )
+        creator_floor = MIN_VIEWS_PREFERRED
+    creator_gap_note = str(section.get("creator_gap_note") or "").strip()
+    if creator_floor < MIN_VIEWS_PREFERRED and not creator_gap_note:
+        warnings.append(f"{name}: fallback creator floor requires creator_gap_note")
+    if (
+        creator_floor < MIN_VIEWS_PREFERRED
+        and section.get("creator_top_up_complete") is not True
+    ):
+        warnings.append(
+            f"{name}: fallback floor requires creator_top_up_complete=true"
+        )
     # Minimum-engagement rule applies to ORGANIC CREATOR content only - the
     # brand/competitor side shows the top available regardless (weak numbers
     # there are themselves a finding).
     for v in section.get("creator_videos", []):
         n = parse_metric(v.get("metric", ""))
-        if n and n < MIN_VIEWS_FLOOR:
-            warnings.append(f"{name}: creator {v.get('handle', '?')} at {v.get('metric')} is below the 10K hard floor - remove it")
-        elif n and n < MIN_VIEWS_PREFERRED:
-            warnings.append(f"{name}: creator {v.get('handle', '?')} at {v.get('metric')} is in the 10K-50K fallback tier (prefer >=50K)")
+        if n and n < creator_floor:
+            warnings.append(
+                f"{name}: creator {v.get('handle', '?')} at {v.get('metric')} "
+                f"is below the declared creator floor ({creator_floor:g})"
+            )
     total = len(videos)
-    if total < TARGET_PER_PLATFORM - 2:
-        warnings.append(f"{name}: only {total} contents (target ~{TARGET_PER_PLATFORM})")
+    for group, key in (("brand", "brand_videos"), ("creator", "creator_videos")):
+        count = len(section.get(key, []))
+        if count < MIN_PER_PAGE:
+            warnings.append(
+                f"{name}: {group} page has only {count} cards "
+                f"(minimum {MIN_PER_PAGE}, target {TARGET_PER_PAGE})"
+            )
     accounts = Counter(v.get("handle", "?").lower().lstrip("@") for v in videos)
     for handle, count in accounts.items():
         if count > MAX_PER_ACCOUNT:
@@ -184,7 +210,35 @@ def validate_platform(name: str, section: dict) -> list[str]:
     formats = {v.get("format", "").lower() for v in videos if v.get("format")}
     if total >= 5 and len(formats) < 3:
         warnings.append(f"{name}: only {len(formats)} distinct content formats — aim for 3+")
+    content_types = {
+        content_type
+        for v in videos
+        if (content_type := canonical_content_type(v.get("content_type")))
+    }
+    if total >= MIN_PER_PAGE * 2 and len(content_types) < MIN_CONTENT_TYPES:
+        warnings.append(
+            f"{name}: only {len(content_types)} distinct content type across "
+            f"{total} cards (minimum {MIN_CONTENT_TYPES})"
+        )
     return warnings
+
+
+def canonical_content_type(value: object) -> str | None:
+    text = str(value or "").strip().casefold()
+    if "owned" in text or "branded ip" in text or "founder" in text:
+        return "branded-owned"
+    if "commercial" in text or "paid" in text or "sponsor" in text:
+        return "branded-commercial"
+    if "educat" in text or "tutorial" in text or "explainer" in text:
+        return "educational"
+    if (
+        "ugc" in text
+        or "testimonial" in text
+        or "review" in text
+        or "customer story" in text
+    ):
+        return "ugc-testimonial"
+    return text or None
 
 
 def _plain(text: str) -> str:
@@ -284,8 +338,8 @@ def main() -> None:
     data = json.loads(Path(args.data).read_text())
     html = TEMPLATE_PATH.read_text()
 
-    # ── Diversity validation ────────────────────────────────────────────
-    warnings = []
+    # ── Content validation ──────────────────────────────────────────────
+    warnings = validate_reader_copy(data)
     platforms = data.get("platforms", {})
     for key, label in [("tiktok", "TikTok"), ("instagram", "Instagram"), ("youtube", "YouTube Shorts")]:
         if key in platforms:
@@ -300,7 +354,7 @@ def main() -> None:
                 f"wrap in the paste. Shorten: {line[:56]}…"
             )
     if warnings:
-        print("Diversity warnings:")
+        print("Deck warnings:")
         for w in warnings:
             print(f"  ⚠ {w}")
         if args.strict:

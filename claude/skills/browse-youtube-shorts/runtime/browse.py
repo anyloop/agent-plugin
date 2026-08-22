@@ -14,6 +14,7 @@ import asyncio
 import http.client
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -52,6 +53,26 @@ CDP_PROFILE_DIR = (
 MUTED_ARGS = ("--mute-audio", "--autoplay-policy=document-user-activation-required")
 
 _research_chrome_process = None
+
+
+def parse_view_count_text(text: str) -> int:
+    """Parse only an isolated metric or the trailing ``N views`` card metric."""
+    value = str(text or "").strip()
+    match = re.search(
+        r"([\d,.]+)\s*([KMB]?)\s*views?\s*$",
+        value,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        match = re.fullmatch(r"([\d,.]+)\s*([KMB]?)", value, flags=re.IGNORECASE)
+    if not match:
+        return 0
+    try:
+        number = float(match.group(1).replace(",", ""))
+    except ValueError:
+        return 0
+    multiplier = {"": 1, "K": 1_000, "M": 1_000_000, "B": 1_000_000_000}
+    return round(number * multiplier[match.group(2).upper()])
 
 
 def _is_research_browser_running() -> bool:
@@ -158,7 +179,8 @@ JS_EXTRACT_SHORTS = r"""
   function parseViews(s) {
     if (!s) return 0;
     s = s.toString().trim().replace(/,/g, '');
-    var m = s.match(/([\d.]+)\s*([KkMmBb]?)/);
+    var m = s.match(/([\d.]+)\s*([KkMmBb]?)\s*views?\s*$/i)
+         || s.match(/^([\d.]+)\s*([KkMmBb]?)$/);
     if (!m) return 0;
     var n = parseFloat(m[1]);
     var u = (m[2] || '').toUpperCase();
@@ -377,6 +399,8 @@ async def _cdp_search_keyword(
 
     # Stamp each video with the search keyword
     for v in all_videos[:max_results]:
+        corrected_views = parse_view_count_text(v.get("views_text", ""))
+        v["views_number"] = corrected_views
         v["search_keyword"] = keyword
     return all_videos[:max_results]
 

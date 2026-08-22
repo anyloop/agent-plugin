@@ -23,7 +23,18 @@ all text overlays with timing/position/style, audio, and a scene-by-scene timeli
 
 The fingerprint must identify the hook, hook type, viral format, concept summary, why
 it works, exact overlays, dialogue or voiceover, music style, character, setting,
-whether a product is shown, and how the format could adapt to a different product."""
+whether a product is shown, and how the format could adapt to a different product.
+
+Also assess commercial intent from the video itself. Set promotion_strength to:
+- none: the target brand/product is absent;
+- incidental: it is only mentioned or briefly visible;
+- integrated: it is central to the demo, story, problem, or outcome;
+- direct: the video explicitly recommends, sells, or calls viewers to use/buy/download it.
+List only observable promotion evidence. Mark creator_native_ugc_style true for a
+creator-led testimonial, demo, tutorial, review, or skit rather than an owned-style
+commercial. Creative style never proves that a sponsorship or collaboration exists.
+When no target brand is provided, evaluate the most prominent named product; if no
+product is present, return an empty promoted_brand and promotion_strength none."""
 
 ANALYSIS_SCHEMA = {
     "type": "object",
@@ -43,6 +54,17 @@ ANALYSIS_SCHEMA = {
                 "character": {"type": "string"},
                 "setting": {"type": "string"},
                 "product_shown": {"type": "string"},
+                "promoted_brand": {"type": "string"},
+                "promotion_strength": {
+                    "type": "string",
+                    "enum": ["none", "incidental", "integrated", "direct"],
+                },
+                "promotion_evidence": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "call_to_action": {"type": "string"},
+                "creator_native_ugc_style": {"type": "boolean"},
                 "adaptability_notes": {"type": "string"},
             },
             "required": [
@@ -57,6 +79,11 @@ ANALYSIS_SCHEMA = {
                 "character",
                 "setting",
                 "product_shown",
+                "promoted_brand",
+                "promotion_strength",
+                "promotion_evidence",
+                "call_to_action",
+                "creator_native_ugc_style",
                 "adaptability_notes",
             ],
         },
@@ -140,6 +167,11 @@ def main() -> None:
     parser.add_argument("--url", required=True, help="TikTok, Instagram, or YouTube URL")
     parser.add_argument("-o", "--output", required=True, help="Output JSON path")
     parser.add_argument("--context", default="", help="Optional niche or product context")
+    parser.add_argument(
+        "--brand",
+        default="",
+        help="Target brand/product for the promotion-strength assessment",
+    )
     parser.add_argument("--model", help="Optional AdAnt video-understanding model override")
     parser.add_argument("--work-dir", help="Directory for the downloaded video")
     parser.add_argument("--keep-video", action="store_true", help="Keep the downloaded video")
@@ -165,6 +197,8 @@ def main() -> None:
         sys.exit(2)
 
     prompt = ANALYSIS_PROMPT
+    if args.brand:
+        prompt += f"\n\nTarget brand/product to evaluate: {args.brand}"
     if args.context:
         prompt += f"\n\nResearch context: {args.context}"
 
@@ -193,7 +227,11 @@ def main() -> None:
 
     fingerprint = result.get("fingerprint", {})
     log(f"Saved analysis to {output}")
-    log(f"  format: {fingerprint.get('viral_format')} | hook: {str(fingerprint.get('hook'))[:80]}")
+    log(
+        f"  format: {fingerprint.get('viral_format')} | "
+        f"promotion: {fingerprint.get('promotion_strength')} | "
+        f"hook: {str(fingerprint.get('hook'))[:80]}"
+    )
 
 
 if __name__ == "__main__":
