@@ -283,7 +283,7 @@ silently relabel the metric.
 `{brandFolder}/browse_tiktok_brands.json`,
 `{brandFolder}/browse_tiktok_partnerships.json`, and summaries
 
-Steps 4a-4d are independent — run them in parallel where possible.
+Steps 4a-4d are independent — run all four in parallel via `runtime/run_phase.py run --bg` (phases `platform-tiktok`, `platform-instagram`, `platform-meta-ads`, `platform-youtube`), then `runtime/run_phase.py status --wait`. Sequential platform browsing is a defect, not a style choice; fall back to it only when a host cannot keep detached processes alive.
 </task>
 
 <task id="browse-instagram" label="Step 4b: Browse Instagram Reels">

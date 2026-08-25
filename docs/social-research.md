@@ -12,6 +12,17 @@ Instagram, Meta Ads Library, and YouTube do not share that AdAnt session.
 
 ## Local prerequisites
 
+Check everything in one pass instead of discovering gaps mid-run:
+
+```bash
+python3 <plugin root>/runtime/doctor.py
+```
+
+The doctor reports Python, `uv`, Node.js, Chrome, `yt-dlp`, AdAnt
+authentication, and both platform sessions together, each failure with its fix
+command. It only reads state; it never opens windows or starts a login flow.
+
+
 - Python 3.11 or newer and `uv`.
 - Google Chrome.
 - `GEMINI_API_KEY` for skills that use Gemini search, browser control, or video

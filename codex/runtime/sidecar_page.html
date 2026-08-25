@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdAnt Sidecar</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* ============================================================
+   AdAnt Sidecar dashboard.
+   Motion language ported from Studio's thinking system:
+   packages/ui/chat/src/react/thinking/thinking.css (.studio- -> .sc-),
+   GooOrb from chat-thinking.tsx, timing values mirror thinking-timing.ts.
+   Committed dark design (Adant report Dark Ink surfaces).
+   ============================================================ */
+:root{
+  --bg:#12100d; --panel:#1a1611; --panel-line:#262019; --hairline:#1e1a15;
+  --ink:#ece7e1; --title:#f0ebe4; --body:#c9bfb2; --muted:#8b8178; --muted-soft:#5c554d;
+  --accent:#ff7a45; --terra:#e8a888; --ok:#8fce91; --warn:#e0b35d; --err:#e08c74;
+  --sweep-rose:#ef6f8e; --sweep-gold:#f3bd4c; --sweep-blue:#8ea3c8;
+  --sans:Inter,-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
+  --serif:"EB Garamond",Georgia,"Songti SC",serif;
+  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace;
+  --ease-out:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:13px; line-height:1.6;
+     min-height:100vh; padding:18px 18px 24px; -webkit-font-smoothing:antialiased}
+.head{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.sc-orb{width:22px; height:22px; flex:none; animation:scOrbIn .42s var(--ease-out) both}
+.sc-mb{transform-box:view-box; transform-origin:20px 20px; animation:scOrbit 2.8s ease-in-out infinite}
+.sc-mb2{animation-delay:-.93s}.sc-mb3{animation-delay:-1.86s}
+@keyframes scOrbit{0%{transform:rotate(0deg) translateX(9px)}50%{transform:rotate(180deg) translateX(6.5px)}100%{transform:rotate(360deg) translateX(9px)}}
+@keyframes scOrbIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+.title{font-family:var(--serif); font-weight:500; font-size:22px; color:var(--title); margin:0}
+.title em{font-style:italic; color:var(--terra)}
+.elapsed{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums}
+.wsline{font-family:var(--mono); font-size:9.5px; color:var(--muted-soft); letter-spacing:.04em;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:14px}
+/* shimmer / aurora — 1:1 from studioSmShimmer / studioSmAuroraSweep */
+.sc-shimmer{background-image:linear-gradient(100deg,var(--muted) 0 38%,var(--title) 50%,var(--muted) 62% 100%);
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:scShimmer 2.2s linear infinite}
+@keyframes scShimmer{from{background-position:150% 0}to{background-position:-150% 0}}
+.sc-aurora{background-image:linear-gradient(100deg,var(--title) 0 30%,var(--sweep-rose) 42%,var(--sweep-gold) 50%,var(--sweep-blue) 58%,var(--title) 70% 100%);
+  background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
+  animation:scAurora .85s ease forwards}
+.sc-aurora em{color:transparent}
+@keyframes scAurora{from{background-position:130% 0}to{background-position:-30% 0}}
+section{margin-top:16px}
+.slabel{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:8px}
+/* doctor checklist */
+.chk{display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid var(--hairline); font-size:12px}
+.chk:last-child{border-bottom:none}
+.chk .s{width:14px; text-align:center; flex:none}
+.chk .n{flex:1}
+.chk .d{font-family:var(--mono); font-size:10px; color:var(--muted); max-width:55%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.c-ok{color:var(--ok)}.c-bad{color:var(--err)}.c-warn{color:var(--warn)}.c-idle{color:var(--muted-soft)}
+/* need-user alert */
+.alert{background:#241b0e; border:1px solid #4a3a1c; border-radius:10px; padding:12px 14px; margin-top:14px;
+       animation:scChipPop .34s var(--ease-out) both}
+.alert .at{color:var(--warn); font-weight:600; font-size:12.5px; display:flex; gap:8px; align-items:center}
+.alert p{color:var(--body); font-size:11.5px; margin:6px 0 0; line-height:1.6}
+.pulse{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); animation:scPulse 1.4s ease-in-out infinite}
+@keyframes scPulse{0%,100%{opacity:1}50%{opacity:.25}}
+/* phase timeline — from studio-sv-focus rail/node */
+.phases{position:relative; padding-left:4px}
+.ph{position:relative; padding:0 0 14px 26px}
+.ph:last-child{padding-bottom:0}
+.ph-rail{position:absolute; left:8px; top:19px; bottom:-1px; width:1.5px; background:var(--panel-line)}
+.ph:last-child .ph-rail{display:none}
+.ph-node{position:absolute; left:0; top:2px; width:17px; height:17px; border-radius:50%; background:var(--bg);
+         display:grid; place-items:center; z-index:1; font-size:10px}
+.ph-node i{width:8px; height:8px; border-radius:50%; background:var(--muted-soft); transition:background .4s}
+.ph.active .ph-node i{background:var(--accent); animation:scPulse 1.4s ease-in-out infinite}
+.ph.done .ph-node i{background:var(--ok)}
+.ph.error .ph-node i{background:var(--err)}
+.ph-row{display:flex; align-items:baseline; gap:8px}
+.ph-name{font-size:13px; font-weight:500; color:var(--ink); transition:font-size .4s var(--ease-out),color .4s}
+.ph.done .ph-name{font-size:12px; font-weight:400; color:var(--muted)}
+.ph.pending .ph-name{color:var(--muted-soft); font-weight:400}
+.ph-meta{margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; flex:none}
+.ph-msg{font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:2px;
+        white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ph.done .ph-msg{display:none}
+/* stats */
+.stats{display:flex; gap:8px; flex-wrap:wrap}
+.stat{flex:1 1 30%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; text-align:center;
+      animation:scChipPop .34s var(--ease-out) both}
+.stat b{display:block; font-family:var(--mono); font-size:15px; font-weight:500; color:var(--title); font-variant-numeric:tabular-nums}
+.stat span{font-size:9.5px; color:var(--muted)}
+/* live feed — fade-word entrance from studioFadeW / studioChipPop */
+.feed{display:flex; flex-direction:column; gap:4px}
+.ev{display:flex; gap:8px; font-family:var(--mono); font-size:10px; color:var(--body); line-height:1.5;
+    animation:scFadeW .5s var(--ease-out) both}
+.ev .t{color:var(--muted-soft); flex:none; font-variant-numeric:tabular-nums}
+.ev .p{color:var(--terra); flex:none}
+.ev .m{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+@keyframes scFadeW{from{opacity:0;transform:translateY(2px);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
+@keyframes scChipPop{from{opacity:0;transform:translateY(4px);filter:blur(2px)}to{opacity:1;transform:none;filter:blur(0)}}
+.foot{margin-top:18px; border-top:1px solid var(--hairline); padding-top:10px;
+      font-family:var(--mono); font-size:9.5px; color:var(--muted-soft); display:flex; justify-content:space-between; gap:8px}
+.hidden{display:none}
+@media (prefers-reduced-motion:reduce){
+  .sc-mb,.sc-mb2,.sc-mb3,.sc-orb,.sc-shimmer,.sc-aurora,.pulse,.ph.active .ph-node i,.ev,.stat,.alert{animation:none !important}
+  .sc-shimmer,.sc-aurora{color:var(--title); background:none; -webkit-background-clip:border-box; background-clip:border-box}
+  .ev,.stat,.alert{opacity:1}
+}
+</style>
+</head>
+<body>
+<div class="head">
+  <svg class="sc-orb" viewBox="0 0 40 40" aria-hidden="true" id="orb">
+    <defs><filter id="scgoo"><feGaussianBlur in="SourceGraphic" stdDeviation="1.7" result="b"/>
+    <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 17 -7"/></filter></defs>
+    <g filter="url(#scgoo)">
+      <circle class="sc-mb" cx="20" cy="20" r="4" fill="#ef4a5e"/>
+      <circle class="sc-mb sc-mb2" cx="20" cy="20" r="4" fill="#f3bd4c"/>
+      <circle class="sc-mb sc-mb3" cx="20" cy="20" r="4" fill="#f0865d"/>
+    </g>
+  </svg>
+  <h1 class="title" id="title"><span class="sc-shimmer" id="titleText">AdAnt <em>research</em></span></h1>
+  <span class="elapsed" id="elapsed">0:00</span>
+</div>
+<div class="wsline" id="wsline">waiting for events…</div>
+
+<section id="doctorSec" class="hidden">
+  <div class="slabel">Setup · Doctor</div>
+  <div id="doctor"></div>
+</section>
+
+<div id="alertBox" class="alert hidden">
+  <div class="at"><span class="pulse"></span><span id="alertTitle">Action needed</span></div>
+  <p id="alertMsg"></p>
+</div>
+
+<section id="phaseSec" class="hidden">
+  <div class="slabel">Research</div>
+  <div class="phases" id="phases"></div>
+</section>
+
+<section id="statSec" class="hidden">
+  <div class="slabel">Counts</div>
+  <div class="stats" id="stats"></div>
+</section>
+
+<section id="feedSec" class="hidden">
+  <div class="slabel">Live</div>
+  <div class="feed" id="feed"></div>
+</section>
+
+<div class="foot"><span id="evCount">0 events</span><span>AdAnt Sidecar · 127.0.0.1</span></div>
+
+<script>
+"use strict";
+/* Known phase order + display names; unknown phases append after. */
+const PHASE_ORDER = ["product-profile","competitors","keywords",
+  "platform-tiktok","platform-instagram","platform-meta-ads","platform-youtube",
+  "curation","report","strategy"];
+const PHASE_NAMES = {
+  "product-profile":"Product profile", competitors:"Competitor analysis", keywords:"Keywords",
+  "platform-tiktok":"TikTok browse","platform-instagram":"Instagram browse",
+  "platform-meta-ads":"Meta Ads browse","platform-youtube":"YouTube Shorts browse",
+  curation:"Curation & validation", report:"Report build", strategy:"Strategy analysis"};
+const state = { phases:new Map(), doctor:new Map(), counts:{}, events:0, firstTs:null, lastNeedUser:null, feed:[] };
+
+function phaseKey(id){
+  const m = id.match(/^(strategy|platform-[a-z-]+|doctor)/);
+  return id;
+}
+function baseOrder(id){
+  for (let i=0;i<PHASE_ORDER.length;i++){ if (id===PHASE_ORDER[i]||id.startsWith(PHASE_ORDER[i]+"-")) return i; }
+  return PHASE_ORDER.length;
+}
+function fmtClock(seconds){
+  const m = Math.floor(seconds/60), s = Math.floor(seconds%60);
+  return m + ":" + String(s).padStart(2,"0");
+}
+function onEvent(ev){
+  state.events += 1;
+  const ts = Date.parse(ev.ts);
+  if (!state.firstTs && !Number.isNaN(ts)) state.firstTs = ts;
+  if (ev.phase === "doctor"){
+    handleDoctor(ev);
+  } else {
+    const key = phaseKey(ev.phase);
+    let p = state.phases.get(key);
+    if (!p){ p = {id:key, status:"pending", msg:"", started:ts, duration:null}; state.phases.set(key,p); }
+    if (ev.status === "start"){ p.status = "active"; p.started = ts; p.msg = ev.message || ""; }
+    else if (ev.status === "progress"){ if (p.status!=="done") p.status = "active"; p.msg = ev.message || p.msg; }
+    else if (ev.status === "done"){ p.status = "done"; p.duration = (ev.counts&&ev.counts.duration_seconds)||null; }
+    else if (ev.status === "error"){ p.status = "error"; p.msg = ev.message || p.msg; }
+  }
+  if (ev.status === "need-user"){ state.lastNeedUser = ev; }
+  else if (ev.phase === "doctor" && ev.status === "done" && state.lastNeedUser && state.lastNeedUser.phase === "doctor"){ state.lastNeedUser = null; }
+  if (ev.counts){ for (const [k,v] of Object.entries(ev.counts)){
+    if (typeof v === "number" && k !== "duration_seconds" && k !== "exit") state.counts[k] = v; } }
+  state.feed.push(ev); if (state.feed.length > 8) state.feed.shift();
+  scheduleRender();
+}
+function handleDoctor(ev){
+  document.getElementById("doctorSec").classList.remove("hidden");
+  if (ev.status === "progress"){
+    const m = (ev.message||"").match(/^([a-z0-9-]+): (ok|missing|unknown) \((.*)\)$/);
+    if (m) state.doctor.set(m[1], {state:m[2], detail:m[3]});
+  }
+}
+let renderQueued = false;
+function scheduleRender(){ if (!renderQueued){ renderQueued = true; requestAnimationFrame(()=>{ renderQueued=false; render(); }); } }
+function el(tag, cls, text){ const n = document.createElement(tag); if (cls) n.className = cls; if (text!=null) n.textContent = text; return n; }
+function render(){
+  /* doctor */
+  const doc = document.getElementById("doctor"); doc.textContent = "";
+  for (const [name, c] of state.doctor){
+    const row = el("div","chk");
+    const mark = c.state==="ok" ? ["c-ok","✓"] : c.state==="missing" ? ["c-bad","✕"] : ["c-warn","?"];
+    row.appendChild(el("span","s "+mark[0], mark[1]));
+    row.appendChild(el("span","n", name));
+    row.appendChild(el("span","d", c.detail));
+    doc.appendChild(row);
+  }
+  /* alert */
+  const alertBox = document.getElementById("alertBox");
+  if (state.lastNeedUser){
+    alertBox.classList.remove("hidden");
+    document.getElementById("alertTitle").textContent = "Action needed · " + state.lastNeedUser.phase;
+    document.getElementById("alertMsg").textContent = state.lastNeedUser.message;
+  } else alertBox.classList.add("hidden");
+  /* phases */
+  const entries = [...state.phases.values()].sort((a,b)=>baseOrder(a.id)-baseOrder(b.id)||a.id.localeCompare(b.id));
+  if (entries.length){ document.getElementById("phaseSec").classList.remove("hidden"); }
+  const host = document.getElementById("phases"); host.textContent = "";
+  for (const p of entries){
+    const item = el("div","ph "+p.status);
+    item.appendChild(el("span","ph-rail"));
+    const node = el("span","ph-node"); node.appendChild(el("i")); item.appendChild(node);
+    const row = el("div","ph-row");
+    const name = el("span","ph-name", PHASE_NAMES[p.id] || p.id);
+    if (p.status === "active") name.classList.add("sc-shimmer");
+    row.appendChild(name);
+    row.appendChild(el("span","ph-meta", p.status==="done" && p.duration!=null ? fmtClock(p.duration)
+      : p.status==="error" ? "failed" : p.status==="active" ? "…" : ""));
+    item.appendChild(row);
+    if (p.msg && p.status!=="done") item.appendChild(el("div","ph-msg", p.msg));
+    host.appendChild(item);
+  }
+  /* header state: all known phases done -> aurora + freeze orb */
+  const started = entries.filter(p=>p.status!=="pending");
+  const allDone = started.length>0 && started.every(p=>p.status==="done");
+  const anyError = entries.some(p=>p.status==="error");
+  const titleText = document.getElementById("titleText");
+  if (allDone && !titleText.classList.contains("sc-aurora")){
+    titleText.classList.remove("sc-shimmer"); titleText.classList.add("sc-aurora");
+    titleText.innerHTML = "Research <em>complete</em>";
+    document.getElementById("orb").style.animationPlayState = "paused";
+  } else if (anyError){ titleText.classList.remove("sc-shimmer"); titleText.style.color = "var(--err)"; }
+  /* stats */
+  const statKeys = Object.keys(state.counts);
+  if (statKeys.length){ document.getElementById("statSec").classList.remove("hidden"); }
+  const stats = document.getElementById("stats"); stats.textContent = "";
+  for (const k of statKeys.slice(0,6)){
+    const box = el("div","stat");
+    box.appendChild(el("b",null,String(state.counts[k])));
+    box.appendChild(el("span",null,k.replace(/_/g," ")));
+    stats.appendChild(box);
+  }
+  /* feed */
+  document.getElementById("feedSec").classList.remove("hidden");
+  const feed = document.getElementById("feed"); feed.textContent = "";
+  for (const ev of [...state.feed].reverse()){
+    const row = el("div","ev");
+    row.appendChild(el("span","t",(ev.ts||"").slice(11,19)));
+    row.appendChild(el("span","p",ev.phase));
+    row.appendChild(el("span","m",ev.message||ev.status));
+    feed.appendChild(row);
+  }
+  document.getElementById("evCount").textContent = state.events + " events";
+  document.getElementById("wsline").textContent = "progress/events.jsonl · live";
+}
+setInterval(()=>{
+  if (state.firstTs) document.getElementById("elapsed").textContent = fmtClock((Date.now()-state.firstTs)/1000);
+}, 1000);
+function connect(){
+  const source = new EventSource("/events");
+  source.onmessage = (message)=>{ try { onEvent(JSON.parse(message.data)); } catch (_e) {} };
+  source.onerror = ()=>{ /* EventSource retries automatically */ };
+}
+connect();
+</script>
+</body>
+</html>

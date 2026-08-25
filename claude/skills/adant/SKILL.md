@@ -10,7 +10,9 @@ or ask the user for third-party media service credentials.
 
 ## Route task-shaped workflows
 
-When installed, use `adant-create-ad` for a complete ad workflow and
+When installed, use `adant-getting-started` when the user is new, asks what
+AdAnt can do, or wants to verify that setup worked; use `adant-create-ad` for
+a complete ad workflow and
 `adant-clone-ad` for a reference-driven clone or adaptation. Those skills own
 durable project setup, grounding, budgets, approvals, reconnects, and delivery.
 Keep this `adant` skill for one-off media primitives, local editing/analysis,
@@ -89,6 +91,12 @@ present, do not keep the model turn alive by repeatedly polling; let the card
 update. Without a preview, offer one explicit status check later. Cancel only
 after an explicit user request because generation may already have consumed
 credits.
+
+Creative-project App cards can resolve visible questions, pickers, reviews,
+and generation approvals directly. Treat those card actions as authoritative;
+the card publishes the current interaction and recent decisions back into
+model context. In hosts without App controls, keep using the native
+conversation and resolve only the exact interaction id returned by the tool.
 
 Model discovery reports an indicative sample cost, not an exact customized
 quote. Label it accordingly; do not manufacture a precise price for duration,

@@ -46,6 +46,9 @@ platform sessions, and workspace safety.
 
 ## Try it
 
+New here? Just ask **"What can AdAnt do?"** — the plugin verifies your
+connection and offers three ready-to-send starting prompts.
+
 - “Create a 15-second vertical product ad with AdAnt.”
 - “Clone this reference ad for my product, but keep my brand voice.”
 - “Research current TikTok, Instagram, and YouTube trends for this product.”

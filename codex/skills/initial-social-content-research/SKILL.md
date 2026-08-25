@@ -35,17 +35,42 @@ research, not a sales pitch: exclude pricing and deliverables.
 
 ## Preflight
 
-- Require Python 3.11+, `uv`, Node.js/npm, and Google Chrome. Confirm AdAnt CLI
-  authentication with a read-only command such as `npx @anyloop/adant-cli credit balance`;
-  if missing, ask for `npx @anyloop/adant-cli auth login`. Never request a Gemini or other
-  upstream model-provider key and never write credentials into the plugin or project.
-- Browsing runs in headless research browsers: no windows, no focus stealing, and
-  every browser muted with autoplay blocked, so a feed of short-form video never
-  plays over the user's work.
+- Run the one-shot preflight **once** before anything else, with
+  `ADANT_SOCIAL_DATA_DIR` already exported:
+
+  ```bash
+  python3 {PLUGIN_ROOT}/runtime/doctor.py --json
+  ```
+
+  It checks Python 3.11+, `uv`, Node.js/npm, Google Chrome, `yt-dlp`, AdAnt CLI
+  authentication (read-only, equivalent to `npx @anyloop/adant-cli credit balance`),
+  and both platform sessions in a single pass. Report every missing item to the
+  user in **one consolidated message** — each with its fix command, an expected
+  time cost, and the consequence of skipping — instead of surfacing failures one
+  at a time mid-run. If authentication is missing, ask for
+  `npx @anyloop/adant-cli auth login`. Never request a Gemini or other
+  upstream model-provider key and never write credentials into the plugin or
+  project. Re-run `doctor.py` after the user reports a fix; do not re-litigate
+  items that already passed.
+- Browsing runs in headless research browsers — muted, autoplay blocked, no
+  focus stealing — so a feed of short-form video never plays over the user's
+  work. The only windows this workflow may show are the **Sidecar progress
+  window** (below) and, when needed, the one-time platform sign-in window.
+- **Sidecar progress window:** the first research command (`doctor.py` or any
+  `run_phase.py run`) automatically starts a local progress server bound to
+  127.0.0.1 and opens one small read-only Chrome app window that renders the
+  live event stream — you never start it as a separate step. Read the
+  `sidecar: ready <url>` / `sidecar: disabled (<reason>)` line it prints:
+  relay the URL to the user once ("progress is visible in the AdAnt window on
+  the right"), and on `disabled` continue chat-only without treating it as an
+  error. All decisions stay in chat; the window only observes. If the user asks
+  not to open a window, export `ADANT_NO_SIDECAR=1` for the rest of the
+  workflow. The server exits by itself when research goes quiet.
 - **Get the user signed in to TikTok and Instagram before browsing them.** Signed
   out, those two return almost nothing, so a session is the difference between
-  research and an empty file. Check with each skill's `--login-check` (opens and
-  launches nothing). When it reports `logged_in: false`, tell the user that one
+  research and an empty file. `doctor.py` already ran each skill's `--login-check`
+  (opens and launches nothing), so fold session status into the same consolidated
+  preflight message. When it reports `logged_in: false`, tell the user that one
   dedicated, muted foreground sign-in window is about to open, then run that skill's
   `--login` so it opens directly in front via Chrome. Ask them to sign in, close
   the window, and confirm. Open it at
@@ -67,6 +92,51 @@ research, not a sales pitch: exclude pricing and deliverables.
   components remain deterministic/local.
 - Preserve raw source URLs and label fallbacks in JSON. Never present inferred
   or search-fallback metrics as directly browsed platform data.
+
+## Progress events and parallel fan-out
+
+Long phases run through the shared wrapper so progress lands on the Sidecar
+event bus (`$ADANT_SOCIAL_DATA_DIR/progress/events.jsonl`) without any extra
+bookkeeping:
+
+```bash
+python3 {PLUGIN_ROOT}/runtime/run_phase.py run \
+  --phase <phase-id> --skill <skill-name> --label "<short human label>" \
+  -- <the phase command exactly as documented>
+```
+
+Canonical phase ids: `doctor`, `product-profile`, `competitors`, `keywords`,
+`platform-tiktok`, `platform-instagram`, `platform-meta-ads`,
+`platform-youtube`, `curation`, `report`, `strategy`.
+
+**Run independent work in parallel — this is the expected shape, not an
+optimization.** Sequential runs of independent phases waste 10+ minutes of the
+user's time:
+
+- Step 3: the TikTok and Instagram keyword skills are independent — launch both
+  with `run_phase.py run --bg`, then `run_phase.py status --wait`.
+- Step 4: the four platform browses (4a-4d) are independent — launch all four
+  as background jobs the same way, then wait once:
+
+  ```bash
+  python3 {PLUGIN_ROOT}/runtime/run_phase.py run --bg --phase platform-tiktok \
+    --skill browse-tiktok-research -- <documented browse command>
+  # ... repeat for platform-instagram, platform-meta-ads, platform-youtube ...
+  python3 {PLUGIN_ROOT}/runtime/run_phase.py status --wait --timeout 1800
+  ```
+
+- Step 7: the five `trend-video-understanding` analyses are independent — run
+  them concurrently the same way (`--phase strategy`, one suffix per pick, e.g.
+  `strategy-pick-1`).
+
+Where the host supports parallel agents or parallel tool calls, those may
+replace background jobs; detached `--bg` jobs are the portable default and
+survive the end of a single tool call. Rules: parallel jobs must write
+**separate output files** (the documented per-platform paths already do);
+never share an output path; check `status` output and each job's log before
+declaring a phase complete; top-up passes that depend on curation results stay
+sequential. A failed background job is a failed phase — rerun it in the
+foreground to diagnose, never silently continue.
 
 ## Run the workflow
 
