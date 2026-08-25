@@ -11,15 +11,24 @@ the authenticated AdAnt MCP server at `https://api.adant.ai/mcp`.
 - `.agents/plugins/marketplace.json` — the Codex marketplace catalog.
 - `.claude-plugin/marketplace.json` — the Claude Code marketplace catalog.
 
-## Install in Codex
+## Install in ChatGPT desktop
+
+Open **Plugins**, add `https://github.com/anyloop/agent-plugin.git` as a personal
+marketplace on `main`, then install AdAnt from **Personal** and complete the
+connection prompt. Start a new task after installation. If a connection needs
+repair in that fresh task, reopen AdAnt under **Installed** or **Personal**;
+the desktop app does not require the separate `codex` terminal command.
+
+## Install in Codex CLI
 
 ```bash
 codex plugin marketplace add anyloop/agent-plugin --ref main
 codex plugin add adant@adant-ai
 ```
 
-Codex opens AdAnt OAuth during installation. To reconnect later, run
-`codex mcp login adant`. See [the Codex guide](docs/codex-install.md).
+Codex CLI opens AdAnt OAuth during installation. To reconnect later, run
+`codex mcp login adant` only from a terminal where the Codex CLI is installed.
+See [the Codex guide](docs/codex-install.md).
 
 ## Install in Claude Code
 

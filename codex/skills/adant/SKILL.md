@@ -24,18 +24,31 @@ job management, and adapter fallback.
    Apps.
 2. Use `adant-cli` when the request includes a local file, needs image editing
    or video analysis, or no AdAnt MCP tools are connected.
-3. If neither surface is available, explain how to connect
-   `https://api.adant.ai/mcp` or run `npx @anyloop/adant-cli auth login`. Do not improvise
-   a generation call with unrelated tools.
+3. If neither surface is available, identify the current host before giving
+   setup instructions. Do not improvise a generation call with unrelated tools.
 
-If the AdAnt MCP is installed but needs authorization, ask the user to run the
-host's reconnect command in their own system terminal (`codex mcp login adant`
-for Codex or `claude mcp login plugin:adant:adant` for Claude Code) and complete
-the flow in their regular browser. If an embedded browser opens and Google
-times out, have them copy the AdAnt authorization-page address into Chrome or
-Safari while the login command remains open. Opening the page is not evidence
-of authentication: claim success only after the command completes and a real
-read-only AdAnt MCP call succeeds.
+## Recover a missing connection
+
+Do not treat missing `adant_*` tools by itself as proof that OAuth failed.
+
+- If AdAnt was installed or updated after the current task started, ask the
+  user to start a new task first. Diagnose the connection only if a fresh task
+  still lacks the tools.
+- In ChatGPT desktop or the Codex app, keep connection repair inside the app.
+  Ask the user to open **Plugins**, open AdAnt under **Installed** or
+  **Personal**, and complete the connection or authorization prompt. Then
+  start another new task. Never tell a desktop-only user to run `codex` in
+  their system terminal.
+- Use `codex mcp login adant` only for Codex CLI, or after verifying that the
+  `codex` executable is available in the user's terminal.
+- For Claude Code, use `claude mcp login plugin:adant:adant`.
+- If no MCP host is available and the request can use the CLI adapter, run
+  `npx @anyloop/adant-cli auth login` instead.
+
+If an embedded OAuth browser times out, keep the login flow open and have the
+user copy the AdAnt authorization-page address into Chrome or Safari. Opening
+the page is not evidence of authentication: claim success only after a real
+read-only AdAnt MCP or CLI call succeeds.
 
 ## Remote MCP workflow
 

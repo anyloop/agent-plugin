@@ -4,7 +4,20 @@ Research social content, build strategies, and create or clone short-form video
 ads in one AdAnt plugin. It connects Codex to the authenticated AdAnt MCP at
 `https://api.adant.ai/mcp`.
 
-## Install
+## Install in ChatGPT desktop
+
+Open **Plugins**, add `https://github.com/anyloop/agent-plugin.git` as a personal
+marketplace on the `main` ref, then install AdAnt from **Personal**. Complete
+the AdAnt connection prompt during installation and start a new task so the
+skills and MCP tools are discovered.
+
+If AdAnt was installed or updated in the current task, start a new task first.
+If its tools are still unavailable there, open AdAnt under **Plugins** >
+**Installed** or **Personal**, complete any connection prompt, then start
+another new task. ChatGPT desktop does not require the separate `codex`
+terminal command.
+
+## Install in Codex CLI
 
 Add the public AdAnt marketplace, then install the plugin:
 
@@ -13,19 +26,19 @@ codex plugin marketplace add anyloop/agent-plugin --ref main
 codex plugin add adant@adant-ai
 ```
 
-Installation is configured to authenticate immediately. Codex opens AdAnt in
-the browser so the user can sign in or create an account, review the requested
-permissions, and authorize the connection. A manual reconnect is also
-available:
+Installation is configured to authenticate immediately. Codex CLI opens AdAnt
+in the browser so the user can sign in or create an account, review the
+requested permissions, and authorize the connection. A manual CLI reconnect
+is also available:
 
 ```bash
 codex mcp login adant
 ```
 
-Run the reconnect command in your system terminal and finish sign-in in your
-regular Chrome or Safari browser. If Google times out in Codex's built-in
-browser, return to the AdAnt authorization page, copy its full address, and
-paste it into the regular browser while the command keeps running.
+Use this command only when the `codex` executable is installed in that
+terminal. Finish sign-in in Chrome or Safari. If the embedded browser times
+out, return to the AdAnt authorization page, copy its full address, and paste
+it into the regular browser while the command keeps running.
 
 Verify the installation with:
 
