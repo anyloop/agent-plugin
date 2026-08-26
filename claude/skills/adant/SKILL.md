@@ -10,8 +10,9 @@ or ask the user for third-party media service credentials.
 
 ## Route task-shaped workflows
 
-When installed, use `adant-getting-started` when the user is new, asks what
-AdAnt can do, or wants to verify that setup worked; use `adant-create-ad` for
+When installed, use `adant-init` when the user is new, types `$adant-init`,
+asks what AdAnt can do, or wants to verify that setup worked; use
+`adant-create-ad` for
 a complete ad workflow and
 `adant-clone-ad` for a reference-driven clone or adaptation. Those skills own
 durable project setup, grounding, budgets, approvals, reconnects, and delivery.

@@ -3,6 +3,12 @@
     "adant": {
       "oauth_resource": "https://api.adant.ai/mcp",
       "url": "https://api.adant.ai/mcp"
+    },
+    "adant-sidecar": {
+      "command": "python3",
+      "args": [
+        "${PLUGIN_ROOT}/runtime/sidecar_mcp.py"
+      ]
     }
   }
 }

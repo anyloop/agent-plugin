@@ -1,0 +1,4 @@
+interface:
+  display_name: "Initialize AdAnt"
+  short_description: "Connect, check setup, and get three starting prompts"
+  default_prompt: "Run $adant-init to connect AdAnt and see what it can do."

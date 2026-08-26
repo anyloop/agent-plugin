@@ -25,11 +25,12 @@ class WindowEnvironment(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self._saved = {
             key: os.environ.get(key)
-            for key in ("ADANT_SOCIAL_DATA_DIR", "ADANT_NO_SIDECAR", "ADANT_SIDECAR_BROWSER")
+            for key in ("ADANT_SOCIAL_DATA_DIR", "ADANT_NO_SIDECAR", "ADANT_SIDECAR_BROWSER", "ADANT_SIDECAR_WINDOW")
         }
         os.environ["ADANT_SOCIAL_DATA_DIR"] = self._tmp.name
         os.environ.pop("ADANT_NO_SIDECAR", None)
         os.environ.pop("ADANT_SIDECAR_BROWSER", None)
+        os.environ.pop("ADANT_SIDECAR_WINDOW", None)
 
     def tearDown(self) -> None:
         lock = Path(self._tmp.name) / "progress" / "sidecar.json"
@@ -78,8 +79,8 @@ class ServerTests(WindowEnvironment):
     def test_serves_page_health_and_jobs(self) -> None:
         lock = self.start_server()
         page = self.get(lock["url"]).decode()
-        self.assertIn("AdAnt Sidecar", page)
-        self.assertIn("sc-orb", page)
+        self.assertIn("AdAnt Research", page)
+        self.assertIn("flowbar", page)
         self.assertEqual(json.loads(self.get(lock["url"] + "healthz")), {"ok": True})
         self.assertEqual(json.loads(self.get(lock["url"] + "jobs")), [])
 
@@ -107,6 +108,20 @@ class ServerTests(WindowEnvironment):
             proc.kill()
             proc.wait(timeout=5)
 
+    def test_artifact_endpoint_serves_workspace_files_only(self) -> None:
+        workspace_root = Path(self._tmp.name).parent  # data dir parent
+        report = Path(self._tmp.name) / "progress" / "report.md"
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text("# Findings\nhello artifact")
+        lock = self.start_server()
+        body = self.get(lock["url"] + "artifact?path=" + str(report)).decode()
+        self.assertIn("hello artifact", body)
+        import urllib.error
+
+        with self.assertRaises(urllib.error.HTTPError) as caught:
+            self.get(lock["url"] + "artifact?path=/etc/hosts")
+        self.assertEqual(caught.exception.code, 403)
+
     def test_watchdog_exits_when_lock_removed(self) -> None:
         self.start_server("--idle-timeout", "0")
         (Path(self._tmp.name) / "progress" / "sidecar.json").unlink()
@@ -128,12 +143,13 @@ class BootstrapTests(WindowEnvironment):
         launcher.write_text(f"#!/bin/sh\necho \"$@\" >> {capture}\n")
         launcher.chmod(0o755)
         os.environ["ADANT_SIDECAR_BROWSER"] = str(launcher)
+        os.environ["ADANT_SIDECAR_WINDOW"] = "1"
 
         first = sidecar_bootstrap.ensure_sidecar()
         self.assertEqual(first["status"], "ready", first)
         self.assertEqual(first["reason"], "started")
         self.assertTrue(first["url"].startswith("http://127.0.0.1:"))
-        self.assertIn("AdAnt Sidecar", self.get(first["url"]).decode())
+        self.assertIn("AdAnt Research", self.get(first["url"]).decode())
 
         deadline = time.monotonic() + 3
         while time.monotonic() < deadline and not capture.exists():
@@ -148,7 +164,20 @@ class BootstrapTests(WindowEnvironment):
         self.assertEqual(second["url"], first["url"])
         self.assertEqual(len(capture.read_text().splitlines()), 1, "window must open once")
 
+    def test_window_is_opt_in(self) -> None:
+        capture = Path(self._tmp.name) / "browser-args.txt"
+        launcher = Path(self._tmp.name) / "fake-browser.sh"
+        launcher.write_text(f"#!/bin/sh\necho \"$@\" >> {capture}\n")
+        launcher.chmod(0o755)
+        os.environ["ADANT_SIDECAR_BROWSER"] = str(launcher)
+        result = sidecar_bootstrap.ensure_sidecar()
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(result["reason"], "started")
+        time.sleep(0.5)
+        self.assertFalse(capture.exists(), "no window may open without ADANT_SIDECAR_WINDOW=1")
+
     def test_missing_browser_still_ready(self) -> None:
+        os.environ["ADANT_SIDECAR_WINDOW"] = "1"
         os.environ["ADANT_SIDECAR_BROWSER"] = str(Path(self._tmp.name) / "nope")
         result = sidecar_bootstrap.ensure_sidecar()
         self.assertEqual(result["status"], "ready")

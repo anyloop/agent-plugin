@@ -1,6 +1,6 @@
 {
   "name": "adant",
-  "version": "0.5.0",
+  "version": "0.7.0",
   "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt.",
   "author": {
     "name": "AdAnt AI",
@@ -41,10 +41,10 @@
     "privacyPolicyURL": "https://adant.ai/privacy",
     "termsOfServiceURL": "https://adant.ai/terms",
     "defaultPrompt": [
+      "Run $adant-init to connect AdAnt and see what it can do.",
       "Create a short-form product ad with AdAnt.",
       "Clone this reference ad for my product.",
-      "Research current short-form trends for my product.",
-      "Turn social research into eight distinct content strategies."
+      "Research current short-form trends for my product."
     ],
     "brandColor": "#FF5A1F",
     "composerIcon": "./assets/icon.png",

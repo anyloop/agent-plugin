@@ -1,32 +1,42 @@
 ---
-name: adant-getting-started
+name: adant-init
 description: >-
-  Orient a new AdAnt user in under five minutes: verify the AdAnt connection
-  with one read-only call, surface the credit balance, check local research
-  readiness, and offer three ready-to-send starting prompts personalized to
-  the user's product. Trigger when the user asks what AdAnt can do, how to
+  First-run initialization and orientation for the AdAnt plugin. Verify the
+  AdAnt connection with one read-only call, open the live progress panel,
+  check local research readiness, and offer three ready-to-send starting
+  prompts personalized to the user's product. Trigger on "$adant-init",
+  "init adant", "set up adant", when the user asks what AdAnt can do, how to
   start or try it, whether setup or installation worked, says the plugin was
   just installed, or arrives with no concrete task.
 ---
 
-# Getting started with AdAnt
+# Initialize AdAnt
 
 Goal: from "just installed" to a first successful action in under five
-minutes, with at most one question asked along the way.
+minutes, with at most one question asked along the way. This skill is the
+plugin's front door — when in doubt about what a new user needs, run it.
 
-## Verify the connection first
+## Show the panel first
+
+When the session exposes the local `research_progress_open` tool (the
+plugin's `adant-sidecar` MCP server), call it **before** running checks. The
+panel renders inside the conversation and fills in live as the checks run —
+the user sees the product working instead of reading about it. Tell them in
+one clause that this panel is where research progress will live. If the tool
+is absent, skip this without comment.
+
+## Verify the connection
 
 1. When the session exposes `adant_*` MCP tools, call
    `adant_get_credit_balance` — read-only, and it proves OAuth end to end.
    Otherwise run `npx --yes @anyloop/adant-cli credit balance`.
 2. On success, report the balance in one line. On failure, follow the `adant`
    skill's **Recover a missing connection** steps for the current host; never
-   guess at OAuth state or ask for API keys.
+   guess at OAuth state and never ask for API keys.
 
-## Check research readiness only when relevant
+## Check research readiness
 
-When the user's interest includes trend, competitor, or content research — or
-they have no stated goal yet — run the plugin doctor once:
+Run the plugin doctor once (it also feeds the panel's Setup checklist):
 
 ```bash
 python3 {PLUGIN_ROOT}/runtime/doctor.py --skip-sessions

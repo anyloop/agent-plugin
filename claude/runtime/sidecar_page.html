@@ -3,290 +3,616 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AdAnt Sidecar</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<title>AdAnt Research</title>
 <style>
 /* ============================================================
-   AdAnt Sidecar dashboard.
-   Motion language ported from Studio's thinking system:
-   packages/ui/chat/src/react/thinking/thinking.css (.studio- -> .sc-),
-   GooOrb from chat-thinking.tsx, timing values mirror thinking-timing.ts.
-   Committed dark design (Adant report Dark Ink surfaces).
+   AdAnt research progress panel — implements the approved
+   "AdAnt Sidecar Redesign" canvas: one Now card at a time,
+   finished work collapses to single rows (Setup included),
+   upcoming phases are ghost chips, results arrive as preview
+   cards in the flow, completion leads with the deliverable.
+   Codex-style light UI, deliberately single-theme (always white,
+   regardless of host/system dark mode); motion = flowing light (top flow bar,
+   shimmer on active work, iridescent sweep on completion).
+   Dual transport: MCP Apps bridge when framed, SSE standalone.
    ============================================================ */
 :root{
-  --bg:#12100d; --panel:#1a1611; --panel-line:#262019; --hairline:#1e1a15;
-  --ink:#ece7e1; --title:#f0ebe4; --body:#c9bfb2; --muted:#8b8178; --muted-soft:#5c554d;
-  --accent:#ff7a45; --terra:#e8a888; --ok:#8fce91; --warn:#e0b35d; --err:#e08c74;
-  --sweep-rose:#ef6f8e; --sweep-gold:#f3bd4c; --sweep-blue:#8ea3c8;
-  --sans:Inter,-apple-system,"PingFang SC","Noto Sans SC",sans-serif;
-  --serif:"EB Garamond",Georgia,"Songti SC",serif;
-  --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,monospace;
-  --ease-out:cubic-bezier(.16,1,.3,1);
+  --bg:#ffffff; --ink:#0d0d0d; --body:#3f3f3f; --sub:#6e6e6e; --faint:#9b9b9b; --ghost:#b3b3b5;
+  --line:#ececec; --line-2:#f2f2f3; --card-line:#e3e3e6; --surface:#f7f7f8;
+  --ok:#188a42; --warn:#8a5400; --warn-line:#e8cfa0; --warn-bg:#fdf9f0; --err:#c93a2e; --link:#0b70e0;
+  --flow-a:#6bb7ff; --flow-b:#b39dff; --flow-c:#ffb08f;
+  --shadow:0 1px 3px rgba(13,13,13,.05);
+  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Inter,"PingFang SC","Noto Sans SC",sans-serif;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:13px; line-height:1.6;
-     min-height:100vh; padding:18px 18px 24px; -webkit-font-smoothing:antialiased}
-.head{display:flex; align-items:center; gap:10px; margin-bottom:4px}
-.sc-orb{width:22px; height:22px; flex:none; animation:scOrbIn .42s var(--ease-out) both}
-.sc-mb{transform-box:view-box; transform-origin:20px 20px; animation:scOrbit 2.8s ease-in-out infinite}
-.sc-mb2{animation-delay:-.93s}.sc-mb3{animation-delay:-1.86s}
-@keyframes scOrbit{0%{transform:rotate(0deg) translateX(9px)}50%{transform:rotate(180deg) translateX(6.5px)}100%{transform:rotate(360deg) translateX(9px)}}
-@keyframes scOrbIn{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
-.title{font-family:var(--serif); font-weight:500; font-size:22px; color:var(--title); margin:0}
-.title em{font-style:italic; color:var(--terra)}
-.elapsed{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--muted); font-variant-numeric:tabular-nums}
-.wsline{font-family:var(--mono); font-size:9.5px; color:var(--muted-soft); letter-spacing:.04em;
-        white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:14px}
-/* shimmer / aurora — 1:1 from studioSmShimmer / studioSmAuroraSweep */
-.sc-shimmer{background-image:linear-gradient(100deg,var(--muted) 0 38%,var(--title) 50%,var(--muted) 62% 100%);
-  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:scShimmer 2.2s linear infinite}
-@keyframes scShimmer{from{background-position:150% 0}to{background-position:-150% 0}}
-.sc-aurora{background-image:linear-gradient(100deg,var(--title) 0 30%,var(--sweep-rose) 42%,var(--sweep-gold) 50%,var(--sweep-blue) 58%,var(--title) 70% 100%);
-  background-size:250% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;
-  animation:scAurora .85s ease forwards}
-.sc-aurora em{color:transparent}
-@keyframes scAurora{from{background-position:130% 0}to{background-position:-30% 0}}
-section{margin-top:16px}
-.slabel{font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); margin-bottom:8px}
-/* doctor checklist */
-.chk{display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid var(--hairline); font-size:12px}
-.chk:last-child{border-bottom:none}
-.chk .s{width:14px; text-align:center; flex:none}
-.chk .n{flex:1}
-.chk .d{font-family:var(--mono); font-size:10px; color:var(--muted); max-width:55%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.c-ok{color:var(--ok)}.c-bad{color:var(--err)}.c-warn{color:var(--warn)}.c-idle{color:var(--muted-soft)}
-/* need-user alert */
-.alert{background:#241b0e; border:1px solid #4a3a1c; border-radius:10px; padding:12px 14px; margin-top:14px;
-       animation:scChipPop .34s var(--ease-out) both}
-.alert .at{color:var(--warn); font-weight:600; font-size:12.5px; display:flex; gap:8px; align-items:center}
-.alert p{color:var(--body); font-size:11.5px; margin:6px 0 0; line-height:1.6}
-.pulse{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--warn); animation:scPulse 1.4s ease-in-out infinite}
-@keyframes scPulse{0%,100%{opacity:1}50%{opacity:.25}}
-/* phase timeline — from studio-sv-focus rail/node */
-.phases{position:relative; padding-left:4px}
-.ph{position:relative; padding:0 0 14px 26px}
-.ph:last-child{padding-bottom:0}
-.ph-rail{position:absolute; left:8px; top:19px; bottom:-1px; width:1.5px; background:var(--panel-line)}
-.ph:last-child .ph-rail{display:none}
-.ph-node{position:absolute; left:0; top:2px; width:17px; height:17px; border-radius:50%; background:var(--bg);
-         display:grid; place-items:center; z-index:1; font-size:10px}
-.ph-node i{width:8px; height:8px; border-radius:50%; background:var(--muted-soft); transition:background .4s}
-.ph.active .ph-node i{background:var(--accent); animation:scPulse 1.4s ease-in-out infinite}
-.ph.done .ph-node i{background:var(--ok)}
-.ph.error .ph-node i{background:var(--err)}
-.ph-row{display:flex; align-items:baseline; gap:8px}
-.ph-name{font-size:13px; font-weight:500; color:var(--ink); transition:font-size .4s var(--ease-out),color .4s}
-.ph.done .ph-name{font-size:12px; font-weight:400; color:var(--muted)}
-.ph.pending .ph-name{color:var(--muted-soft); font-weight:400}
-.ph-meta{margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--muted); font-variant-numeric:tabular-nums; flex:none}
-.ph-msg{font-family:var(--mono); font-size:10px; color:var(--muted); margin-top:2px;
-        white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.ph.done .ph-msg{display:none}
-/* stats */
-.stats{display:flex; gap:8px; flex-wrap:wrap}
-.stat{flex:1 1 30%; background:var(--panel); border:1px solid var(--panel-line); border-radius:8px; padding:8px 10px; text-align:center;
-      animation:scChipPop .34s var(--ease-out) both}
-.stat b{display:block; font-family:var(--mono); font-size:15px; font-weight:500; color:var(--title); font-variant-numeric:tabular-nums}
-.stat span{font-size:9.5px; color:var(--muted)}
-/* live feed — fade-word entrance from studioFadeW / studioChipPop */
-.feed{display:flex; flex-direction:column; gap:4px}
-.ev{display:flex; gap:8px; font-family:var(--mono); font-size:10px; color:var(--body); line-height:1.5;
-    animation:scFadeW .5s var(--ease-out) both}
-.ev .t{color:var(--muted-soft); flex:none; font-variant-numeric:tabular-nums}
-.ev .p{color:var(--terra); flex:none}
-.ev .m{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-@keyframes scFadeW{from{opacity:0;transform:translateY(2px);filter:blur(3px)}to{opacity:1;transform:none;filter:blur(0)}}
-@keyframes scChipPop{from{opacity:0;transform:translateY(4px);filter:blur(2px)}to{opacity:1;transform:none;filter:blur(0)}}
-.foot{margin-top:18px; border-top:1px solid var(--hairline); padding-top:10px;
-      font-family:var(--mono); font-size:9.5px; color:var(--muted-soft); display:flex; justify-content:space-between; gap:8px}
-.hidden{display:none}
-@media (prefers-reduced-motion:reduce){
-  .sc-mb,.sc-mb2,.sc-mb3,.sc-orb,.sc-shimmer,.sc-aurora,.pulse,.ph.active .ph-node i,.ev,.stat,.alert{animation:none !important}
-  .sc-shimmer,.sc-aurora{color:var(--title); background:none; -webkit-background-clip:border-box; background-clip:border-box}
-  .ev,.stat,.alert{opacity:1}
+body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:13px; line-height:1.55;
+     -webkit-font-smoothing:antialiased; min-height:100vh}
+.flowbar{position:sticky; top:0; height:2px; z-index:9; transition:opacity .6s;
+  background:linear-gradient(90deg,transparent 0%,var(--flow-a) 25%,var(--flow-b) 45%,var(--flow-c) 65%,transparent 85%);
+  background-size:220% 100%; animation:flow 2.4s linear infinite}
+.flowbar.idle{opacity:0}
+@keyframes flow{from{background-position:160% 0}to{background-position:-60% 0}}
+.app{max-width:1080px; margin:0 auto; padding:14px 16px 24px}
+@media(min-width:780px){
+  .app.haspreview{display:grid; grid-template-columns:minmax(330px,1fr) minmax(300px,430px); gap:24px; align-items:start}
+  .previewcol{position:sticky; top:14px}
+}
+.maincol{display:flex; flex-direction:column; gap:12px}
+.maincol.dim > *:not(.alert){opacity:.45; transition:opacity .4s}
+.head{display:flex; align-items:baseline; gap:10px}
+.head h1{font-size:15px; font-weight:600; margin:0; letter-spacing:-.01em}
+.status{font-size:12.5px; color:var(--sub)}
+.elapsed{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--faint); font-variant-numeric:tabular-nums}
+.shimmer{background-image:linear-gradient(90deg,var(--faint) 38%,var(--ink) 50%,var(--faint) 62%);
+  background-size:220% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:shimmer 2s linear infinite}
+@keyframes shimmer{from{background-position:130% 0}to{background-position:-130% 0}}
+.sweep{background-image:linear-gradient(90deg,var(--ink) 15%,var(--flow-a) 38%,var(--flow-b) 50%,var(--flow-c) 62%,var(--ink) 85%);
+  background-size:250% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:sweepOnce .9s ease forwards}
+@keyframes sweepOnce{from{background-position:130% 0}to{background-position:-30% 0}}
+.slabel{font-size:11px; font-weight:500; color:var(--faint); margin-bottom:-6px}
+/* collapsed rows */
+.rows{display:flex; flex-direction:column; gap:1px}
+.crow{display:flex; align-items:center; gap:9px; padding:5px 2px; cursor:pointer; border-radius:6px;
+  animation:fadeUp .35s var(--ease) both}
+.crow:hover{background:var(--surface)}
+.crow .name{font-size:12.5px; color:var(--sub); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.crow .meta{margin-left:auto; flex:none; font-family:var(--mono); font-size:10.5px; color:var(--ghost); font-variant-numeric:tabular-nums}
+.crow .chev{flex:none; color:var(--ghost); font-size:9px; opacity:.5; transition:transform .25s var(--ease)}
+.crow.open .chev{transform:rotate(90deg)}
+.crow svg{flex:none}
+@keyframes fadeUp{from{opacity:0; transform:translateY(3px)}to{opacity:1; transform:none}}
+.subpanel{margin:2px 0 6px 23px; background:var(--surface); border-radius:8px; padding:7px 11px;
+  font-family:var(--mono); font-size:10.5px; line-height:1.75; color:var(--sub);
+  max-height:180px; overflow-y:auto; white-space:pre-wrap; word-break:break-word}
+/* now card */
+.now{border:1px solid var(--card-line); border-radius:12px; padding:12px 14px; box-shadow:var(--shadow);
+  display:flex; flex-direction:column; animation:fadeUp .35s var(--ease) both}
+.now .nhead{display:flex; align-items:center; gap:9px; padding-bottom:4px}
+.now .ntitle{font-size:13.5px; font-weight:600}
+.now .nmeta{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--faint)}
+.lane{display:flex; align-items:center; gap:9px; padding:7px 0; border-top:1px solid var(--line-2)}
+.lane .lname{font-size:12.5px; font-weight:500; color:var(--body); flex:none}
+.lane .ldetail{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--faint);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.spin{width:11px; height:11px; border-radius:50%; flex:none;
+  background:conic-gradient(from 0deg,var(--flow-a),var(--flow-b),var(--flow-c),var(--flow-a));
+  -webkit-mask:radial-gradient(farthest-side,transparent 55%,#000 60%); mask:radial-gradient(farthest-side,transparent 55%,#000 60%);
+  animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.nowlog{margin-top:9px; background:var(--surface); border-radius:8px; padding:8px 10px;
+  font-family:var(--mono); font-size:10px; line-height:1.7; color:var(--sub); white-space:pre-wrap; word-break:break-word}
+.nowlog.full{max-height:240px; overflow-y:auto}
+.now .expand{padding-top:8px}
+.now .expand a{font-size:11.5px; color:var(--link); text-decoration:none; cursor:pointer}
+/* ghost upcoming */
+.ghosts{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:0 2px}
+.ghosts span{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ghost)}
+/* alert */
+.alert{border:1px solid var(--warn-line); background:var(--warn-bg); border-radius:12px; padding:14px 16px;
+  display:flex; flex-direction:column; gap:8px; animation:fadeUp .35s var(--ease) both}
+.alert b{font-size:13.5px; font-weight:600; color:var(--warn); display:flex; align-items:center; gap:8px}
+.alert .amsg{font-size:12.5px; color:var(--body); line-height:1.6; margin:0}
+.pulse{width:8px; height:8px; border-radius:50%; background:var(--warn); flex:none; animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+/* results */
+.rescard{border:1px solid var(--card-line); border-radius:12px; box-shadow:var(--shadow);
+  display:flex; gap:12px; padding:12px 14px; align-items:center; cursor:pointer; animation:fadeUp .35s var(--ease) both}
+.rescard:hover{background:var(--surface)}
+.rescard.sel{background:var(--surface)}
+.rescard .cover{width:96px; height:58px; flex:none; border-radius:7px; padding:8px 9px; overflow:hidden;
+  background:radial-gradient(130% 120% at 85% -10%,rgba(94,160,255,.22),transparent 55%),
+             radial-gradient(120% 120% at 8% 110%,rgba(240,160,122,.18),transparent 55%),#0c0a09;
+  display:flex; flex-direction:column; justify-content:space-between}
+.rescard .cover .ck{font-family:var(--mono); font-size:5.5px; letter-spacing:.12em; color:#8b8178}
+.rescard .cover .cn{font-family:Georgia,serif; font-size:11px; color:#ece7e1; line-height:1.25;
+  overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
+.rescard .thumbimg{width:44px; height:58px; flex:none; border-radius:7px; object-fit:cover; background:var(--surface)}
+.rescard .rinfo{min-width:0}
+.rescard .rname{font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.rescard .rmeta{font-family:var(--mono); font-size:10.5px; color:var(--faint); margin-top:2px}
+.rescard .ract{font-size:11.5px; color:var(--link); margin-top:5px}
+.resrows{border:1px solid var(--line); border-radius:10px; padding:2px 12px}
+.resrows .crow:hover{background:transparent}
+.kind{flex:none; font-family:var(--mono); font-size:8.5px; letter-spacing:.04em; color:var(--sub);
+  border:1px solid var(--line); border-radius:5px; padding:1px 5px}
+/* finale */
+.stats{display:flex; gap:8px}
+.stat{flex:1; border:1px solid var(--line); border-radius:10px; padding:9px 4px; text-align:center; animation:fadeUp .35s var(--ease) both}
+.stat b{display:block; font-family:var(--mono); font-size:15px; font-weight:500; font-variant-numeric:tabular-nums}
+.stat span{font-size:10px; color:var(--faint)}
+/* preview pane */
+.preview{border:1px solid var(--card-line); border-radius:12px; overflow:hidden; margin-top:12px; animation:fadeUp .35s var(--ease) both}
+.preview .phead{display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--line); background:var(--surface)}
+.preview .pname{font-size:12px; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.preview .close{margin-left:auto; cursor:pointer; color:var(--faint); border:none; background:none; font-size:14px; padding:0 2px}
+.preview .pbody{max-height:70vh; overflow:auto; background:var(--bg)}
+.preview img{display:block; max-width:100%}
+.preview pre{margin:0; padding:12px; font-family:var(--mono); font-size:11px; line-height:1.65; color:var(--body); white-space:pre-wrap; word-break:break-word}
+.preview iframe{display:block; width:100%; height:60vh; border:none; background:#fff}
+.preview .note{padding:14px; font-size:12px; color:var(--sub)}
+.foot{margin-top:6px; padding-top:9px; border-top:1px solid var(--line); display:flex; gap:10px; justify-content:space-between;
+  font-family:var(--mono); font-size:10px; color:var(--ghost)}
+.hidden{display:none !important}
+@media (prefers-reduced-motion: reduce){
+  .flowbar,.shimmer,.sweep,.spin,.pulse,.crow,.now,.alert,.rescard,.stat,.preview{animation:none !important}
+  .shimmer,.sweep{color:var(--ink); background:none; -webkit-background-clip:border-box; background-clip:border-box}
+  .crow,.now,.alert,.rescard,.stat,.preview{opacity:1}
+  .spin{background:var(--sub); -webkit-mask:none; mask:none; width:7px; height:7px}
 }
 </style>
 </head>
 <body>
-<div class="head">
-  <svg class="sc-orb" viewBox="0 0 40 40" aria-hidden="true" id="orb">
-    <defs><filter id="scgoo"><feGaussianBlur in="SourceGraphic" stdDeviation="1.7" result="b"/>
-    <feColorMatrix in="b" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 17 -7"/></filter></defs>
-    <g filter="url(#scgoo)">
-      <circle class="sc-mb" cx="20" cy="20" r="4" fill="#ef4a5e"/>
-      <circle class="sc-mb sc-mb2" cx="20" cy="20" r="4" fill="#f3bd4c"/>
-      <circle class="sc-mb sc-mb3" cx="20" cy="20" r="4" fill="#f0865d"/>
-    </g>
-  </svg>
-  <h1 class="title" id="title"><span class="sc-shimmer" id="titleText">AdAnt <em>research</em></span></h1>
-  <span class="elapsed" id="elapsed">0:00</span>
+<div class="flowbar" id="flowbar"></div>
+<div class="app" id="app">
+<div class="maincol" id="maincol">
+  <div class="head">
+    <h1 id="title">AdAnt Research</h1>
+    <span class="status shimmer" id="status">waiting for activity…</span>
+    <span class="elapsed" id="elapsed"></span>
+  </div>
+  <div id="alertBox" class="alert hidden">
+    <b><span class="pulse"></span><span id="alertTitle">Action needed</span></b>
+    <p class="amsg" id="alertMsg"></p>
+  </div>
+  <div id="finale" class="hidden"></div>
+  <div class="rows" id="doneRows"></div>
+  <div id="nowWrap"></div>
+  <div id="resWrap"></div>
+  <div id="ghostWrap"></div>
+  <div class="foot"><span id="evCount">0 events</span><span id="wsline">connecting…</span></div>
 </div>
-<div class="wsline" id="wsline">waiting for events…</div>
-
-<section id="doctorSec" class="hidden">
-  <div class="slabel">Setup · Doctor</div>
-  <div id="doctor"></div>
-</section>
-
-<div id="alertBox" class="alert hidden">
-  <div class="at"><span class="pulse"></span><span id="alertTitle">Action needed</span></div>
-  <p id="alertMsg"></p>
+<div class="previewcol" id="previewcol"></div>
 </div>
-
-<section id="phaseSec" class="hidden">
-  <div class="slabel">Research</div>
-  <div class="phases" id="phases"></div>
-</section>
-
-<section id="statSec" class="hidden">
-  <div class="slabel">Counts</div>
-  <div class="stats" id="stats"></div>
-</section>
-
-<section id="feedSec" class="hidden">
-  <div class="slabel">Live</div>
-  <div class="feed" id="feed"></div>
-</section>
-
-<div class="foot"><span id="evCount">0 events</span><span>AdAnt Sidecar · 127.0.0.1</span></div>
 
 <script>
 "use strict";
-/* Known phase order + display names; unknown phases append after. */
-const PHASE_ORDER = ["product-profile","competitors","keywords",
+const PHASE_ORDER = ["doctor","product-profile","competitors","keywords",
   "platform-tiktok","platform-instagram","platform-meta-ads","platform-youtube",
   "curation","report","strategy"];
 const PHASE_NAMES = {
-  "product-profile":"Product profile", competitors:"Competitor analysis", keywords:"Keywords",
-  "platform-tiktok":"TikTok browse","platform-instagram":"Instagram browse",
-  "platform-meta-ads":"Meta Ads browse","platform-youtube":"YouTube Shorts browse",
-  curation:"Curation & validation", report:"Report build", strategy:"Strategy analysis"};
-const state = { phases:new Map(), doctor:new Map(), counts:{}, events:0, firstTs:null, lastNeedUser:null, feed:[] };
+  doctor:"Setup","product-profile":"Product profile", competitors:"Competitors",
+  keywords:"Keywords","platform-tiktok":"TikTok","platform-instagram":"Instagram",
+  "platform-meta-ads":"Meta Ads","platform-youtube":"YouTube Shorts",
+  curation:"Curation", report:"Report", strategy:"Strategy"};
+const GHOST_CANDIDATES = ["curation","report","strategy"];
+const PLATFORM_PREFIX = "platform-";
+const LOG_CAP = 80;
+const state = { phases:new Map(), doctor:new Map(), artifacts:new Map(),
+  events:0, firstTs:null, lastTs:null, lastNeedUser:null, workspace:null,
+  subject:null, selected:null, open:new Set(), fullLog:false };
+let transportLabel = "connecting…";
 
-function phaseKey(id){
-  const m = id.match(/^(strategy|platform-[a-z-]+|doctor)/);
-  return id;
-}
+const svg = {
+  check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>',
+  circle: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--line)" stroke-width="2.4"><circle cx="12" cy="12" r="9"></circle></svg>',
+  cross: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--err)" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
+  warn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>',
+};
 function baseOrder(id){
-  for (let i=0;i<PHASE_ORDER.length;i++){ if (id===PHASE_ORDER[i]||id.startsWith(PHASE_ORDER[i]+"-")) return i; }
+  for (let i = 0; i < PHASE_ORDER.length; i++)
+    if (id === PHASE_ORDER[i] || id.startsWith(PHASE_ORDER[i] + "-")) return i;
   return PHASE_ORDER.length;
 }
 function fmtClock(seconds){
-  const m = Math.floor(seconds/60), s = Math.floor(seconds%60);
-  return m + ":" + String(s).padStart(2,"0");
+  const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+function workspaceRoot(){
+  if (!state.workspace) return null;
+  return state.workspace.split("/").slice(0, -2).join("/") || null;
+}
+function absolutize(path){
+  if (!path || path.startsWith("/")) return path;
+  const root = workspaceRoot();
+  return root ? root + "/" + path : path;
+}
+function kindOf(path){
+  const ext = (path.split(".").pop() || "").toLowerCase();
+  if (["png","jpg","jpeg","webp","gif"].includes(ext)) return "image";
+  if (ext === "pdf") return "pdf";
+  if (ext === "html") return "html";
+  if (["json","md","txt","csv","log"].includes(ext)) return "text";
+  return "file";
+}
+function statText(counts){
+  if (!counts) return null;
+  for (const [k, v] of Object.entries(counts))
+    if (typeof v === "number" && k !== "duration_seconds" && k !== "exit") return v + " " + k.replace(/_/g, " ");
+  return null;
 }
 function onEvent(ev){
   state.events += 1;
   const ts = Date.parse(ev.ts);
-  if (!state.firstTs && !Number.isNaN(ts)) state.firstTs = ts;
-  if (ev.phase === "doctor"){
-    handleDoctor(ev);
-  } else {
-    const key = phaseKey(ev.phase);
-    let p = state.phases.get(key);
-    if (!p){ p = {id:key, status:"pending", msg:"", started:ts, duration:null}; state.phases.set(key,p); }
-    if (ev.status === "start"){ p.status = "active"; p.started = ts; p.msg = ev.message || ""; }
-    else if (ev.status === "progress"){ if (p.status!=="done") p.status = "active"; p.msg = ev.message || p.msg; }
-    else if (ev.status === "done"){ p.status = "done"; p.duration = (ev.counts&&ev.counts.duration_seconds)||null; }
-    else if (ev.status === "error"){ p.status = "error"; p.msg = ev.message || p.msg; }
+  if (!Number.isNaN(ts)){ if (!state.firstTs) state.firstTs = ts; state.lastTs = ts; }
+  if (ev.subject) state.subject = ev.subject;
+  if (ev.phase === "doctor" && ev.status === "progress"){
+    const m = (ev.message || "").match(/^([a-z0-9-]+): (ok|missing|unknown) \((.*)\)$/);
+    if (m) state.doctor.set(m[1], { state:m[2], detail:m[3] });
   }
-  if (ev.status === "need-user"){ state.lastNeedUser = ev; }
-  else if (ev.phase === "doctor" && ev.status === "done" && state.lastNeedUser && state.lastNeedUser.phase === "doctor"){ state.lastNeedUser = null; }
-  if (ev.counts){ for (const [k,v] of Object.entries(ev.counts)){
-    if (typeof v === "number" && k !== "duration_seconds" && k !== "exit") state.counts[k] = v; } }
-  state.feed.push(ev); if (state.feed.length > 8) state.feed.shift();
+  let p = state.phases.get(ev.phase);
+  if (!p){ p = { id:ev.phase, status:"pending", msg:"", started:ts, duration:null, log:[], counts:{} }; state.phases.set(ev.phase, p); }
+  if (ev.status === "start"){ p.status = "active"; p.started = ts; p.msg = ev.message || ""; }
+  else if (ev.status === "progress"){ if (p.status !== "done") p.status = "active"; p.msg = ev.message || p.msg; }
+  else if (ev.status === "done"){ p.status = "done"; p.duration = (ev.counts && ev.counts.duration_seconds) || null; }
+  else if (ev.status === "error"){ p.status = "error"; p.msg = ev.message || p.msg; }
+  if (ev.message){
+    p.log.push((ev.ts || "").slice(11, 19) + "  " + ev.message);
+    if (p.log.length > LOG_CAP) p.log.shift();
+  }
+  if (ev.counts) for (const [k, v] of Object.entries(ev.counts))
+    if (typeof v === "number" && k !== "duration_seconds" && k !== "exit") p.counts[k] = v;
+  if (ev.status === "need-user") state.lastNeedUser = ev;
+  else if (ev.phase === "doctor" && ev.status === "done" && state.lastNeedUser && state.lastNeedUser.phase === "doctor") state.lastNeedUser = null;
+  const art = ev.artifact ? { path:absolutize(ev.artifact.path), label:ev.artifact.label }
+    : ev.thumb ? { path:absolutize(ev.thumb), label:ev.message || ev.thumb.split("/").pop() } : null;
+  if (art && art.path && !state.artifacts.has(art.path))
+    state.artifacts.set(art.path, { ...art, kind:kindOf(art.path), phase:ev.phase, ts:(ev.ts || "").slice(11, 16) });
   scheduleRender();
 }
-function handleDoctor(ev){
-  document.getElementById("doctorSec").classList.remove("hidden");
-  if (ev.status === "progress"){
-    const m = (ev.message||"").match(/^([a-z0-9-]+): (ok|missing|unknown) \((.*)\)$/);
-    if (m) state.doctor.set(m[1], {state:m[2], detail:m[3]});
-  }
-}
 let renderQueued = false;
-function scheduleRender(){ if (!renderQueued){ renderQueued = true; requestAnimationFrame(()=>{ renderQueued=false; render(); }); } }
-function el(tag, cls, text){ const n = document.createElement(tag); if (cls) n.className = cls; if (text!=null) n.textContent = text; return n; }
+function scheduleRender(){ if (!renderQueued){ renderQueued = true; requestAnimationFrame(()=>{ renderQueued = false; render(); }); } }
+function el(tag, cls, text){ const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+function icon(name){ const s = el("span"); s.style.flex = "none"; s.style.display = "inline-flex"; s.innerHTML = svg[name]; return s; }
+
+function collapsedRow(label, meta, iconName, onToggle, isOpen){
+  const row = el("div", "crow" + (isOpen ? " open" : ""));
+  row.appendChild(iconName === "spin" ? Object.assign(el("span", "spin"), {}) : icon(iconName));
+  row.appendChild(el("span", "name", label));
+  row.appendChild(el("span", "meta", meta || ""));
+  row.appendChild(el("span", "chev", "▶"));
+  if (onToggle) row.addEventListener("click", onToggle);
+  return row;
+}
+function phaseRowMeta(p){
+  const bits = [];
+  const stat = statText(p.counts);
+  if (stat) bits.push(stat);
+  if (p.duration != null) bits.push(fmtClock(p.duration));
+  return bits.join(" · ") || (p.status === "error" ? "failed" : "done");
+}
+
 function render(){
-  /* doctor */
-  const doc = document.getElementById("doctor"); doc.textContent = "";
-  for (const [name, c] of state.doctor){
-    const row = el("div","chk");
-    const mark = c.state==="ok" ? ["c-ok","✓"] : c.state==="missing" ? ["c-bad","✕"] : ["c-warn","?"];
-    row.appendChild(el("span","s "+mark[0], mark[1]));
-    row.appendChild(el("span","n", name));
-    row.appendChild(el("span","d", c.detail));
-    doc.appendChild(row);
+  const phases = [...state.phases.values()]
+    .sort((a, b) => baseOrder(a.id) - baseOrder(b.id) || a.id.localeCompare(b.id));
+  const research = phases.filter(p => p.id !== "doctor");
+  const doctor = state.phases.get("doctor");
+  const active = research.filter(p => p.status === "active");
+  const done = research.filter(p => p.status === "done" || p.status === "error");
+  const started = research.filter(p => p.status !== "pending");
+  const allDone = started.length > 0 && active.length === 0 && started.every(p => p.status === "done");
+  const anyError = research.some(p => p.status === "error");
+
+  /* header */
+  const title = document.getElementById("title");
+  const status = document.getElementById("status");
+  if (state.subject) title.textContent = state.subject;
+  if (allDone){
+    if (!title.classList.contains("sweep")){ title.classList.add("sweep"); title.textContent = "Research complete"; }
+    status.classList.add("hidden");
+  } else if (active.length){
+    status.classList.remove("hidden"); status.classList.add("shimmer"); status.style.color = "";
+    status.textContent = active.map(p => PHASE_NAMES[p.id] || p.id).slice(0, 3).join(" · ");
+  } else if (anyError){
+    status.classList.remove("hidden", "shimmer"); status.style.color = "var(--err)";
+    status.textContent = "a step failed";
+  } else if (doctor && doctor.status === "active"){
+    status.classList.remove("hidden"); status.classList.add("shimmer");
+    status.textContent = "Checking your setup";
   }
+  document.getElementById("flowbar").classList.toggle("idle", allDone || anyError || state.lastNeedUser != null);
+  document.getElementById("maincol").classList.toggle("dim", state.lastNeedUser != null);
+
   /* alert */
   const alertBox = document.getElementById("alertBox");
+  alertBox.classList.toggle("hidden", !state.lastNeedUser);
   if (state.lastNeedUser){
-    alertBox.classList.remove("hidden");
-    document.getElementById("alertTitle").textContent = "Action needed · " + state.lastNeedUser.phase;
+    document.getElementById("alertTitle").textContent = "Action needed — " + (PHASE_NAMES[state.lastNeedUser.phase] || state.lastNeedUser.phase);
     document.getElementById("alertMsg").textContent = state.lastNeedUser.message;
-  } else alertBox.classList.add("hidden");
-  /* phases */
-  const entries = [...state.phases.values()].sort((a,b)=>baseOrder(a.id)-baseOrder(b.id)||a.id.localeCompare(b.id));
-  if (entries.length){ document.getElementById("phaseSec").classList.remove("hidden"); }
-  const host = document.getElementById("phases"); host.textContent = "";
-  for (const p of entries){
-    const item = el("div","ph "+p.status);
-    item.appendChild(el("span","ph-rail"));
-    const node = el("span","ph-node"); node.appendChild(el("i")); item.appendChild(node);
-    const row = el("div","ph-row");
-    const name = el("span","ph-name", PHASE_NAMES[p.id] || p.id);
-    if (p.status === "active") name.classList.add("sc-shimmer");
-    row.appendChild(name);
-    row.appendChild(el("span","ph-meta", p.status==="done" && p.duration!=null ? fmtClock(p.duration)
-      : p.status==="error" ? "failed" : p.status==="active" ? "…" : ""));
-    item.appendChild(row);
-    if (p.msg && p.status!=="done") item.appendChild(el("div","ph-msg", p.msg));
-    host.appendChild(item);
   }
-  /* header state: all known phases done -> aurora + freeze orb */
-  const started = entries.filter(p=>p.status!=="pending");
-  const allDone = started.length>0 && started.every(p=>p.status==="done");
-  const anyError = entries.some(p=>p.status==="error");
-  const titleText = document.getElementById("titleText");
-  if (allDone && !titleText.classList.contains("sc-aurora")){
-    titleText.classList.remove("sc-shimmer"); titleText.classList.add("sc-aurora");
-    titleText.innerHTML = "Research <em>complete</em>";
-    document.getElementById("orb").style.animationPlayState = "paused";
-  } else if (anyError){ titleText.classList.remove("sc-shimmer"); titleText.style.color = "var(--err)"; }
-  /* stats */
-  const statKeys = Object.keys(state.counts);
-  if (statKeys.length){ document.getElementById("statSec").classList.remove("hidden"); }
-  const stats = document.getElementById("stats"); stats.textContent = "";
-  for (const k of statKeys.slice(0,6)){
-    const box = el("div","stat");
-    box.appendChild(el("b",null,String(state.counts[k])));
-    box.appendChild(el("span",null,k.replace(/_/g," ")));
-    stats.appendChild(box);
+
+  /* collapsed rows: setup first, then finished phases */
+  const rows = document.getElementById("doneRows"); rows.textContent = "";
+  if (doctor){
+    const isOpen = state.open.has("doctor");
+    const passed = [...state.doctor.values()].filter(c => c.state === "ok").length;
+    const meta = doctor.status === "done" ? passed + " checks" + (doctor.duration != null ? " · " + fmtClock(doctor.duration) : "")
+      : doctor.status === "error" ? "needs attention" : "checking";
+    const iconName = doctor.status === "done" ? "check" : doctor.status === "error" ? "cross" : "spin";
+    rows.appendChild(collapsedRow("Setup", meta, iconName,
+      ()=>{ state.open.has("doctor") ? state.open.delete("doctor") : state.open.add("doctor"); render(); }, isOpen));
+    if (isOpen || (doctor.status === "active" && state.doctor.size)){
+      const panel = el("div", "subpanel");
+      for (const [name, c] of state.doctor)
+        panel.appendChild(el("div", null, (c.state === "ok" ? "✓ " : c.state === "missing" ? "✕ " : "• ") + name + " — " + c.detail));
+      rows.appendChild(panel);
+    }
   }
-  /* feed */
-  document.getElementById("feedSec").classList.remove("hidden");
-  const feed = document.getElementById("feed"); feed.textContent = "";
-  for (const ev of [...state.feed].reverse()){
-    const row = el("div","ev");
-    row.appendChild(el("span","t",(ev.ts||"").slice(11,19)));
-    row.appendChild(el("span","p",ev.phase));
-    row.appendChild(el("span","m",ev.message||ev.status));
-    feed.appendChild(row);
+  for (const p of done){
+    const isOpen = state.open.has(p.id);
+    rows.appendChild(collapsedRow(PHASE_NAMES[p.id] || p.id, phaseRowMeta(p), p.status === "done" ? "check" : "cross",
+      ()=>{ state.open.has(p.id) ? state.open.delete(p.id) : state.open.add(p.id); render(); }, isOpen));
+    if (isOpen && p.log.length) rows.appendChild(el("div", "subpanel", p.log.join("\n")));
   }
-  document.getElementById("evCount").textContent = state.events + " events";
-  document.getElementById("wsline").textContent = "progress/events.jsonl · live";
+
+  /* Now card */
+  const nowWrap = document.getElementById("nowWrap"); nowWrap.textContent = "";
+  if (active.length && !allDone){
+    nowWrap.appendChild(el("div", "slabel", "Now"));
+    const card = el("div", "now");
+    const head = el("div", "nhead");
+    head.appendChild(el("span", "spin"));
+    const platforms = active.filter(p => p.id.startsWith(PLATFORM_PREFIX));
+    const headTitle = platforms.length > 1 ? "Browsing platforms" : (PHASE_NAMES[active[0].id] || active[0].id);
+    const nt = el("span", "ntitle shimmer", headTitle);
+    head.appendChild(nt);
+    head.appendChild(el("span", "nmeta", active.length > 1 ? active.length + " in parallel" : ""));
+    card.appendChild(head);
+    const laneSet = platforms.length > 1
+      ? research.filter(p => p.id.startsWith(PLATFORM_PREFIX))
+      : (active.length > 1 ? active : []);
+    for (const p of laneSet){
+      const lane = el("div", "lane");
+      if (p.status === "active") lane.appendChild(el("span", "spin"));
+      else lane.appendChild(icon(p.status === "done" ? "check" : p.status === "error" ? "cross" : "circle"));
+      const lname = el("span", "lname", PHASE_NAMES[p.id] || p.id);
+      if (p.status === "active") lname.classList.add("shimmer");
+      lane.appendChild(lname);
+      lane.appendChild(el("span", "ldetail", p.status === "done" ? phaseRowMeta(p) : p.status === "pending" ? "queued" : (p.msg || "")));
+      card.appendChild(lane);
+    }
+    if (!laneSet.length && active[0] && active[0].msg){
+      const lane = el("div", "lane");
+      lane.appendChild(el("span", "ldetail", active[0].msg));
+      card.appendChild(lane);
+    }
+    const merged = active.flatMap(p => p.log.slice(state.fullLog ? -LOG_CAP : -3).map(line => [line, p.id]))
+      .sort((a, b) => a[0] < b[0] ? -1 : 1).slice(state.fullLog ? -200 : -3);
+    if (merged.length){
+      const log = el("div", "nowlog" + (state.fullLog ? " full" : ""), merged.map(x => x[0]).join("\n"));
+      card.appendChild(log);
+    }
+    const expand = el("div", "expand");
+    const link = el("a", null, state.fullLog ? "Collapse activity" : "View full activity");
+    link.addEventListener("click", ()=>{ state.fullLog = !state.fullLog; render(); });
+    expand.appendChild(link);
+    card.appendChild(expand);
+    nowWrap.appendChild(card);
+  }
+
+  /* finale */
+  const finale = document.getElementById("finale");
+  finale.classList.toggle("hidden", !allDone);
+  if (allDone && !finale.dataset.built){
+    finale.dataset.built = "1"; finale.textContent = "";
+    const arts = [...state.artifacts.values()];
+    const main = arts.filter(a => a.kind === "pdf").pop() || arts.filter(a => a.kind === "html").pop() || arts[arts.length - 1];
+    if (main){
+      const card = buildResCard(main, true);
+      finale.appendChild(card);
+    }
+    const totals = {};
+    for (const p of research) for (const [k, v] of Object.entries(p.counts)) totals[k] = (totals[k] > v ? totals[k] : v);
+    const keys = Object.keys(totals).slice(0, 4);
+    if (keys.length){
+      const stats = el("div", "stats"); stats.style.marginTop = "12px";
+      for (const k of keys){
+        const box = el("div", "stat");
+        box.appendChild(el("b", null, String(totals[k])));
+        box.appendChild(el("span", null, k.replace(/_/g, " ")));
+        stats.appendChild(box);
+      }
+      finale.appendChild(stats);
+    }
+    const lbl = el("div", "slabel", "Full run"); lbl.style.margin = "12px 0 6px"; finale.appendChild(lbl);
+  }
+
+  /* results */
+  const resWrap = document.getElementById("resWrap"); resWrap.textContent = "";
+  const arts = [...state.artifacts.values()];
+  if (arts.length && !allDone){
+    resWrap.appendChild(el("div", "slabel", "Results"));
+    const featured = arts.filter(a => a.kind === "pdf" || a.kind === "html");
+    const rest = arts.filter(a => !featured.includes(a));
+    for (const a of featured.slice(-2)) resWrap.appendChild(buildResCard(a, false));
+    if (rest.length){
+      const box = el("div", "resrows");
+      for (const a of rest.slice(-6)){
+        const row = el("div", "crow" + (state.selected === a.path ? " open" : ""));
+        row.appendChild(el("span", "kind", a.kind.toUpperCase()));
+        row.appendChild(el("span", "name", a.label));
+        row.appendChild(el("span", "meta", a.ts));
+        row.appendChild(el("span", "chev", "▶"));
+        row.addEventListener("click", ()=>{ openPreview(a); });
+        box.appendChild(row);
+      }
+      resWrap.appendChild(box);
+    }
+  }
+
+  /* ghosts */
+  const ghostWrap = document.getElementById("ghostWrap"); ghostWrap.textContent = "";
+  if (started.length && !allDone){
+    const upcoming = GHOST_CANDIDATES.filter(id => !state.phases.has(id) || state.phases.get(id).status === "pending");
+    if (upcoming.length){
+      ghostWrap.appendChild(el("div", "slabel", "Up next"));
+      const row = el("div", "ghosts");
+      for (const id of upcoming){
+        const chip = el("span");
+        chip.appendChild(icon("circle"));
+        chip.appendChild(el("span", null, PHASE_NAMES[id] || id));
+        row.appendChild(chip);
+      }
+      ghostWrap.appendChild(row);
+    }
+  }
+
+  document.getElementById("app").classList.toggle("haspreview", state.selected != null);
+  document.getElementById("evCount").textContent = state.events + " events" + (allDone ? " · archived" : "");
+  document.getElementById("wsline").textContent = transportLabel;
+}
+function buildResCard(a, big){
+  const card = el("div", "rescard" + (state.selected === a.path ? " sel" : ""));
+  if (a.kind === "image"){
+    const img = document.createElement("img"); img.className = "thumbimg"; img.alt = "";
+    fetchArtifact(a.path).then(payload => {
+      if (payload.encoding === "base64") img.src = "data:" + payload.mimeType + ";base64," + payload.data;
+    }).catch(()=>{});
+    card.appendChild(img);
+  } else {
+    const cover = el("div", "cover");
+    cover.appendChild(el("span", "ck", "ADANT RESEARCH"));
+    cover.appendChild(el("span", "cn", (state.subject || a.label).slice(0, 44)));
+    card.appendChild(cover);
+  }
+  const info = el("div", "rinfo");
+  info.appendChild(el("div", "rname", a.label));
+  info.appendChild(el("div", "rmeta", a.kind.toUpperCase() + " · " + a.ts + (big ? " · delivered in chat" : "")));
+  info.appendChild(el("div", "ract", "Preview"));
+  card.appendChild(info);
+  card.addEventListener("click", ()=>{ openPreview(a); });
+  return card;
 }
 setInterval(()=>{
-  if (state.firstTs) document.getElementById("elapsed").textContent = fmtClock((Date.now()-state.firstTs)/1000);
+  if (state.firstTs && state.lastTs)
+    document.getElementById("elapsed").textContent = fmtClock((state.lastTs - state.firstTs) / 1000);
 }, 1000);
-function connect(){
+
+/* ---------- preview ---------- */
+async function openPreview(art){
+  state.selected = art.path; render();
+  const col = document.getElementById("previewcol"); col.textContent = "";
+  const box = el("div", "preview");
+  const head = el("div", "phead");
+  head.appendChild(el("span", "kind", art.kind.toUpperCase()));
+  head.appendChild(el("span", "pname", art.label));
+  const close = el("button", "close", "✕");
+  close.addEventListener("click", ()=>{ state.selected = null; col.textContent = ""; render(); });
+  head.appendChild(close);
+  box.appendChild(head);
+  const body = el("div", "pbody");
+  body.appendChild(el("div", "note", "loading…"));
+  box.appendChild(body);
+  col.appendChild(box);
+  try {
+    const payload = await fetchArtifact(art.path);
+    body.textContent = "";
+    if (payload.mimeType.startsWith("image/")){
+      const img = document.createElement("img");
+      img.src = "data:" + payload.mimeType + ";base64," + payload.data;
+      body.appendChild(img);
+    } else if (payload.mimeType === "text/html"){
+      const frame = document.createElement("iframe");
+      frame.setAttribute("sandbox", "");
+      frame.srcdoc = payload.data;
+      body.appendChild(frame);
+    } else if (payload.encoding === "text"){
+      body.appendChild(el("pre", null, payload.data.slice(0, 200000)));
+    } else if (payload.mimeType === "application/pdf"){
+      const frame = document.createElement("iframe");
+      frame.src = "data:application/pdf;base64," + payload.data;
+      body.appendChild(frame);
+      body.appendChild(el("div", "note", "If the PDF does not render here, open it from the chat delivery."));
+    } else {
+      body.appendChild(el("div", "note", "No inline preview for this file type."));
+    }
+  } catch (error){
+    body.textContent = "";
+    body.appendChild(el("div", "note", "Preview unavailable: " + (error && error.message || error)));
+  }
+}
+
+/* ---------- transports ---------- */
+function resetState(){
+  state.phases.clear(); state.doctor.clear(); state.artifacts.clear();
+  state.events = 0; state.firstTs = null; state.lastTs = null; state.lastNeedUser = null;
+  state.subject = null; state.selected = null; state.open.clear(); state.fullLog = false;
+  const finale = document.getElementById("finale"); delete finale.dataset.built; finale.textContent = "";
+  const title = document.getElementById("title"); title.classList.remove("sweep"); title.textContent = "AdAnt Research";
+}
+function ingestSnapshot(snap){
+  if (!snap || !Array.isArray(snap.events)) return;
+  if (snap.workspace !== state.workspace || snap.events.length < state.events){
+    resetState(); state.workspace = snap.workspace;
+  }
+  for (const ev of snap.events.slice(state.events)) onEvent(ev);
+  scheduleRender();
+}
+let mode = "none";
+async function fetchArtifact(path){
+  if (mode === "bridge"){
+    const result = await bridgeRequest("tools/call", { name: "research_artifact_read", arguments: { path } });
+    if (result && result.isError) throw new Error((result.content && result.content[0] && result.content[0].text) || "read failed");
+    return result.structuredContent;
+  }
+  const response = await fetch("/artifact?path=" + encodeURIComponent(path));
+  if (!response.ok) throw new Error(await response.text());
+  const mime = (response.headers.get("Content-Type") || "").split(";")[0];
+  if (mime.startsWith("image/") || mime === "application/pdf"){
+    const buffer = new Uint8Array(await response.arrayBuffer());
+    let binary = ""; for (const b of buffer) binary += String.fromCharCode(b);
+    return { mimeType: mime, encoding: "base64", data: btoa(binary) };
+  }
+  return { mimeType: mime, encoding: "text", data: await response.text() };
+}
+function connectSse(){
+  mode = "sse"; transportLabel = "local · events.jsonl";
   const source = new EventSource("/events");
   source.onmessage = (message)=>{ try { onEvent(JSON.parse(message.data)); } catch (_e) {} };
-  source.onerror = ()=>{ /* EventSource retries automatically */ };
+  source.onerror = ()=>{};
+  scheduleRender();
 }
-connect();
+/* Minimal vanilla MCP Apps bridge (SEP-1865, protocol 2026-01-26). */
+const bridge = { nextId: 1, pending: new Map() };
+window.addEventListener("message", (event)=>{
+  const data = event.data;
+  if (!data || data.jsonrpc !== "2.0") return;
+  if (data.id != null && bridge.pending.has(data.id)){
+    const { resolve, reject, timer } = bridge.pending.get(data.id);
+    bridge.pending.delete(data.id); clearTimeout(timer);
+    if (data.error) reject(data.error); else resolve(data.result);
+  } else if (data.method === "ui/notifications/tool-result"){
+    ingestSnapshot((data.params || {}).structuredContent);
+  }
+});
+function bridgeRequest(method, params, timeoutMs){
+  const id = bridge.nextId++;
+  window.parent.postMessage({ jsonrpc: "2.0", id, method, params }, "*");
+  return new Promise((resolve, reject)=>{
+    const timer = setTimeout(()=>{ bridge.pending.delete(id); reject(new Error("timeout")); }, timeoutMs || 15000);
+    bridge.pending.set(id, { resolve, reject, timer });
+  });
+}
+async function connectBridge(){
+  const init = await bridgeRequest("ui/initialize", {
+    capabilities: {},
+    clientInfo: { name: "AdAnt Research", version: "0.7.0" },
+    protocolVersion: "2026-01-26",
+    appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+  }, 2500);
+  window.parent.postMessage({ jsonrpc: "2.0", method: "ui/notifications/initialized", params: {} }, "*");
+  mode = "bridge"; transportLabel = "in-app · live";
+  const poll = async ()=>{
+    try {
+      const result = await bridgeRequest("tools/call", { name: "research_progress_snapshot", arguments: {} });
+      ingestSnapshot(result && result.structuredContent);
+    } catch (_e) {}
+  };
+  await poll();
+  setInterval(poll, 2500);
+}
+(async function connect(){
+  if (window.parent !== window){
+    try { await connectBridge(); return; } catch (_e) {}
+  }
+  if (location.protocol === "http:" || location.protocol === "https:") connectSse();
+  else transportLabel = "no live transport";
+  scheduleRender();
+})();
 </script>
 </body>
 </html>

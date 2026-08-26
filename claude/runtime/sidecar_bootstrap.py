@@ -6,7 +6,11 @@ actually starts, whether or not the agent remembered any instruction. It is
 idempotent and cheap when the server is already up, degrades silently to
 chat-only research when anything fails, and never raises.
 
-Opt-out: set ``ADANT_NO_SIDECAR=1`` (or ask the agent, which exports it).
+By default only the local progress server is ensured — the panel itself is
+rendered by the host as an MCP App (``research_progress_open``), or reachable
+at the printed URL. Opening a standalone Chrome app window is **opt-in** via
+``ADANT_SIDECAR_WINDOW=1`` (for hosts that cannot render MCP Apps).
+Opt-out entirely: ``ADANT_NO_SIDECAR=1``.
 Test/browser override: ``ADANT_SIDECAR_BROWSER=/path/to/launcher``.
 """
 
@@ -131,13 +135,19 @@ def _open_window(url: str) -> tuple[bool, str]:
     return True, "opened"
 
 
-def ensure_sidecar(open_window: bool = True) -> dict:
+def _window_opt_in() -> bool:
+    return os.environ.get("ADANT_SIDECAR_WINDOW", "").strip() in ("1", "true", "yes")
+
+
+def ensure_sidecar(open_window: bool | None = None) -> dict:
     """Idempotently ensure server (and window, once) exist.
 
     Returns {"status": "ready"|"disabled", "url": str|None, "reason": str}.
     Never raises.
     """
     try:
+        if open_window is None:
+            open_window = _window_opt_in()
         if os.environ.get("ADANT_NO_SIDECAR", "").strip() in ("1", "true", "yes"):
             return {"status": "disabled", "url": None, "reason": "opt-out"}
         lock = _read_lock()

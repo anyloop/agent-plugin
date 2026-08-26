@@ -67,3 +67,9 @@ is needed.
 codex plugin remove adant@adant-ai
 codex plugin marketplace remove adant-ai
 ```
+
+## First run
+
+Start a new task and send `$adant-init`. It opens the live progress panel,
+verifies the AdAnt connection, checks local research prerequisites, and hands
+you three ready-to-send starting prompts for your product.

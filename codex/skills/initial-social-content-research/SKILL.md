@@ -56,16 +56,20 @@ research, not a sales pitch: exclude pricing and deliverables.
   focus stealing — so a feed of short-form video never plays over the user's
   work. The only windows this workflow may show are the **Sidecar progress
   window** (below) and, when needed, the one-time platform sign-in window.
-- **Sidecar progress window:** the first research command (`doctor.py` or any
-  `run_phase.py run`) automatically starts a local progress server bound to
-  127.0.0.1 and opens one small read-only Chrome app window that renders the
-  live event stream — you never start it as a separate step. Read the
-  `sidecar: ready <url>` / `sidecar: disabled (<reason>)` line it prints:
-  relay the URL to the user once ("progress is visible in the AdAnt window on
-  the right"), and on `disabled` continue chat-only without treating it as an
-  error. All decisions stay in chat; the window only observes. If the user asks
-  not to open a window, export `ADANT_NO_SIDECAR=1` for the rest of the
-  workflow. The server exits by itself when research goes quiet.
+- **Live progress panel:** when the session exposes the local
+  `research_progress_open` tool (the plugin's `adant-sidecar` MCP server),
+  call it **once** right after the first research command starts — the host
+  renders the read-only progress panel inside the conversation and it updates
+  itself; never call it repeatedly. Separately, the first research command
+  (`doctor.py` or any `run_phase.py run`) automatically starts a local
+  progress server bound to 127.0.0.1 — you never start it as a separate step.
+  Read the `sidecar: ready <url>` / `sidecar: disabled (<reason>)` line it
+  prints: on a host without the panel tool, offer the URL once, and only if
+  the user wants a standalone window export `ADANT_SIDECAR_WINDOW=1` before
+  the next phase (it opens one small Chrome app window). On `disabled`,
+  continue chat-only without treating it as an error. All decisions stay in
+  chat; the panel only observes. `ADANT_NO_SIDECAR=1` turns all of it off.
+  The server exits by itself when research goes quiet.
 - **Get the user signed in to TikTok and Instagram before browsing them.** Signed
   out, those two return almost nothing, so a session is the difference between
   research and an empty file. `doctor.py` already ran each skill's `--login-check`
@@ -108,6 +112,21 @@ python3 {PLUGIN_ROOT}/runtime/run_phase.py run \
 Canonical phase ids: `doctor`, `product-profile`, `competitors`, `keywords`,
 `platform-tiktok`, `platform-instagram`, `platform-meta-ads`,
 `platform-youtube`, `curation`, `report`, `strategy`.
+
+**Publish milestones to the panel.** Whenever a phase produces a reviewable
+file — the confirmed competitor list, `report_data.json`, the rendered deck
+HTML and PDF — emit it so the progress panel can preview the intermediate
+result in place, without the user having to ask:
+
+```bash
+python3 {PLUGIN_ROOT}/runtime/sidecar_events.py report done "Research deck built" \
+  --artifact {WORKSPACE_ROOT}/{brandFolder}/deck.pdf --artifact-label "Research deck"
+```
+
+Emit at least: competitors confirmed, report data assembled, deck rendered.
+Only files inside `WORKSPACE_ROOT` can be previewed. When starting the
+`product-profile` phase, add `--subject "<product name>"` once so the panel
+is titled after the product.
 
 **Run independent work in parallel — this is the expected shape, not an
 optimization.** Sequential runs of independent phases waste 10+ minutes of the

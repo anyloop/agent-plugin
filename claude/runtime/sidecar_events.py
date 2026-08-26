@@ -46,6 +46,40 @@ def events_path() -> Path:
     return progress_dir() / _EVENTS_FILE
 
 
+def pointer_path() -> Path:
+    """Global pointer file so processes with a different environment (the
+    plugin's local MCP server, started by the host) can find the active
+    research workspace."""
+    return Path.home() / ".adant" / "sidecar" / "current.json"
+
+
+def write_pointer() -> None:
+    """Record the active progress directory. Never raises."""
+    try:
+        pointer = pointer_path()
+        pointer.parent.mkdir(parents=True, exist_ok=True)
+        pointer.write_text(
+            json.dumps(
+                {
+                    "progress_dir": str(progress_dir()),
+                    "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+            )
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def read_pointer() -> Path | None:
+    """Resolve the most recently active progress directory, if any."""
+    try:
+        data = json.loads(pointer_path().read_text())
+        path = Path(data["progress_dir"])
+        return path if path.is_dir() else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def emit(
     phase: str,
     status: str,
@@ -54,6 +88,9 @@ def emit(
     skill: str | None = None,
     counts: dict | None = None,
     thumb: str | None = None,
+    artifact: str | None = None,
+    artifact_label: str | None = None,
+    subject: str | None = None,
     extra: dict | None = None,
 ) -> bool:
     """Append one event line. Returns True on success, False otherwise.
@@ -76,11 +113,20 @@ def emit(
             event["counts"] = {str(k): v for k, v in dict(counts).items()}
         if thumb:
             event["thumb"] = str(thumb)
+        if subject:
+            event["subject"] = str(subject)[:120]
+        if artifact:
+            event["artifact"] = {
+                "path": str(Path(artifact).expanduser()),
+                "label": str(artifact_label or Path(artifact).name),
+            }
         if extra:
             event.update({str(k): v for k, v in dict(extra).items()})
         line = json.dumps(event, ensure_ascii=False) + "\n"
         directory = progress_dir()
         directory.mkdir(parents=True, exist_ok=True)
+        if status == "start":
+            write_pointer()
         fd = os.open(
             directory / _EVENTS_FILE,
             os.O_WRONLY | os.O_CREAT | os.O_APPEND,
@@ -118,6 +164,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("message", nargs="?", default="")
     parser.add_argument("--skill")
     parser.add_argument("--thumb")
+    parser.add_argument("--artifact", help="path to a produced file the panel can preview")
+    parser.add_argument("--artifact-label", help="display name for --artifact")
+    parser.add_argument("--subject", help="research subject; titles the progress panel")
     parser.add_argument(
         "--count",
         action="append",
@@ -133,6 +182,9 @@ def main(argv: list[str] | None = None) -> int:
         skill=args.skill,
         counts=_parse_counts(args.count) or None,
         thumb=args.thumb,
+        artifact=args.artifact,
+        artifact_label=args.artifact_label,
+        subject=args.subject,
     )
     print(f"sidecar: {'ok' if ok else 'disabled'} ({events_path()})")
     return 0

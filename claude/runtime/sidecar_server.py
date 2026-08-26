@@ -25,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sidecar_mcp  # noqa: E402  (artifact read + workspace guard)
 from sidecar_events import events_path, progress_dir  # noqa: E402
 
 PAGE_PATH = Path(__file__).resolve().parent / "sidecar_page.html"
@@ -70,10 +71,29 @@ class SidecarHandler(BaseHTTPRequestHandler):
                     except (OSError, json.JSONDecodeError):
                         continue
             self._send(200, "application/json", json.dumps(jobs).encode())
+        elif self.path.startswith("/artifact?"):
+            self._serve_artifact()
         elif self.path == "/events":
             self._stream_events()
         else:
             self._send(404, "text/plain", b"not found")
+
+    def _serve_artifact(self) -> None:
+        from urllib.parse import parse_qs, urlsplit
+
+        query = parse_qs(urlsplit(self.path).query)
+        path_text = (query.get("path") or [""])[0]
+        try:
+            payload = sidecar_mcp.read_artifact(path_text)
+        except (OSError, PermissionError) as error:
+            self._send(403, "text/plain", f"cannot read artifact: {error}".encode())
+            return
+        if payload["encoding"] == "text":
+            self._send(200, payload["mimeType"] + "; charset=utf-8", payload["data"].encode())
+        else:
+            import base64
+
+            self._send(200, payload["mimeType"], base64.b64decode(payload["data"]))
 
     def _stream_events(self) -> None:
         self.send_response(200)
