@@ -1,15 +1,15 @@
 ---
 name: competitor-research
-description: Three-phase competitive intelligence — Phase 1 identifies true competitors via capability cluster analysis with Google Search grounding. Phase 2 researches each competitor's TikTok presence (handles, followers, content strategy, viral videos). Phase 3 generates a markdown competitor analysis report combining competitive intelligence with TikTok presence data. Distinguishes decision-layer vs tool-layer products.
+description: Three-phase competitive intelligence — one bounded AdAnt web-research turn identifies true competitors, then local Chrome researches TikTok presence and a local renderer creates the Markdown report. This workflow keeps execution on the user's computer.
 ---
 
 # Competitor Research
 
 Three-phase competitive intelligence tool:
 
-1. **Phase 1 — Competitor Discovery**: Identify TRUE competitors using capability cluster analysis and authenticated AdAnt web research
-2. **Phase 2 — TikTok Presence**: Research each competitor's TikTok account, followers, content strategy, and viral videos
-3. **Phase 3 — Report Generation**: Generate a markdown competitor analysis report combining both data sets
+1. **Phase 1 — Competitor Discovery**: One bounded, research-only AdAnt web-research turn
+2. **Phase 2 — TikTok Presence**: Browse TikTok in the user's local Chrome research profile
+3. **Phase 3 — Report Generation**: Render the Markdown report deterministically on the user's computer
 
 ## Why This Exists
 
@@ -23,11 +23,15 @@ This skill does proper competitive intelligence AND social presence analysis in 
 ## Prerequisites
 
 - `uv` (Python package manager)
-- Node.js/npm for `npx @anyloop/adant-cli`
+- Node.js/npm for the legacy authentication fallback (`npx @anyloop/adant-cli`)
+- Google Chrome for optional local TikTok research
 - AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
 
-Never request a Gemini or other upstream model key. The runtime uses a temporary
-AdAnt agent session and the user's AdAnt account.
+Never request a Gemini or other upstream model key. The runtime uses one temporary,
+authenticated AdAnt agent session. For this workflow, its request explicitly limits
+the turn to web research and tells the agent not to invoke workspace, shell, computer,
+artifact, media, or other execution tools. Other plugin workflows can continue to use
+the full AdAnt agent when cloud execution is actually required.
 
 ## Quick Start
 
@@ -68,16 +72,20 @@ uv run --project skills/competitor-research/runtime \
 | `--description` | Product/service description | Yes |
 | `--website` | Client website URL (fetched for context) | No |
 | `--competitors` | Comma-separated known competitors (will be searched and verified) | No |
-| `--max-competitors` | Max competitors to find (default: 15) | No |
-| `--tiktok-presence` | Phase 2: Research TikTok presence for all competitors | No |
-| `--report` | Phase 3: Generate markdown competitor analysis report | No |
+| `--max-competitors` | Max competitors to find (default: 8) | No |
+| `--tiktok-presence` | Phase 2: Browse TikTok locally for all competitors | No |
+| `--tiktok-max-time` | Local TikTok capture time limit in seconds (default: 300) | No |
+| `--report` | Phase 3: Render markdown report locally | No |
 | `--report-output` | Output path for markdown report (default: `competitor_report.md`) | No |
 | `--tiktok-output` | Output path for TikTok presence JSON (default: `competitors_tiktok_presence.json`) | No |
 | `-o, --output` | Save main competitor research JSON to file | No (stdout) |
 
 ## Phase 1: Competitor Discovery
 
-Uses authenticated AdAnt web research for source-linked competitive intelligence.
+Uses one authenticated AdAnt agent turn for source-linked competitive intelligence.
+The current workflow requests web research and model synthesis only; it does not ask
+for cloud Computer or MCP execution. Website fetching and every file-producing step
+remain local.
 
 ### Capability Cluster Analysis
 
@@ -93,11 +101,12 @@ Breaks the client's product into capability clusters, then finds competitors per
 
 ## Phase 2: TikTok Presence Research (`--tiktok-presence`)
 
-For each competitor discovered in Phase 1, uses Google Search to find:
+For each competitor discovered in Phase 1, the packaged TikTok Chrome/CDP runtime
+runs on the user's computer to find:
 - Official TikTok handle (tries multiple patterns: @company, @company.ai, @companyai, etc.)
 - Follower count, total likes, video count
 - Bio text and link in bio
-- Whether the account is the real company or an unrelated user
+- A deterministic brand-name/domain match, with a note to verify identity-critical results
 - Notable/viral videos with URLs and view counts
 - Content strategy observations
 - Presence level classification (strong/medium/weak/minimal/none)
@@ -113,7 +122,8 @@ Also researches the CLIENT's own TikTok presence for comparison.
 
 ## Phase 3: Report Generation (`--report`)
 
-Generates a markdown report combining Phase 1 + Phase 2 data:
+Renders a markdown report locally from Phase 1 + Phase 2 data. This phase does
+not call a model, CLI, API, or cloud computer:
 
 1. **Executive Summary** — Category, competitor count, TikTok landscape, strategic takeaway
 2. **Client Capability Clusters** — Table of what the client does
