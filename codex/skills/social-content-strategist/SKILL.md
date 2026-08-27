@@ -34,17 +34,31 @@ maintaining history so later batches do not repeat URLs or concepts.
    retry behavior. Translate every relative `skills/...` path in that reference
    to an absolute path below `PLUGIN_ROOT`.
 
+## Choose the browser backend
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+trend browsing. Use its browser-client selection flow; in Codex Desktop the runtime
+prefers the persistent in-app Browser. Follow each platform skill's Browser path,
+reuse its signed-in session, and write the documented JSON output. Never inspect
+cookies, local storage, passwords, or profile files.
+
+Use Chrome/CDP only for a platform where Browser is absent, setup/control fails, or
+the site blocks the selected browser after its documented authentication flow.
+State each fallback once. Hosts without Codex Browser keep the portable Chrome path.
+
 ## Preflight
 
-- Require Python 3.11+, `uv`, `yt-dlp`, Node.js/npm, and Google Chrome. Confirm
+- Require Python 3.11+, `uv`, `yt-dlp`, and Node.js/npm. Google Chrome is required
+  only for the portable browser fallback. Confirm
   AdAnt CLI authentication with `npx @anyloop/adant-cli credit balance`; if missing, ask
   for `npx @anyloop/adant-cli auth login`. Never request a Gemini or other upstream model
   key. `TIKAPI_KEY` remains optional for the documented TikTok fallback only.
-- Browsing runs in headless research browsers: no windows, no focus stealing, and
+- Chrome/CDP fallback browsing runs in headless research browsers: no windows, no focus stealing, and
   every browser muted with autoplay blocked, so a feed of short-form video never
   plays over the user's work.
-- **Get the user signed in to TikTok and Instagram before browsing them.** Signed
-  out, those two return almost nothing. Check with each skill's `--login-check`
+- **Get the user signed in to TikTok and Instagram before browsing them.** In
+  Codex Browser mode, reuse its persistent session and follow the Browser skill's
+  sign-in flow when needed. For the Chrome fallback, check each skill's `--login-check`
   (opens and launches nothing). When it reports `logged_in: false`, tell the user
   that one dedicated, muted sign-in window is about to open, then run that skill's
   `--login` and ask them to sign in, close the window, and confirm. Open it at
@@ -74,7 +88,8 @@ maintaining history so later batches do not repeat URLs or concepts.
    app product's keywords explicitly app-related.
 4. **Trend research:** browse TikTok, Instagram Reels, Meta Ads, and YouTube
    Shorts. Enforce the selected recency window after collection and record any
-   fallback. Avoid concurrent processes that compete for a fixed CDP port.
+   fallback. In Browser mode, reuse one binding and separate tabs. In the Chrome
+   fallback, avoid concurrent processes that compete for a fixed CDP port.
 5. **Candidate selection:** normalize URLs, deduplicate, exclude history, reject
    unavailable or stale videos, and apply the documented engagement floor.
    Rank by engagement, recency, relevance, cloneability, and format diversity;

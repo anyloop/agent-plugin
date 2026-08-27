@@ -1,24 +1,38 @@
 ---
 name: browse-youtube-shorts
-description: Browse YouTube Shorts by keywords to find viral content for brand research. Uses Chrome DevTools Protocol in a headless research browser (no login required). Returns Shorts URLs with channel, views, and upload date metrics. Use when researching YouTube Shorts content, finding trending short-form videos, or analyzing competitor presence on YouTube.
+description: Browse YouTube Shorts by keywords to find viral content for brand research. In Codex Desktop, prefer the built-in Browser; otherwise use local Chrome/CDP. Returns Shorts URLs with channel, views, and upload-date evidence.
 ---
 
 # Browse YouTube Shorts
 
-Search YouTube Shorts by keywords using a headless research browser. YouTube search is public, so no login is required.
+Search public YouTube Shorts by keywords using Codex Browser when available, with local Chrome/CDP as the portable fallback.
+
+## Browser backend selection
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+browser work. Use its browser-client selection flow; in Codex Desktop the runtime
+prefers the persistent in-app Browser. Use it instead of running `runtime/browse.py`.
+Never inspect cookies, local storage, passwords, or profile files.
+
+Collect only visible page evidence into the output schema below and add
+`"browser_backend": "codex_in_app"` at the top level. Save it to the requested
+output path, or return it in the conversation when no path was requested. Fall back
+to the packaged Chrome/CDP runtime only when Browser is unavailable, setup/control
+fails, or YouTube blocks the selected browser. State the fallback once. Hosts such
+as Claude Code without Codex Browser use this fallback.
 
 ## Prerequisites
 
 - `uv` (Python package manager)
-- Google Chrome installed
+- Codex's built-in Browser, or Google Chrome for the fallback
 
 ## How It Works
 
-Uses a separate headless Chrome instance driven via Chrome DevTools Protocol (CDP). **Your main Chrome is never touched.** The skill launches a dedicated research browser on a unique port (9336) with its own profile directory — no window, no dock icon, no focus stealing.
+The fallback uses a separate headless Chrome instance driven via Chrome DevTools Protocol (CDP). **Your main Chrome is never touched.** The skill launches a dedicated research browser on a unique port (9336) with its own profile directory — no window, no dock icon, no focus stealing.
 
 The research browser is muted with autoplay blocked (`--mute-audio`, `--autoplay-policy=document-user-activation-required`), so Shorts never play sound over your work.
 
-## Quick Start
+## Chrome/CDP fallback
 
 ```bash
 # Single keyword search

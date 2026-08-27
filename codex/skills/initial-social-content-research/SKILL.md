@@ -33,6 +33,45 @@ research, not a sales pitch: exclude pricing and deliverables.
    thresholds, and report mapping. Translate every relative `skills/...` path
    in that reference to an absolute path below `PLUGIN_ROOT`.
 
+## Choose and publish the delivery mode
+
+Default to **production-complete**. Use **fast-draft** only when the user asks
+for a quick diagnostic/draft, or after explaining the tradeoff and receiving
+their approval when authentication or capture failures make a complete run
+impractical. Never silently turn a production request into a draft.
+
+- `production-complete` targets 30–45 minutes: enforce the card/type gates, run
+  conditional top-ups, deeply analyze every strategy pick, build and QA the
+  20-page report, and save it to AdAnt when connected.
+- `fast-draft` targets 15–25 minutes: run one primary discovery sweep, apply the
+  relevance screen, and deliver source-labeled findings plus an explicitly
+  incomplete gap report. Skip reserve top-ups, deep video analysis, the five
+  strategy pages, and AdAnt upload. Never call this result complete.
+
+After setting `ADANT_SOCIAL_DATA_DIR`, publish the selected plan before
+preflight so the Sidecar shows the delivery contract and actual future stages:
+
+```bash
+python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --mode production-complete
+# Or, only under the fast-draft rules above:
+python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --mode fast-draft
+```
+
+## Choose the browser backend
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+platform browsing. Use its browser-client selection flow; in Codex Desktop the
+runtime prefers the persistent in-app Browser. For TikTok, Instagram, Meta Ads, and
+YouTube phases, follow each component skill's Codex Browser path and write the same
+documented JSON schema to its normal workspace output. Reuse one browser binding and
+separate tabs per platform. Never inspect cookies, local storage, passwords, or
+profile files.
+
+Use the packaged Chrome/CDP commands only for a platform where Browser is absent,
+setup/control fails, or the site blocks the selected browser after its documented
+authentication flow. State each platform fallback once. Claude Code and other hosts
+without Codex Browser keep the portable Chrome/CDP workflow.
+
 ## Preflight
 
 - Run the one-shot preflight **once** before anything else, with
@@ -47,15 +86,18 @@ research, not a sales pitch: exclude pricing and deliverables.
   and both platform sessions in a single pass. Report every missing item to the
   user in **one consolidated message** — each with its fix command, an expected
   time cost, and the consequence of skipping — instead of surfacing failures one
-  at a time mid-run. If authentication is missing, ask for
+  at a time mid-run. In Codex Browser mode, Chrome and Chrome-profile session
+  failures are fallback-readiness warnings rather than blockers. If authentication
+  is missing, ask for
   `npx @anyloop/adant-cli auth login`. Never request a Gemini or other
   upstream model-provider key and never write credentials into the plugin or
   project. Re-run `doctor.py` after the user reports a fix; do not re-litigate
   items that already passed.
-- Browsing runs in headless research browsers — muted, autoplay blocked, no
-  focus stealing — so a feed of short-form video never plays over the user's
-  work. The only windows this workflow may show are the **Sidecar progress
-  window** (below) and, when needed, the one-time platform sign-in window.
+- Chrome/CDP fallback browsing runs in headless research browsers — muted,
+  autoplay blocked, no focus stealing — so a feed of short-form video never plays
+  over the user's work. The only fallback windows this workflow may show are the
+  **Sidecar progress window** (below) and, when needed, the one-time platform
+  sign-in window.
 - **Live progress panel:** when the session exposes the local
   `research_progress_open` tool (the plugin's `adant-sidecar` MCP server),
   call it **once** right after the first research command starts — the host
@@ -70,9 +112,11 @@ research, not a sales pitch: exclude pricing and deliverables.
   continue chat-only without treating it as an error. All decisions stay in
   chat; the panel only observes. `ADANT_NO_SIDECAR=1` turns all of it off.
   The server exits by itself when research goes quiet.
-- **Get the user signed in to TikTok and Instagram before browsing them.** Signed
-  out, those two return almost nothing, so a session is the difference between
-  research and an empty file. `doctor.py` already ran each skill's `--login-check`
+- **Get the user signed in to TikTok and Instagram before browsing them.** In
+  Codex Browser mode, reuse its persistent session and follow the Browser skill's
+  sign-in flow if authentication is required. In the Chrome fallback, signed out
+  results are thin, so a session is the difference between research and an empty
+  file. `doctor.py` already ran each fallback skill's `--login-check`
   (opens and launches nothing), so fold session status into the same consolidated
   preflight message. When it reports `logged_in: false`, tell the user that one
   dedicated, muted foreground sign-in window is about to open, then run that skill's
@@ -109,9 +153,36 @@ python3 {PLUGIN_ROOT}/runtime/run_phase.py run \
   -- <the phase command exactly as documented>
 ```
 
-Canonical phase ids: `doctor`, `product-profile`, `competitors`, `keywords`,
+Canonical phase ids: `workflow`, `doctor`, `product-profile`, `competitors`, `keywords`,
 `platform-tiktok`, `platform-instagram`, `platform-meta-ads`,
-`platform-youtube`, `curation`, `report`, `strategy`.
+`platform-youtube`, `curation`, `report`, `strategy`, `delivery`.
+
+### User communication contract
+
+Chat is the primary progress surface; the Sidecar mirrors it. Send a concise
+milestone update after preflight, product profiling, competitor confirmation,
+keyword generation, platform discovery, curation/top-ups, strategy analysis,
+report QA, and delivery. Before any background wait, say what is running. While
+work continues, never leave the user without an update for more than 60 seconds.
+Every update uses these four fields, omitting only a genuinely empty risk:
+
+```text
+Current: <stage and whether work is parallel>
+Found so far: <useful result or count, not raw process output>
+Next: <next decision or artifact>
+ETA / risk: <remaining range and any coverage or infrastructure risk>
+```
+
+Mirror meaningful updates into the panel. Use counts and an artifact when
+available; `--summary`, `--next`, `--risk`, and `--eta-minutes` drive the
+panel's “Found so far” and future-plan presentation:
+
+```bash
+python3 {PLUGIN_ROOT}/runtime/sidecar_events.py platform-youtube progress \
+  "YouTube sweep complete" --count qualified=18 \
+  --summary "18 relevant candidates; 7 are product demonstrations" \
+  --next "Curate the cross-platform shortlist" --eta-minutes 12
+```
 
 **Publish milestones to the panel.** Whenever a phase produces a reviewable
 file — the confirmed competitor list, `report_data.json`, the rendered deck
@@ -133,16 +204,22 @@ optimization.** Sequential runs of independent phases waste 10+ minutes of the
 user's time:
 
 - Step 3: the TikTok and Instagram keyword skills are independent — launch both
-  with `run_phase.py run --bg`, then `run_phase.py status --wait`.
-- Step 4: the four platform browses (4a-4d) are independent — launch all four
-  as background jobs the same way, then wait once:
+  with `run_phase.py run --bg`, then use bounded status slices as shown below.
+- Step 4: the four platform browses (4a-4d) are independent. In Codex Browser
+  mode, keep one tab per platform and batch independent reads when the Browser API
+  supports it. In the Chrome fallback, launch all four as background jobs, then
+  observe them together:
 
   ```bash
   python3 {PLUGIN_ROOT}/runtime/run_phase.py run --bg --phase platform-tiktok \
     --skill browse-tiktok-research -- <documented browse command>
   # ... repeat for platform-instagram, platform-meta-ads, platform-youtube ...
-  python3 {PLUGIN_ROOT}/runtime/run_phase.py status --wait --timeout 1800
+  python3 {PLUGIN_ROOT}/runtime/run_phase.py status --wait --max-wait 45
   ```
+
+  If jobs remain, send the four-field chat update and run the same bounded
+  status command again. Never use a single multi-minute blocking wait. Phase
+  runtimes retain their own hard time limits.
 
 - Step 7: the five `trend-video-understanding` analyses are independent — run
   them concurrently the same way (`--phase strategy`, one suffix per pick, e.g.
@@ -287,7 +364,7 @@ foreground to diagnose, never silently continue.
    maximums. The intro should interpret the cards, not enumerate them. Follow
    the field budgets in `social-content-research-report` and run its builder
    with `--strict` before rendering.
-7. **Sample content strategy:** pick the 5 strongest inspiration videos from the
+7. **Sample content strategy (production-complete only):** pick the 5 strongest inspiration videos from the
    curated set — rank by engagement, then cloneability and format diversity, at
    most one per account and at least two platforms. **Run
    `trend-video-understanding` on every pick before writing its strategy** and
@@ -298,19 +375,35 @@ foreground to diagnose, never silently continue.
    inverted). Defaulting every pick to a UGC avatar and "keep the hook" is the
    failure mode this step exists to avoid. Read `social-content-strategist`'s
    `SKILL.md` first; the deck reuses its General Instructions verbatim.
-8. **Report:** run `social-content-research-report`, then
+   In fast-draft mode, stop after the relevance screen and gap-labeled research
+   data; do not run video understanding or imply that strategies were validated.
+8. **Report:** in production-complete mode, run `social-content-research-report`, then
    `slide-pdf-generator`, using absolute runtime paths under `PLUGIN_ROOT` and
-   output paths under `WORKSPACE_ROOT`.
-9. **Save to AdAnt:** when the AdAnt Remote MCP (`adant_*` tools) is
+   output paths under `WORKSPACE_ROOT`. In fast-draft mode, build only the
+   report skill's 13-slide research section when the evidence supports it,
+   label every gap, and state that production validation was not run.
+9. **Save to AdAnt (production-complete only):** when the AdAnt Remote MCP (`adant_*` tools) is
    connected, follow `social-content-research-report`'s **Save to AdAnt**
    section — `handoff.py manifest` → `adant_prepare_uploads` →
    `handoff.py upload` → `adant_complete_uploads` → `handoff.py payload` →
    `adant_save_product_report`. Keep the returned `url`; it is the
    deliverable's primary link. Without the MCP, deliver the files and say the
-   report was not saved to AdAnt.
+   report was not saved to AdAnt. Emit a final `delivery done` event with the
+   saved URL or the local-delivery explanation.
+
+After the selected mode's promised artifacts are verified and delivered, mark
+the plan complete so the Sidecar cannot announce completion between stages:
+
+```bash
+python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --complete
+```
 
 ## Verify and deliver
 
+- State the selected delivery mode first. A fast draft must lead with
+  “Fast diagnostic draft — incomplete coverage” and list every skipped
+  production stage. Apply the remaining full-report checks only to
+  production-complete runs.
 - Confirm the HTML, Markdown, and PDF exist.
 - When the report was saved to AdAnt, lead the closing message with the
   Studio link ("Saved to your AdAnt Drive — open <url> to read the report and

@@ -89,6 +89,11 @@ body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:
 .nowlog.full{max-height:240px; overflow-y:auto}
 .now .expand{padding-top:8px}
 .now .expand a{font-size:11.5px; color:var(--link); text-decoration:none; cursor:pointer}
+.brief{display:flex; flex-direction:column; gap:6px; margin-top:8px; padding:9px 10px;
+  border-top:1px solid var(--line-2); background:var(--surface); border-radius:8px}
+.briefrow{display:grid; grid-template-columns:82px 1fr; gap:8px; font-size:11.5px; color:var(--body)}
+.briefrow b{font-size:10.5px; font-weight:500; color:var(--faint)}
+.briefrow.risk span{color:var(--warn)}
 /* ghost upcoming */
 .ghosts{display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:0 2px}
 .ghosts span{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ghost)}
@@ -178,13 +183,14 @@ const PHASE_NAMES = {
   doctor:"Setup","product-profile":"Product profile", competitors:"Competitors",
   keywords:"Keywords","platform-tiktok":"TikTok","platform-instagram":"Instagram",
   "platform-meta-ads":"Meta Ads","platform-youtube":"YouTube Shorts",
-  curation:"Curation", report:"Report", strategy:"Strategy"};
+  curation:"Curation", report:"Report", strategy:"Strategy", delivery:"Save to AdAnt"};
 const GHOST_CANDIDATES = ["curation","report","strategy"];
 const PLATFORM_PREFIX = "platform-";
 const LOG_CAP = 80;
 const state = { phases:new Map(), doctor:new Map(), artifacts:new Map(),
   events:0, firstTs:null, lastTs:null, lastNeedUser:null, workspace:null,
-  subject:null, selected:null, open:new Set(), fullLog:false };
+  subject:null, selected:null, open:new Set(), fullLog:false, workflow:null,
+  summary:null, next:null, risk:null, etaMinutes:null };
 let transportLabel = "connecting…";
 
 const svg = {
@@ -193,10 +199,32 @@ const svg = {
   cross: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--err)" stroke-width="2.6" stroke-linecap="round"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>',
   warn: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path></svg>',
 };
+function phaseMatches(id, prefix){ return id === prefix || id.startsWith(prefix + "-"); }
 function baseOrder(id){
+  if (state.workflow && Array.isArray(state.workflow.stages)){
+    for (let i = 0; i < state.workflow.stages.length; i++)
+      if ((state.workflow.stages[i].phases || []).some(prefix => phaseMatches(id, prefix))) return i;
+  }
   for (let i = 0; i < PHASE_ORDER.length; i++)
-    if (id === PHASE_ORDER[i] || id.startsWith(PHASE_ORDER[i] + "-")) return i;
+    if (phaseMatches(id, PHASE_ORDER[i])) return i;
   return PHASE_ORDER.length;
+}
+function upcomingStages(phases){
+  if (!state.workflow || !Array.isArray(state.workflow.stages))
+    return GHOST_CANDIDATES.filter(id => !state.phases.has(id) || state.phases.get(id).status === "pending")
+      .map(id => ({id, label:PHASE_NAMES[id] || id}));
+  const stages = state.workflow.stages;
+  const states = stages.map(stage => {
+    const matches = phases.filter(p => (stage.phases || []).some(prefix => phaseMatches(p.id, prefix)));
+    if (matches.some(p => p.status === "active")) return "active";
+    if (matches.length && matches.every(p => p.status === "done")) return "done";
+    if (matches.some(p => p.status === "error")) return "error";
+    return "pending";
+  });
+  let current = states.findIndex(value => value === "active");
+  if (current < 0) for (let i = 0; i < states.length; i++)
+    if (states[i] === "done" || states[i] === "error") current = i;
+  return stages.filter((_stage, index) => index > current && states[index] === "pending").slice(0, 4);
 }
 function fmtClock(seconds){
   const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
@@ -230,6 +258,11 @@ function onEvent(ev){
   const ts = Date.parse(ev.ts);
   if (!Number.isNaN(ts)){ if (!state.firstTs) state.firstTs = ts; state.lastTs = ts; }
   if (ev.subject) state.subject = ev.subject;
+  if (ev.workflow) state.workflow = ev.workflow;
+  if (ev.summary) state.summary = ev.summary;
+  if (ev.next) state.next = ev.next;
+  if (ev.risk) state.risk = ev.risk;
+  if (ev.eta_minutes != null) state.etaMinutes = ev.eta_minutes;
   if (ev.phase === "doctor" && ev.status === "progress"){
     const m = (ev.message || "").match(/^([a-z0-9-]+): (ok|missing|unknown) \((.*)\)$/);
     if (m) state.doctor.set(m[1], { state:m[2], detail:m[3] });
@@ -279,12 +312,13 @@ function phaseRowMeta(p){
 function render(){
   const phases = [...state.phases.values()]
     .sort((a, b) => baseOrder(a.id) - baseOrder(b.id) || a.id.localeCompare(b.id));
-  const research = phases.filter(p => p.id !== "doctor");
+  const research = phases.filter(p => p.id !== "doctor" && p.id !== "workflow");
   const doctor = state.phases.get("doctor");
   const active = research.filter(p => p.status === "active");
   const done = research.filter(p => p.status === "done" || p.status === "error");
   const started = research.filter(p => p.status !== "pending");
-  const allDone = started.length > 0 && active.length === 0 && started.every(p => p.status === "done");
+  const phasesDone = started.length > 0 && active.length === 0 && started.every(p => p.status === "done");
+  const allDone = state.workflow ? phasesDone && state.workflow.status === "complete" : phasesDone;
   const anyError = research.some(p => p.status === "error");
 
   /* header */
@@ -350,7 +384,10 @@ function render(){
     const headTitle = platforms.length > 1 ? "Browsing platforms" : (PHASE_NAMES[active[0].id] || active[0].id);
     const nt = el("span", "ntitle shimmer", headTitle);
     head.appendChild(nt);
-    head.appendChild(el("span", "nmeta", active.length > 1 ? active.length + " in parallel" : ""));
+    const meta = [];
+    if (active.length > 1) meta.push(active.length + " in parallel");
+    if (state.workflow) meta.push(state.workflow.mode === "fast-draft" ? "fast draft" : "production");
+    head.appendChild(el("span", "nmeta", meta.join(" · ")));
     card.appendChild(head);
     const laneSet = platforms.length > 1
       ? research.filter(p => p.id.startsWith(PLATFORM_PREFIX))
@@ -369,6 +406,20 @@ function render(){
       const lane = el("div", "lane");
       lane.appendChild(el("span", "ldetail", active[0].msg));
       card.appendChild(lane);
+    }
+    const briefItems = [
+      ["Found so far", state.summary, ""],
+      ["Next", state.next, ""],
+      ["Risk", state.risk, "risk"],
+      ["ETA", state.etaMinutes != null ? String(state.etaMinutes) + " min" : null, ""],
+    ].filter(item => item[1]);
+    if (briefItems.length){
+      const brief = el("div", "brief");
+      for (const [label, value, cls] of briefItems){
+        const row = el("div", "briefrow" + (cls ? " " + cls : ""));
+        row.appendChild(el("b", null, label)); row.appendChild(el("span", null, value)); brief.appendChild(row);
+      }
+      card.appendChild(brief);
     }
     const merged = active.flatMap(p => p.log.slice(state.fullLog ? -LOG_CAP : -3).map(line => [line, p.id]))
       .sort((a, b) => a[0] < b[0] ? -1 : 1).slice(state.fullLog ? -200 : -3);
@@ -437,14 +488,14 @@ function render(){
   /* ghosts */
   const ghostWrap = document.getElementById("ghostWrap"); ghostWrap.textContent = "";
   if (started.length && !allDone){
-    const upcoming = GHOST_CANDIDATES.filter(id => !state.phases.has(id) || state.phases.get(id).status === "pending");
+    const upcoming = upcomingStages(phases);
     if (upcoming.length){
       ghostWrap.appendChild(el("div", "slabel", "Up next"));
       const row = el("div", "ghosts");
-      for (const id of upcoming){
+      for (const stage of upcoming){
         const chip = el("span");
         chip.appendChild(icon("circle"));
-        chip.appendChild(el("span", null, PHASE_NAMES[id] || id));
+        chip.appendChild(el("span", null, stage.label || PHASE_NAMES[stage.id] || stage.id));
         row.appendChild(chip);
       }
       ghostWrap.appendChild(row);
@@ -531,6 +582,7 @@ function resetState(){
   state.phases.clear(); state.doctor.clear(); state.artifacts.clear();
   state.events = 0; state.firstTs = null; state.lastTs = null; state.lastNeedUser = null;
   state.subject = null; state.selected = null; state.open.clear(); state.fullLog = false;
+  state.workflow = null; state.summary = null; state.next = null; state.risk = null; state.etaMinutes = null;
   const finale = document.getElementById("finale"); delete finale.dataset.built; finale.textContent = "";
   const title = document.getElementById("title"); title.classList.remove("sweep"); title.textContent = "AdAnt Research";
 }
@@ -539,6 +591,7 @@ function ingestSnapshot(snap){
   if (snap.workspace !== state.workspace || snap.events.length < state.events){
     resetState(); state.workspace = snap.workspace;
   }
+  if (snap.workflow) state.workflow = snap.workflow;
   for (const ev of snap.events.slice(state.events)) onEvent(ev);
   scheduleRender();
 }

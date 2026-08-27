@@ -208,22 +208,25 @@ def _entity_presence(entity: dict, videos: list[dict]) -> dict:
     }
 
 
-def research_tiktok_presence(
+def research_tiktok_presence_from_capture(
     client: str,
     competitors: list[dict],
-    client_description: str = "",
+    raw: dict,
+    browser_backend: str,
     client_website: str = "",
-    max_time: int = 300,
 ) -> dict:
-    """Research bounded TikTok presence entirely on the user's computer."""
-    del client_description
+    """Shape a bounded browser capture without invoking another browser."""
     entities = [{"name": client, "website": client_website}, *competitors]
-    print("  Phase 2: Browsing TikTok locally in the plugin research browser...")
-    raw = _run_local_browse(entities, max_time)
     all_results = raw.get("all_results", {})
+    if not isinstance(all_results, dict):
+        raise ValueError("Browser capture all_results must be an object")
     presences = [
-        _entity_presence(entity, all_results.get(f"{entity['name']} official", []))
+        _entity_presence(
+            entity,
+            videos if isinstance(videos, list) else [],
+        )
         for entity in entities
+        for videos in [all_results.get(f"{entity['name']} official", [])]
     ]
     client_presence, competitor_presences = presences[0], presences[1:]
     meaningful = [
@@ -248,6 +251,7 @@ def research_tiktok_presence(
     return {
         "research_date": date.today().isoformat(),
         "execution_location": "local",
+        "browser_backend": browser_backend,
         "client": client_presence,
         "competitors": competitor_presences,
         "summary": {
@@ -272,3 +276,24 @@ def research_tiktok_presence(
         ],
         "tiktok_research_sources": sources[:50],
     }
+
+
+def research_tiktok_presence(
+    client: str,
+    competitors: list[dict],
+    client_description: str = "",
+    client_website: str = "",
+    max_time: int = 300,
+) -> dict:
+    """Research bounded TikTok presence entirely on the user's computer."""
+    del client_description
+    entities = [{"name": client, "website": client_website}, *competitors]
+    print("  Phase 2: Browsing TikTok locally in the plugin research browser...")
+    raw = _run_local_browse(entities, max_time)
+    return research_tiktok_presence_from_capture(
+        client,
+        competitors,
+        raw,
+        browser_backend="chrome_cdp",
+        client_website=client_website,
+    )

@@ -1,25 +1,45 @@
 ---
 name: browse-instagram-reels
-description: Browse Instagram Reels by keywords to find viral content for brand research. Uses direct Chrome CDP automation with a persistent profile and a public-index fallback. Login once to Instagram, then search freely; no model-provider API key is required.
+description: Browse Instagram Reels by keywords to find viral content for brand research. In Codex Desktop, prefer the built-in Browser and its persistent session; otherwise use local Chrome/CDP with a public-index fallback. No model-provider API key is required.
 ---
 
 # Browse Instagram Reels
 
-Search Instagram Reels by keywords using direct Chrome automation. Login once, then run keyword searches that return Reel URLs with engagement metrics.
+Search Instagram Reels by keywords using Codex Browser when available, with local Chrome automation as the portable fallback.
+
+## Browser backend selection
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+browser work. Use its browser-client selection flow; in Codex Desktop the runtime
+prefers the persistent in-app Browser. Reuse that browser and any existing Instagram
+session instead of running `runtime/browse.py`. If Instagram requires authentication,
+follow the Browser skill's sign-in flow and ask the user to sign in in the selected
+browser. Never inspect cookies, local storage, passwords, or profile files.
+
+Collect only visible page evidence into the output schema below and add
+`"browser_backend": "codex_in_app"` at the top level. Save it to the requested
+output path, or return it in the conversation when no path was requested. Before
+opening any result, freeze the visible Reel URLs; Instagram search state can disappear
+after navigation. Keep the search grid tab in place and inspect each Reel in a
+separate temporary tab. Fall back to the packaged Chrome/CDP runtime only when
+Browser is unavailable, setup/control fails, or Instagram blocks the selected browser
+after authentication. State the fallback once. Hosts such as Claude Code without
+Codex Browser use this fallback.
 
 ## Prerequisites
 
 - `uv` (Python package manager)
-- Google Chrome installed
+- Codex's built-in Browser, or Google Chrome for the fallback
 
 ## How It Works
 
-Uses Chrome CDP in a separate **headless** research browser — no window, no dock icon, nothing to click away. **Your main Chrome is never touched.**
+The fallback uses Chrome CDP in a separate **headless** research browser — no window, no dock icon, nothing to click away. **Your main Chrome is never touched.**
 
 Every browser this skill launches runs with `--mute-audio` and autoplay blocked (`--autoplay-policy=document-user-activation-required`), so a Reels feed never plays sound over your work.
 
-**Signed out, Instagram walls most search results**, so signing in once is what
-makes this skill useful. Before searching, run `--login-check`. If it reports
+**In the Chrome fallback, signed out Instagram walls most search results**, so
+signing in once is what makes this skill useful. Before searching, run
+`--login-check`. If it reports
 `logged_in: false`, tell the user that one dedicated, muted sign-in window is
 about to open, run `--login`, and ask them to sign in, close the window, and
 confirm. Open it at most once in the workflow, then re-run `--login-check`. If
@@ -28,7 +48,7 @@ prompting; use `discover_reels.py` and disclose the thinner coverage. A direct
 runtime search still never opens a window unexpectedly: only the skill's
 deliberate `--login` preflight does.
 
-## Quick Start
+## Chrome/CDP fallback
 
 ```bash
 # Step 1: Sign in to Instagram (only needed once — opens a browser window)

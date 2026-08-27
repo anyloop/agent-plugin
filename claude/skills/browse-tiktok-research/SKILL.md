@@ -1,20 +1,36 @@
 ---
 name: browse-tiktok-research
-description: Search TikTok for videos by keywords with filters (sort, time range, duration) and generate research reports. Uses direct Chrome CDP automation with a persistent research profile. Login once, then search freely; no model-provider API key is required.
+description: Search TikTok for videos by keywords with filters and generate research reports. In Codex Desktop, prefer the built-in Browser and its persistent session; otherwise use local Chrome/CDP. No model-provider API key is required.
 ---
 
 # Browse TikTok Research
 
-Search TikTok by keywords using direct Chrome automation. Login once to TikTok in a research browser, then run keyword searches that return video URLs with engagement metrics (views, likes, comments) and summary reports.
+Search TikTok by keywords using Codex Browser when available, with local Chrome automation as the portable fallback.
+
+## Browser backend selection
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+browser work. Use its browser-client selection flow; in Codex Desktop the runtime
+prefers the persistent in-app Browser. Reuse that browser and any existing TikTok
+session instead of running `runtime/browse.py`. If TikTok requires authentication,
+follow the Browser skill's sign-in flow and ask the user to sign in in the selected
+browser. Never inspect cookies, local storage, passwords, or profile files.
+
+Collect only visible page evidence into the output schema below and add
+`"browser_backend": "codex_in_app"` at the top level. Save it to the requested
+output path, or return it in the conversation when no path was requested. Fall back
+to the packaged Chrome/CDP runtime only when Browser is unavailable, setup/control
+fails, or TikTok blocks the selected browser after authentication. State the
+fallback once. Hosts such as Claude Code without Codex Browser use this fallback.
 
 ## Prerequisites
 
 - `uv` (Python package manager)
-- Google Chrome installed
+- Codex's built-in Browser, or Google Chrome for the fallback
 
 ## How It Works
 
-Uses Chrome CDP (Chrome DevTools Protocol) with a dedicated persistent research
+The fallback uses Chrome CDP (Chrome DevTools Protocol) with a dedicated persistent research
 profile. **Your main Chrome is never closed or read.** Sign in once through the
 skill's `--login` window, and later headless searches reuse that session.
 
@@ -23,7 +39,7 @@ skill's `--login` window, and later headless searches reuse that session.
 - **Login:** sign in once with `--login`; the session persists in the research profile across runs. **Signed out, TikTok search returns almost nothing**, so getting signed in is what makes this skill useful — see below.
 - **Session persistence:** the research browser profile lives under `data/research-profile/`.
 
-## Quick Start
+## Chrome/CDP fallback
 
 Run from the skill folder (`skills/browse-tiktok-research/`):
 

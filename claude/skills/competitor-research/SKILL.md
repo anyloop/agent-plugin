@@ -1,6 +1,6 @@
 ---
 name: competitor-research
-description: Three-phase competitive intelligence — one bounded AdAnt web-research turn identifies true competitors, then local Chrome researches TikTok presence and a local renderer creates the Markdown report. This workflow keeps execution on the user's computer.
+description: Three-phase competitive intelligence — one bounded AdAnt web-research turn identifies true competitors, then a local browser researches TikTok presence and a local renderer creates the Markdown report. In Codex Desktop it prefers the built-in Browser and otherwise falls back to Chrome/CDP.
 ---
 
 # Competitor Research
@@ -8,7 +8,7 @@ description: Three-phase competitive intelligence — one bounded AdAnt web-rese
 Three-phase competitive intelligence tool:
 
 1. **Phase 1 — Competitor Discovery**: One bounded, research-only AdAnt web-research turn
-2. **Phase 2 — TikTok Presence**: Browse TikTok in the user's local Chrome research profile
+2. **Phase 2 — TikTok Presence**: Prefer Codex's built-in Browser; otherwise use the local Chrome research profile
 3. **Phase 3 — Report Generation**: Render the Markdown report deterministically on the user's computer
 
 ## Why This Exists
@@ -24,7 +24,8 @@ This skill does proper competitive intelligence AND social presence analysis in 
 
 - `uv` (Python package manager)
 - Node.js/npm for the legacy authentication fallback (`npx @anyloop/adant-cli`)
-- Google Chrome for optional local TikTok research
+- Codex's built-in Browser when its `control-in-app-browser` skill is available
+- Google Chrome only for the portable fallback
 - AdAnt authentication (`npx @anyloop/adant-cli auth login` when needed)
 
 Never request a Gemini or other upstream model key. The runtime uses one temporary,
@@ -33,10 +34,42 @@ the turn to web research and tells the agent not to invoke workspace, shell, com
 artifact, media, or other execution tools. Other plugin workflows can continue to use
 the full AdAnt agent when cloud execution is actually required.
 
+## Browser backend selection
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+browser work. Use its browser-client selection flow; in Codex Desktop the runtime
+prefers the persistent in-app Browser. Reuse that browser and its existing signed-in
+session. Never inspect cookies, local storage, passwords, or profile files.
+
+Do not start the packaged Chrome/CDP runtime first. Fall back to it only when the
+Browser skill is absent, browser setup/control fails, or TikTok blocks the selected
+browser after its documented authentication flow. State the fallback once. Claude
+Code and other hosts without Codex Browser continue to use Chrome/CDP.
+
+The host Browser cannot be called from the Python subprocess. In Codex Browser mode:
+
+1. Run Phase 1 without `--tiktok-presence` and save `competitors.json`.
+2. In the selected Browser, search `{entity name} official` for the client and each
+   competitor. Collect only visible evidence; never invent unavailable metrics.
+3. Save `browser_tiktok_capture.json` with an `all_results` object keyed by the exact
+   query. Each video may contain `url`, `title`, `uploader`, `view_count`,
+   `like_count`, `follower_count`, `author_total_likes`, `author_video_count`, and
+   `hashtags`.
+4. Pass that capture back to the local runtime for deterministic shaping and report
+   rendering:
+
+```bash
+uv run --project skills/competitor-research/runtime \
+  skills/competitor-research/runtime/research_competitors.py \
+  --input competitors.json \
+  --tiktok-input browser_tiktok_capture.json \
+  --report -o competitors.json
+```
+
 ## Quick Start
 
 ```bash
-# Full pipeline: discover competitors + TikTok presence + report
+# Portable fallback: discover competitors + local Chrome TikTok presence + report
 uv run --project skills/competitor-research/runtime \
   skills/competitor-research/runtime/research_competitors.py \
   --client "Example Insights" \
@@ -68,12 +101,14 @@ uv run --project skills/competitor-research/runtime \
 
 | Flag | Description | Required |
 |------|-------------|----------|
-| `--client` | Client/brand name | Yes |
-| `--description` | Product/service description | Yes |
+| `--client` | Client/brand name | Yes, unless present in `--input` |
+| `--description` | Product/service description | Yes for Phase 1 |
+| `--input` | Existing Phase 1 JSON; skips another remote discovery turn | No |
 | `--website` | Client website URL (fetched for context) | No |
 | `--competitors` | Comma-separated known competitors (will be searched and verified) | No |
 | `--max-competitors` | Max competitors to find (default: 8) | No |
 | `--tiktok-presence` | Phase 2: Browse TikTok locally for all competitors | No |
+| `--tiktok-input` | Phase 2: Shape an existing Codex Browser capture instead of launching Chrome | No |
 | `--tiktok-max-time` | Local TikTok capture time limit in seconds (default: 300) | No |
 | `--report` | Phase 3: Render markdown report locally | No |
 | `--report-output` | Output path for markdown report (default: `competitor_report.md`) | No |
@@ -101,8 +136,9 @@ Breaks the client's product into capability clusters, then finds competitors per
 
 ## Phase 2: TikTok Presence Research (`--tiktok-presence`)
 
-For each competitor discovered in Phase 1, the packaged TikTok Chrome/CDP runtime
-runs on the user's computer to find:
+For each competitor discovered in Phase 1, Codex Browser is preferred when
+available. The packaged TikTok Chrome/CDP runtime is the portable fallback. Both
+paths keep browsing on the user's computer and find:
 - Official TikTok handle (tries multiple patterns: @company, @company.ai, @companyai, etc.)
 - Follower count, total likes, video count
 - Bio text and link in bio

@@ -26,6 +26,27 @@ Give this workflow a **product URL + whatever you know in natural language**, an
 
 **This is a research report, not a pitch**: no pricing page, no deliverables page. The "Let's connect" slide (13) carries a one-page intro to Adant AI's past records, and the deck then closes with a **Sample Content Strategy** section: the 5 strongest inspiration videos from this research, each rendered as a copy-paste Adant message in the `social-content-strategist` block shape, plus the adant.ai link again on the final slide.
 
+**Delivery modes:** default to `production-complete` (30–45 minute target, full
+curation gates, conditional top-ups, five analyzed strategies, QA, and AdAnt
+handoff). Use `fast-draft` (15–25 minute target) only when the user explicitly
+requests a quick diagnostic or approves it after a disclosed capture blocker.
+A fast draft runs one primary discovery sweep and a relevance screen, then
+produces source-labeled findings and an explicitly incomplete gap report. It
+does not run reserve top-ups, deep video analysis, strategy pages, or AdAnt
+upload, and must never be described as complete. Publish the selected mode with
+`runtime/workflow_plan.py --mode <mode>` before preflight.
+
+**Progress contract:** chat remains the primary progress surface. At each stage
+boundary and at least every 60 seconds during background work, report `Current`,
+`Found so far`, `Next`, and `ETA / risk`. Mirror useful findings into
+`runtime/sidecar_events.py` with `--summary`, `--next`, `--risk`, counts, and an
+artifact when available. Observe background work in bounded slices with
+`runtime/run_phase.py status --wait --max-wait 45`, communicate, then repeat if
+jobs remain; never block silently for multiple minutes.
+After the selected mode's artifacts are verified and delivered, run
+`runtime/workflow_plan.py --complete`; do not mark the workflow complete at an
+intermediate phase boundary.
+
 **Prerequisites:**
 - AdAnt CLI authentication (`npx @anyloop/adant-cli auth login` when needed). AdAnt owns
   all upstream model credentials; never request a Gemini or other provider key.
@@ -283,7 +304,7 @@ silently relabel the metric.
 `{brandFolder}/browse_tiktok_brands.json`,
 `{brandFolder}/browse_tiktok_partnerships.json`, and summaries
 
-Steps 4a-4d are independent — run all four in parallel via `runtime/run_phase.py run --bg` (phases `platform-tiktok`, `platform-instagram`, `platform-meta-ads`, `platform-youtube`), then `runtime/run_phase.py status --wait`. Sequential platform browsing is a defect, not a style choice; fall back to it only when a host cannot keep detached processes alive.
+Steps 4a-4d are independent — run all four in parallel via `runtime/run_phase.py run --bg` (phases `platform-tiktok`, `platform-instagram`, `platform-meta-ads`, `platform-youtube`), then observe them with `runtime/run_phase.py status --wait --max-wait 45`. If jobs remain, update the user and repeat the bounded status slice. Sequential platform browsing is a defect, not a style choice; fall back to it only when a host cannot keep detached processes alive.
 </task>
 
 <task id="browse-instagram" label="Step 4b: Browse Instagram Reels">
@@ -822,7 +843,7 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
    `keep` / `change` supersede `hook_to_keep` / `what_to_change`; the renderer
    still accepts the old keys so existing report data keeps building.
 
-   Fewer than 5 qualifying videos: ship what qualifies and say so in the delivery note rather than padding with weak picks. Omit `strategies` entirely and the deck falls back to 13 slides.
+   Fewer than 5 qualifying videos: ship what qualifies and say so in the delivery note rather than padding with weak picks. Omit `strategies` entirely and the deck falls back to 13 slides. In `fast-draft` mode, omit strategy work by contract and label the 13-slide result as an incomplete diagnostic; do not run the production validator or AdAnt handoff.
 
 3. Validate the selected cards against the full candidate audit:
 

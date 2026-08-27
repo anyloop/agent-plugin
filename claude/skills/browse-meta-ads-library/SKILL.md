@@ -1,18 +1,32 @@
 ---
 name: browse-meta-ads-library
-description: Browse Meta Ad Library by keywords and competitor names to find active Facebook and Instagram ad campaigns. Extracts ad creatives (images, videos), copy, CTAs, landing pages, and longevity data. Competitor search mode finds all ads from specific advertisers. Use when analyzing competitor advertising strategy on Facebook/Instagram.
+description: Browse Meta Ad Library by keywords and competitor names to find active Facebook and Instagram campaigns. In Codex Desktop, prefer the built-in Browser; otherwise use local Chrome/CDP. Extracts creatives, copy, CTAs, landing pages, and longevity evidence.
 ---
 
 # Browse Meta Ads Library
 
-Search the Meta Ad Library by keywords and competitor names using direct CDP browser automation. The Meta Ad Library is publicly accessible (no login required). Extract ad creatives, copy, CTAs, landing pages, and advertiser information.
+Search the public Meta Ad Library by keywords and competitor names using Codex Browser when available, with local Chrome/CDP as the portable fallback.
+
+## Browser backend selection
+
+When the host lists the `control-in-app-browser` skill, read and follow it before
+browser work. Use its browser-client selection flow; in Codex Desktop the runtime
+prefers the persistent in-app Browser. Use it instead of running `runtime/browse.py`.
+Never inspect cookies, local storage, passwords, or profile files.
+
+Collect only visible page evidence into the output schema below and add
+`"browser_backend": "codex_in_app"` at the top level. Save it to the requested
+output path, or return it in the conversation when no path was requested. Fall back
+to the packaged Chrome/CDP runtime only when Browser is unavailable, setup/control
+fails, or Meta blocks the selected browser. State the fallback once. Hosts such as
+Claude Code without Codex Browser use this fallback.
 
 ## Prerequisites
 
 - `uv` (Python package manager)
-- Google Chrome installed
+- Codex's built-in Browser, or Google Chrome for the fallback
 
-## Quick Start
+## Chrome/CDP fallback
 
 ```bash
 # Search by keyword
@@ -52,7 +66,7 @@ uv run --project runtime runtime/browse.py "skincare" --advertiser "Example Skin
 
 The Meta Ad Library (https://www.facebook.com/ads/library/) is a public transparency tool. No login is required.
 
-Searches run in a headless research browser that never opens a window or takes focus, and every browser this skill launches — including `screenshot_ads.py` — is muted with autoplay blocked (`--mute-audio`, `--autoplay-policy=document-user-activation-required`), so video-heavy ad cards never play sound over your work.
+Fallback searches run in a headless research browser that never opens a window or takes focus, and every browser this skill launches — including `screenshot_ads.py` — is muted with autoplay blocked (`--mute-audio`, `--autoplay-policy=document-user-activation-required`), so video-heavy ad cards never play sound over your work.
 
 **All searches use `search_type=keyword_unordered`** and `is_targeted_country=false` for the broadest possible match. The URL format is:
 `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&is_targeted_country=false&media_type=all&q={query}&search_type=keyword_unordered`

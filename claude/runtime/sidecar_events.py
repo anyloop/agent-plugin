@@ -91,6 +91,10 @@ def emit(
     artifact: str | None = None,
     artifact_label: str | None = None,
     subject: str | None = None,
+    summary: str | None = None,
+    next_step: str | None = None,
+    risk: str | None = None,
+    eta_minutes: int | str | None = None,
     extra: dict | None = None,
 ) -> bool:
     """Append one event line. Returns True on success, False otherwise.
@@ -115,6 +119,14 @@ def emit(
             event["thumb"] = str(thumb)
         if subject:
             event["subject"] = str(subject)[:120]
+        if summary:
+            event["summary"] = str(summary)[:500]
+        if next_step:
+            event["next"] = str(next_step)[:300]
+        if risk:
+            event["risk"] = str(risk)[:300]
+        if eta_minutes is not None:
+            event["eta_minutes"] = eta_minutes
         if artifact:
             event["artifact"] = {
                 "path": str(Path(artifact).expanduser()),
@@ -167,6 +179,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--artifact", help="path to a produced file the panel can preview")
     parser.add_argument("--artifact-label", help="display name for --artifact")
     parser.add_argument("--subject", help="research subject; titles the progress panel")
+    parser.add_argument("--summary", help="concise finding or intermediate result")
+    parser.add_argument("--next", dest="next_step", help="next planned action")
+    parser.add_argument("--risk", help="current blocker or coverage risk")
+    parser.add_argument("--eta-minutes", help="estimated minutes remaining, or a short range")
     parser.add_argument(
         "--count",
         action="append",
@@ -185,6 +201,10 @@ def main(argv: list[str] | None = None) -> int:
         artifact=args.artifact,
         artifact_label=args.artifact_label,
         subject=args.subject,
+        summary=args.summary,
+        next_step=args.next_step,
+        risk=args.risk,
+        eta_minutes=args.eta_minutes,
     )
     print(f"sidecar: {'ok' if ok else 'disabled'} ({events_path()})")
     return 0

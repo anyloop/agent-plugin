@@ -70,6 +70,9 @@ class McpServerTests(unittest.TestCase):
         self.assertIn("ui/initialize", page["text"])  # bridge transport present
 
     def test_snapshot_follows_the_pointer(self) -> None:
+        workflow = Path(self._tmp.name) / "progress" / "workflow.json"
+        workflow.parent.mkdir(parents=True)
+        workflow.write_text(json.dumps({"mode": "production-complete", "stages": []}))
         sidecar_events.emit("platform-tiktok", "start", "browse begins")
         sidecar_events.emit("platform-tiktok", "progress", "query 1/4", counts={"videos": 7})
         # Point a different environment at nothing: the pointer must lead back.
@@ -87,6 +90,7 @@ class McpServerTests(unittest.TestCase):
         snap = response["result"]["structuredContent"]
         self.assertEqual(len(snap["events"]), 2)
         self.assertEqual(snap["events"][1]["counts"], {"videos": 7})
+        self.assertEqual(snap["workflow"]["mode"], "production-complete")
         self.assertIn("2 events", response["result"]["content"][0]["text"])
 
     def test_artifact_read_inside_workspace(self) -> None:

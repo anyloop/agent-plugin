@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -72,6 +74,81 @@ class CompetitorResearchTests(unittest.TestCase):
         self.assertEqual(result["execution_location"], "local")
         self.assertEqual(result["competitors"][0]["tiktok_handle"], "@acmeai")
         self.assertEqual(result["competitors"][0]["presence_level"], "strong")
+        self.assertEqual(result["browser_backend"], "chrome_cdp")
+
+    def test_codex_browser_capture_is_shaped_without_launching_chrome(self):
+        capture = {
+            "all_results": {
+                "Client official": [],
+                "Acme AI official": [
+                    {
+                        "uploader": "acmeai",
+                        "url": "https://www.tiktok.com/@acmeai/video/1",
+                        "title": "Product demo",
+                        "follower_count": 800,
+                        "author_total_likes": 2000,
+                        "author_video_count": 8,
+                        "view_count": 9000,
+                    }
+                ],
+            }
+        }
+        with patch.object(
+            local_tiktok,
+            "_run_local_browse",
+            side_effect=AssertionError("Chrome fallback should not run"),
+        ):
+            result = local_tiktok.research_tiktok_presence_from_capture(
+                "Client",
+                [{"name": "Acme AI", "website": "https://acme.ai"}],
+                capture,
+                browser_backend="codex_in_app",
+            )
+        self.assertEqual(result["execution_location"], "local")
+        self.assertEqual(result["browser_backend"], "codex_in_app")
+        self.assertEqual(result["competitors"][0]["tiktok_handle"], "@acmeai")
+
+    def test_resume_uses_browser_capture_without_repeating_phase_one(self):
+        phase_one = {
+            "client": "Client",
+            "competitors": [
+                {"name": "Acme AI", "website": "https://acme.ai", "tier": "direct"}
+            ],
+            "competitive_landscape_summary": {},
+        }
+        capture = {"all_results": {"Client official": [], "Acme AI official": []}}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            phase_one_path = root / "competitors.json"
+            capture_path = root / "capture.json"
+            output_path = root / "merged.json"
+            phase_one_path.write_text(json.dumps(phase_one))
+            capture_path.write_text(json.dumps(capture))
+            argv = [
+                "research_competitors.py",
+                "--input",
+                str(phase_one_path),
+                "--tiktok-input",
+                str(capture_path),
+                "-o",
+                str(output_path),
+            ]
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(
+                    research_competitors,
+                    "research_competitors",
+                    side_effect=AssertionError("Phase 1 should not run"),
+                ),
+                patch.object(
+                    local_tiktok,
+                    "_run_local_browse",
+                    side_effect=AssertionError("Chrome fallback should not run"),
+                ),
+            ):
+                research_competitors.main()
+            result = json.loads(output_path.read_text())
+        self.assertEqual(result["tiktok_presence"]["browser_backend"], "codex_in_app")
 
     def test_report_is_rendered_locally_from_supplied_data(self):
         report = local_report.generate_report(

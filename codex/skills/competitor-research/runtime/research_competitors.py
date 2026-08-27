@@ -22,7 +22,10 @@ sys.path.insert(0, str(_plugin_root / "runtime"))
 
 from adant_agent import ask_adant  # noqa: E402
 from local_report import generate_report  # noqa: E402
-from local_tiktok import research_tiktok_presence  # noqa: E402
+from local_tiktok import (  # noqa: E402
+    research_tiktok_presence,
+    research_tiktok_presence_from_capture,
+)
 
 
 def fetch_website(url: str) -> str:
@@ -203,9 +206,14 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Competitor research with local TikTok capture and report rendering"
     )
-    parser.add_argument("--client", required=True, help="Client/brand name")
+    parser.add_argument("--client", default=None, help="Client/brand name")
     parser.add_argument(
-        "--description", required=True, help="Product/service description"
+        "--description", default="", help="Product/service description"
+    )
+    parser.add_argument(
+        "--input",
+        default=None,
+        help="Existing Phase 1 JSON; skips the remote discovery turn",
     )
     parser.add_argument("--website", default=None, help="Client website URL")
     parser.add_argument(
@@ -219,6 +227,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--tiktok-presence", action="store_true", help="Browse TikTok locally"
+    )
+    parser.add_argument(
+        "--tiktok-input",
+        default=None,
+        help="Raw host-browser capture JSON; skips the Chrome/CDP runtime",
     )
     parser.add_argument(
         "--tiktok-max-time",
@@ -249,29 +262,54 @@ def main() -> None:
     args = parse_args()
     if args.max_competitors < 1:
         raise SystemExit("--max-competitors must be at least 1")
-    known = [item.strip() for item in args.competitors.split(",") if item.strip()]
-    website_text = ""
-    if args.website:
-        print(f"Fetching website locally: {args.website}")
-        website_text = fetch_website(args.website)
-    print(f"Researching competitors for: {args.client} (max {args.max_competitors})")
-    result = research_competitors(
-        args.client, args.description, website_text, known, args.max_competitors
-    )
+    if args.input:
+        result = json.loads(Path(args.input).read_text())
+        if not isinstance(result, dict):
+            raise SystemExit("--input must contain a JSON object")
+        client = args.client or str(result.get("client", "")).strip()
+        if not client:
+            raise SystemExit("--client is required when --input has no client")
+        print(f"Loading existing competitor research for: {client}")
+    else:
+        if not args.client:
+            raise SystemExit("--client is required unless --input is provided")
+        client = args.client
+        known = [item.strip() for item in args.competitors.split(",") if item.strip()]
+        website_text = ""
+        if args.website:
+            print(f"Fetching website locally: {args.website}")
+            website_text = fetch_website(args.website)
+        print(f"Researching competitors for: {client} (max {args.max_competitors})")
+        result = research_competitors(
+            client, args.description, website_text, known, args.max_competitors
+        )
     print(format_summary(result))
     if args.output:
         _write_json(args.output, result)
         print(f"\nPhase 1 saved to {args.output}")
 
     tiktok_data = None
-    if args.tiktok_presence:
-        tiktok_data = research_tiktok_presence(
-            args.client,
-            result.get("competitors", []),
-            args.description,
-            args.website or "",
-            args.tiktok_max_time,
-        )
+    if args.tiktok_presence or args.tiktok_input:
+        if args.tiktok_input:
+            capture = json.loads(Path(args.tiktok_input).read_text())
+            if not isinstance(capture, dict):
+                raise SystemExit("--tiktok-input must contain a JSON object")
+            print("  Phase 2: Shaping Codex Browser capture locally...")
+            tiktok_data = research_tiktok_presence_from_capture(
+                client,
+                result.get("competitors", []),
+                capture,
+                browser_backend="codex_in_app",
+                client_website=args.website or "",
+            )
+        else:
+            tiktok_data = research_tiktok_presence(
+                client,
+                result.get("competitors", []),
+                args.description,
+                args.website or "",
+                args.tiktok_max_time,
+            )
         result["tiktok_presence"] = tiktok_data
         tiktok_path = args.tiktok_output or (
             str(Path(args.output).parent / "competitors_tiktok_presence.json")
@@ -285,7 +323,7 @@ def main() -> None:
 
     if args.report:
         print("  Phase 3: Rendering report locally...")
-        report = generate_report(args.client, result, tiktok_data)
+        report = generate_report(client, result, tiktok_data)
         report_path = args.report_output or (
             str(Path(args.output).parent / "competitor_report.md")
             if args.output

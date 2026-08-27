@@ -18,7 +18,9 @@ Background (parallel fan-out), then wait:
 Every job writes ``$ADANT_SOCIAL_DATA_DIR/progress/jobs/<phase>.json`` and its
 full output to ``progress/logs/<phase>.log``. Exit codes: ``run`` mirrors the
 wrapped command; ``status --wait`` exits 0 when every job succeeded, 1 when
-any failed, 2 on timeout.
+any failed, 2 on the hard timeout. ``status --wait --max-wait 45`` also exits
+0 after one bounded observation slice while jobs continue, giving the agent a
+chance to update the user before checking again.
 """
 
 from __future__ import annotations
@@ -166,8 +168,15 @@ def run_background(phase: str, skill: str | None, label: str, command: list[str]
     return 0
 
 
-def cmd_status(wait: bool, interval: float, timeout: float, phases: list[str] | None) -> int:
+def cmd_status(
+    wait: bool,
+    interval: float,
+    timeout: float,
+    max_wait: float,
+    phases: list[str] | None,
+) -> int:
     deadline = time.monotonic() + timeout if timeout else None
+    slice_deadline = time.monotonic() + max_wait if max_wait else None
     while True:
         jobs = []
         jobs_dir = _jobs_dir()
@@ -197,6 +206,10 @@ def cmd_status(wait: bool, interval: float, timeout: float, phases: list[str] | 
         if deadline and time.monotonic() > deadline:
             print(f"run_phase: timeout with {len(running)} job(s) still running", file=sys.stderr)
             return 2
+        if slice_deadline and time.monotonic() >= slice_deadline:
+            names = ", ".join(str(job.get("phase")) for job in running)
+            print(f"run_phase: still running after {max_wait:g}s: {names}")
+            return 0
         time.sleep(interval)
         print("---")
 
@@ -216,6 +229,12 @@ def main(argv: list[str] | None = None) -> int:
     status_parser.add_argument("--wait", action="store_true", help="block until no job is running")
     status_parser.add_argument("--interval", type=float, default=10.0)
     status_parser.add_argument("--timeout", type=float, default=0.0, help="seconds; 0 = no timeout")
+    status_parser.add_argument(
+        "--max-wait",
+        type=float,
+        default=0.0,
+        help="return successfully after this observation slice even when jobs are still running",
+    )
     status_parser.add_argument("--phases", help="comma-separated phase filter")
 
     args = parser.parse_args(argv)
@@ -230,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
             return run_background(args.phase, args.skill, args.label, command)
         return run_foreground(args.phase, args.skill, args.label, command)
     phases = [p.strip() for p in args.phases.split(",") if p.strip()] if args.phases else None
-    return cmd_status(args.wait, args.interval, args.timeout, phases)
+    return cmd_status(args.wait, args.interval, args.timeout, args.max_wait, phases)
 
 
 if __name__ == "__main__":

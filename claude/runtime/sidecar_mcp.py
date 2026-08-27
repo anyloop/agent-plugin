@@ -106,6 +106,11 @@ def _active_progress_dir() -> Path:
 
 def snapshot() -> dict:
     progress = _active_progress_dir()
+    workflow = None
+    try:
+        workflow = json.loads((progress / "workflow.json").read_text())
+    except (OSError, json.JSONDecodeError):
+        pass
     events: list[dict] = []
     events_file = progress / "events.jsonl"
     try:
@@ -128,7 +133,7 @@ def snapshot() -> dict:
                 jobs.append(json.loads(path.read_text()))
             except (OSError, json.JSONDecodeError):
                 continue
-    return {"workspace": str(progress), "events": events, "jobs": jobs}
+    return {"workspace": str(progress), "workflow": workflow, "events": events, "jobs": jobs}
 
 
 def allowed_root() -> Path:
