@@ -140,16 +140,39 @@ def _ensure_chrome_with_cdp() -> bool:
             print("  Waiting for research browser...")
 
     print("Failed to start research browser.", file=sys.stderr)
+    _stop_research_browser()
     return False
 
 
+def _close_research_tabs() -> None:
+    """Close pages on the skill's dedicated CDP port, including stale sessions."""
+    try:
+        targets = json.loads(_cdp_http("/json/list", timeout=2))
+    except Exception:
+        return
+    for target in targets:
+        target_id = target.get("id")
+        if target.get("type") != "page" or not target_id:
+            continue
+        try:
+            _cdp_http(f"/json/close/{urllib.parse.quote(target_id)}", timeout=2)
+        except Exception:
+            pass
+
+
 def _stop_research_browser() -> None:
-    """Stop the research browser and clean up locks."""
+    """Close research tabs, stop the owned browser, and clean up locks."""
     global _research_chrome_process
-    if _research_chrome_process:
-        _research_chrome_process.terminate()
+    process = _research_chrome_process
+    _close_research_tabs()
+    if process is not None:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
         _research_chrome_process = None
-    # Clean up lock files
     for lock_file in ["SingletonLock", "SingletonSocket", "SingletonCookie"]:
         (CDP_PROFILE_DIR / lock_file).unlink(missing_ok=True)
 

@@ -193,6 +193,7 @@ def _ensure_chrome_with_cdp() -> bool:
             print("  Waiting for research browser...")
 
     print("Failed to start research browser.", file=sys.stderr)
+    _stop_research_browser()
     return False
 
 

@@ -26,6 +26,12 @@ Browser is unavailable, setup/control fails, or Instagram blocks the selected br
 after authentication. State the fallback once. Hosts such as Claude Code without
 Codex Browser use this fallback.
 
+Both the search grid and temporary Reel tabs are workflow-owned bounded resources.
+Close every Reel tab in a `finally` block immediately after inspection. Close the
+search grid tab in an outer `finally` block immediately after the output is saved or
+an error interrupts the browse. Do not rely on end-of-turn cleanup and never close a
+user-created tab.
+
 ## Prerequisites
 
 - `uv` (Python package manager)

@@ -85,8 +85,13 @@ platform browsing. Use its browser-client selection flow; in Codex Desktop the
 runtime prefers the persistent in-app Browser. For TikTok, Instagram, Meta Ads, and
 YouTube phases, follow each component skill's Codex Browser path and write the same
 documented JSON schema to its normal workspace output. Reuse one browser binding and
-separate tabs per platform. Never inspect cookies, local storage, passwords, or
-profile files.
+at most one workflow-owned research tab at a time. Treat every tab created for this
+workflow as a bounded resource: record it when opened, reuse it for that platform's
+queries, and close it in a `finally` block immediately after the platform JSON is
+saved or the platform fails. Close per-result tabs after each inspection. Never wait
+for the agent turn to end, and never close a tab that the user opened. Before moving
+to the next platform, verify that no workflow-owned platform or result tab remains.
+Never inspect cookies, local storage, passwords, or profile files.
 
 Use the packaged Chrome/CDP commands only for a platform where Browser is absent,
 setup/control fails, or the site blocks the selected browser after its documented
@@ -239,29 +244,30 @@ user's time:
 
 - Step 3: the TikTok and Instagram keyword skills are independent — launch both
   with `run_phase.py run --bg`, then use bounded status slices as shown below.
-- Step 4: the four platform browses (4a-4d) are independent. In Codex Browser
-  mode, keep one tab per platform and batch independent reads when the Browser API
-  supports it. In the Chrome fallback, launch all four as background jobs, then
-  observe them together:
+- Step 4: the four platform browses (4a-4d) are logically independent but are
+  browser-memory-bound. Run them **one platform at a time** in Codex Browser mode
+  and in the Chrome fallback. Keep one workflow-owned tab for the active platform,
+  close it in `finally` after its output is saved, confirm cleanup, and only then
+  start the next platform. Use `run_phase.py` for each fallback so its process tree
+  receives the phase limit:
 
   ```bash
   python3 {PLUGIN_ROOT}/runtime/run_phase.py run --bg --phase platform-tiktok \
     --skill browse-tiktok-research -- <documented browse command>
-  # ... repeat for platform-instagram, platform-meta-ads, platform-youtube ...
-  python3 {PLUGIN_ROOT}/runtime/run_phase.py status --wait --max-wait 45
+  python3 {PLUGIN_ROOT}/runtime/run_phase.py status --wait --max-wait 45 \
+    --phases platform-tiktok
+  # After it finishes and its browser is closed, repeat for Instagram, Meta,
+  # and YouTube.
   ```
 
   If jobs remain, send the four-field chat update and run the same bounded
   status command again. Never use a single multi-minute blocking wait. Phase
   runtimes retain their own hard time limits.
 
-  When the host exposes subagents with independent browser contexts, delegate
-  TikTok, Instagram, and YouTube to one worker each while the root agent owns
-  Meta Ads and coordination. Each worker must own one platform output and one
-  browser context. If the browser context is shared, keep browser capture in
-  the root agent; after capture, delegate only file-based curation and evidence
-  normalization, one platform per worker. Never let two agents drive the same
-  browser binding.
+  Browser capture stays with one agent even when the host exposes subagents.
+  After a platform tab is closed, its file-based curation and evidence
+  normalization may be delegated while the root agent captures the next platform.
+  Never run multiple social browser contexts merely to reduce elapsed time.
 
 - Step 7: use `runtime/strategy_queue.py` for the independent
   `trend-video-understanding` analyses. It holds concurrency at two, counts

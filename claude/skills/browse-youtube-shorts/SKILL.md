@@ -21,6 +21,11 @@ to the packaged Chrome/CDP runtime only when Browser is unavailable, setup/contr
 fails, or YouTube blocks the selected browser. State the fallback once. Hosts such
 as Claude Code without Codex Browser use this fallback.
 
+The Codex Browser tab is workflow-owned and must not survive this skill. Record the
+tab when it is created, reuse that one tab for every query, and close it in a
+`finally` block immediately after the output is saved or an error interrupts the
+browse. Do not rely on end-of-turn cleanup and never close a user-created tab.
+
 ## Prerequisites
 
 - `uv` (Python package manager)

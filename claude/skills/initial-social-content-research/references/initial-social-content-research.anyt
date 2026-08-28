@@ -52,6 +52,12 @@ letting the ETA grow silently. Do not disable limits during normal research.
 For an in-app Browser phase that cannot run through `run_phase.py`, emit its
 `start` event with `sidecar_events.py ... --timeout-seconds <limit>` before the
 first navigation and stop browser batches at that deadline.
+Browser discovery is memory-bound even when the four platforms are logically
+independent. Run one platform browser at a time. Record every workflow-created
+tab, reuse one tab for the active platform, and close it in a `finally` block as
+soon as that platform's output is saved or the phase fails. Close temporary
+result tabs after each inspection, verify that no workflow-owned tab remains at
+the platform boundary, and never rely on end-of-turn cleanup or close user tabs.
 After the selected mode's artifacts are verified and delivered, run
 `runtime/workflow_plan.py --complete`; do not mark the workflow complete at an
 intermediate phase boundary.
