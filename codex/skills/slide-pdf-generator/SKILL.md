@@ -60,10 +60,14 @@ uv run --project skills/slide-pdf-generator/runtime \
 uv run --project skills/slide-pdf-generator/runtime \
   skills/slide-pdf-generator/runtime/to_pdf.py report.html output.pdf --width 1920 --height 1080
 
-# Longer wait for heavy pages
+# Readiness cap for heavy pages (returns early when ready)
 uv run --project skills/slide-pdf-generator/runtime \
-  skills/slide-pdf-generator/runtime/to_pdf.py report.html output.pdf --wait 8
+  skills/slide-pdf-generator/runtime/to_pdf.py report.html output.pdf --wait 25
 ```
+
+The renderer waits for document load, `document.fonts.ready`, image load and
+decode, and two animation frames. `--wait` is only a hard cap for blocked
+resources, so ready decks do not pay the full duration.
 
 ## Requirements
 - Google Chrome

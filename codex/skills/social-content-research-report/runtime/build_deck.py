@@ -13,8 +13,9 @@ Usage:
     -o example-app/social_content_research.html
 
 Then render the PDF with the slide-pdf-generator skill:
-  python3 skills/slide-pdf-generator/runtime/to_pdf.py \
-    example-app/social_content_research.html example-app/social_content_research.pdf --wait 8
+  uv run --project skills/slide-pdf-generator/runtime \
+    skills/slide-pdf-generator/runtime/to_pdf.py \
+    example-app/social_content_research.html example-app/social_content_research.pdf --wait 25
 """
 
 from __future__ import annotations

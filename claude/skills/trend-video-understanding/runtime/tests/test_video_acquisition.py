@@ -30,6 +30,7 @@ class DownloadCommandTests(unittest.TestCase):
             node_runtime="/opt/node/bin/node",
             impersonate=True,
         )
+        self.assertIn("--ignore-config", command)
         self.assertIn("--js-runtimes", command)
         self.assertIn("node:/opt/node/bin/node", command)
         self.assertIn("--impersonate", command)

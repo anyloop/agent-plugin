@@ -58,6 +58,7 @@ def _download_command(
 ) -> list[str]:
     command = [
         "yt-dlp",
+        "--ignore-config",
         "--no-playlist",
         "--max-filesize",
         "200M",

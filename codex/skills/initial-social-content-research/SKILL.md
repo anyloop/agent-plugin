@@ -182,6 +182,11 @@ python3 {PLUGIN_ROOT}/runtime/run_phase.py run \
   -- <the phase command exactly as documented>
 ```
 
+For a documented empty-result exit that should trigger the next fallback rather
+than mark the research step as broken, add `--expected-exit-code <code>` before
+`--`. The wrapped command preserves its non-zero exit for control flow, while
+the job and Sidecar record a terminal warning instead of an error.
+
 Canonical phase ids: `workflow`, `doctor`, `product-profile`, `competitors`, `keywords`,
 `platform-tiktok`, `platform-instagram`, `platform-meta-ads`,
 `platform-youtube`, `curation`, `report`, `strategy`, `delivery`.
@@ -250,10 +255,18 @@ user's time:
   status command again. Never use a single multi-minute blocking wait. Phase
   runtimes retain their own hard time limits.
 
-- Step 7: the five `trend-video-understanding` analyses are independent, but the
-  inference service is more reliable with bounded fan-out. Run at most two at a
-  time (`--phase strategy`, one suffix per pick, e.g. `strategy-pick-1`); launch
-  the next pick when either active job finishes.
+  When the host exposes subagents with independent browser contexts, delegate
+  TikTok, Instagram, and YouTube to one worker each while the root agent owns
+  Meta Ads and coordination. Each worker must own one platform output and one
+  browser context. If the browser context is shared, keep browser capture in
+  the root agent; after capture, delegate only file-based curation and evidence
+  normalization, one platform per worker. Never let two agents drive the same
+  browser binding.
+
+- Step 7: use `runtime/strategy_queue.py` for the independent
+  `trend-video-understanding` analyses. It holds concurrency at two, counts
+  cached successes, and promotes the next ranked reserve as soon as a slot
+  fails instead of relying on agent polling.
 
 Where the host supports parallel agents or parallel tool calls, those may
 replace background jobs; detached `--bg` jobs are the portable default and
@@ -399,15 +412,31 @@ failure that lacks actionable structured evidence.
 7. **Sample content strategy (production-complete only):** rank the 8 strongest
    inspiration videos from the curated set—five primary and three reserves—by
    engagement, then cloneability and format diversity, at most one per account
-   and at least two platforms. Launch at most two primary analyses concurrently;
-   start the next queued pick when one finishes.
+   and at least two platforms. Write them in rank order to a queue manifest,
+   five primary picks followed by three reserves, then run the bundled queue:
+
+   ```bash
+   python3 {PLUGIN_ROOT}/skills/initial-social-content-research/runtime/strategy_queue.py \
+     --manifest {WORKSPACE_ROOT}/{brandFolder}/strategy_queue.json \
+     --target-successes 5 --concurrency 2 --timeout-seconds 300 \
+     --output {WORKSPACE_ROOT}/{brandFolder}/strategy_queue_result.json
+   ```
+
+   Each candidate object requires `id`, `url` or `video`, and its own `output`;
+   it may also provide `label`, `brand`, `context`, `model`, `work_dir`,
+   `keep_video`, `download_timeout`, or `cookies_from_browser`. Prefer both a
+   permanent `url` and a pre-downloaded `video` when available. The queue wraps
+   every analysis in `run_phase.py`, never shares output paths, and exits 2 if
+   fewer than five candidates succeed.
    In Codex Browser mode, save each selected clip through the already-authenticated
    browser and pass `--video <local-path> --url <permanent-platform-url>`; never
    treat a DOM `blob:` URL as a downloadable source or inspect cookies/storage.
    On hosts without a browser media download, use the hardened `yt-dlp` path.
    When acquisition returns `download_failed` or the phase reaches its limit,
    switch acquisition backend once, then promote the next reserve immediately.
-   Stop once five analyses succeed. **Run
+   Stop once five analyses succeed, then immediately complete the strategy
+   stage with `workflow_plan.py --stage-complete strategy`; do not leave its
+   clock running during PDF QA or upload. **Run
    `trend-video-understanding` on every pick before writing its strategy** and
    derive two things from the analysis rather than from habit: the **avatar
    type** (UGC / animation — naming the style / commercial / cinematic /
@@ -432,6 +461,12 @@ failure that lacks actionable structured evidence.
    report skill's 13-slide research section when the evidence supports it,
    label every gap, and state that production validation was not run.
 
+   The preview is an early artifact, not the start of final report timing. Do
+   not start the report stage for the preview. In production-complete mode,
+   start the report stage after strategy completes, immediately before the
+   final deck and PDF build; this keeps stage durations exclusive and makes the
+   total workflow timing auditable.
+
    ```bash
    uv run --project {PLUGIN_ROOT}/skills/social-content-research-report/runtime \
      {PLUGIN_ROOT}/skills/social-content-research-report/runtime/build_deck.py \
@@ -443,11 +478,15 @@ failure that lacks actionable structured evidence.
      --artifact {WORKSPACE_ROOT}/{brandFolder}/research_preview.html \
      --artifact-label "13-slide research preview"
    ```
+   Complete the report stage immediately after the final PDF passes page-count,
+   thumbnail, and visual QA. Report timing must not include AdAnt upload work.
 9. **Save to AdAnt (production-complete only):** when the AdAnt Remote MCP (`adant_*` tools) is
    connected, follow `social-content-research-report`'s **Save to AdAnt**
    section — `handoff.py manifest` → `adant_prepare_uploads` →
    `handoff.py upload` → `adant_complete_uploads` → `handoff.py payload` →
-   `adant_save_product_report`. Keep the returned `url`; it is the
+   `adant_save_product_report`. Start the delivery stage immediately before
+   `handoff.py manifest`, and complete it immediately after the save call. Keep
+   the returned `url`; it is the
    deliverable's primary link. Without the MCP, deliver the files and say the
    report was not saved to AdAnt. Emit a final `delivery done` event with the
    saved URL or the local-delivery explanation.

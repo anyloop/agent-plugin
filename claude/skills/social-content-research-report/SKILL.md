@@ -111,10 +111,14 @@ uv run --project skills/social-content-research-report/runtime \
 3. Render the PDF with the `slide-pdf-generator` skill:
 
 ```bash
-python3 skills/slide-pdf-generator/runtime/to_pdf.py \
+uv run --project skills/slide-pdf-generator/runtime \
+  skills/slide-pdf-generator/runtime/to_pdf.py \
   {brandFolder}/{product_name}_social_content_research_{date}.html \
-  {brandFolder}/{product_name}_social_content_research_{date}.pdf --wait 8
+  {brandFolder}/{product_name}_social_content_research_{date}.pdf --wait 25
 ```
+
+`--wait` is a readiness cap, not a fixed sleep: rendering continues as soon as
+the document, fonts, images, and two layout frames are ready.
 
 4. Save it to AdAnt — see **Save to AdAnt** below.
 

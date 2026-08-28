@@ -224,7 +224,7 @@ function upcomingStages(phases){
   const states = stages.map(stage => {
     const matches = phases.filter(p => (stage.phases || []).some(prefix => phaseMatches(p.id, prefix)));
     if (matches.some(p => p.status === "active")) return "active";
-    if (matches.length && matches.every(p => p.status === "done")) return "done";
+    if (matches.length && matches.every(p => p.status === "done" || p.status === "warning")) return "done";
     if (matches.some(p => p.status === "error")) return "error";
     return "pending";
   });
@@ -296,6 +296,7 @@ function onEvent(ev){
   if (ev.status === "start"){ p.status = "active"; p.started = ts; p.msg = ev.message || ""; }
   else if (ev.status === "progress"){ if (p.status !== "done") p.status = "active"; p.msg = ev.message || p.msg; }
   else if (ev.status === "done"){ p.status = "done"; p.duration = (ev.counts && ev.counts.duration_seconds) || null; }
+  else if (ev.status === "warning"){ p.status = "warning"; p.msg = ev.message || p.msg; }
   else if (ev.status === "error"){ p.status = "error"; p.msg = ev.message || p.msg; }
   if (ev.counts && ev.counts.duration_seconds != null) p.duration = Number(ev.counts.duration_seconds);
   if (ev.message){
@@ -331,7 +332,7 @@ function phaseRowMeta(p){
   const stat = statText(p.counts);
   if (stat) bits.push(stat);
   if (p.duration != null) bits.push(budgetLabel(p));
-  return bits.join(" · ") || (p.status === "error" ? "failed" : "done");
+  return bits.join(" · ") || (p.status === "error" ? "failed" : p.status === "warning" ? "fallback used" : "done");
 }
 
 function render(){
@@ -340,9 +341,9 @@ function render(){
   const research = phases.filter(p => p.id !== "doctor" && p.id !== "workflow");
   const doctor = state.phases.get("doctor");
   const active = research.filter(p => p.status === "active");
-  const done = research.filter(p => p.status === "done" || p.status === "error");
+  const done = research.filter(p => p.status === "done" || p.status === "warning" || p.status === "error");
   const started = research.filter(p => p.status !== "pending");
-  const phasesDone = started.length > 0 && active.length === 0 && started.every(p => p.status === "done");
+  const phasesDone = started.length > 0 && active.length === 0 && started.every(p => p.status === "done" || p.status === "warning");
   const allDone = state.workflow ? phasesDone && state.workflow.status === "complete" : phasesDone;
   const anyError = research.some(p => p.status === "error");
 
@@ -393,7 +394,7 @@ function render(){
   }
   for (const p of done){
     const isOpen = state.open.has(p.id);
-    rows.appendChild(collapsedRow(PHASE_NAMES[p.id] || p.id, phaseRowMeta(p), p.status === "done" ? "check" : "cross",
+    rows.appendChild(collapsedRow(PHASE_NAMES[p.id] || p.id, phaseRowMeta(p), p.status === "done" ? "check" : p.status === "warning" ? "warn" : "cross",
       ()=>{ state.open.has(p.id) ? state.open.delete(p.id) : state.open.add(p.id); render(); }, isOpen));
     if (isOpen && p.log.length) rows.appendChild(el("div", "subpanel", p.log.join("\n")));
   }
@@ -425,7 +426,7 @@ function render(){
     for (const p of laneSet){
       const lane = el("div", "lane");
       if (p.status === "active") lane.appendChild(el("span", "spin"));
-      else lane.appendChild(icon(p.status === "done" ? "check" : p.status === "error" ? "cross" : "circle"));
+      else lane.appendChild(icon(p.status === "done" ? "check" : p.status === "warning" ? "warn" : p.status === "error" ? "cross" : "circle"));
       const lname = el("span", "lname", PHASE_NAMES[p.id] || p.id);
       if (p.status === "active") lname.classList.add("shimmer");
       lane.appendChild(lname);

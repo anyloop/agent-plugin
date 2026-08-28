@@ -16,11 +16,13 @@ Background (parallel fan-out), then wait:
     python3 run_phase.py status --wait
 
 Every job writes ``$ADANT_SOCIAL_DATA_DIR/progress/jobs/<phase>.json`` and its
-full output to ``progress/logs/<phase>.log``. Exit codes: ``run`` mirrors the
-wrapped command; ``status --wait`` exits 0 when every job succeeded, 1 when
-any failed, 2 on the hard timeout. ``status --wait --max-wait 45`` also exits
-0 after one bounded observation slice while jobs continue, giving the agent a
-chance to update the user before checking again.
+full output to ``progress/logs/<phase>.log``. ``run`` mirrors the wrapped
+command. ``--expected-exit-code`` keeps a documented empty-result or exhausted
+fallback visible as a warning rather than a failed step. ``status --wait``
+exits 0 when every job succeeded or warned, 1 when any failed, and 2 on the
+hard timeout. ``status --wait --max-wait 45`` also exits 0 after one bounded
+observation slice while jobs continue, giving the agent a chance to update the
+user before checking again.
 """
 
 from __future__ import annotations
@@ -141,6 +143,7 @@ def run_foreground(
     label: str,
     command: list[str],
     timeout_seconds: float,
+    expected_exit_codes: set[int],
 ) -> int:
     log_path = _logs_dir() / f"{phase}.log"
     try:
@@ -207,8 +210,9 @@ def run_foreground(
     timed_out = _stream_process(process, handle_line, timeout_seconds)
     exit_code = 124 if timed_out else process.wait()
     duration = int(time.monotonic() - started)
+    expected_exit = not timed_out and exit_code in expected_exit_codes
     record.update(
-        status="done" if exit_code == 0 else "failed",
+        status="done" if exit_code == 0 else "warning" if expected_exit else "failed",
         ended=_now(),
         exit=exit_code,
         duration_seconds=duration,
@@ -217,6 +221,16 @@ def run_foreground(
     _write_job(phase, record)
     if exit_code == 0:
         emit(phase, "done", f"completed in {duration}s", skill=skill, counts={"duration_seconds": duration})
+    elif expected_exit:
+        message = f"fallback exhausted (exit {exit_code}): {last_line[:200]}"
+        emit(
+            phase,
+            "warning",
+            message,
+            skill=skill,
+            counts={"exit": exit_code, "duration_seconds": duration},
+            extra={"expected_exit": True, "timeout_seconds": timeout_seconds},
+        )
     elif timed_out:
         message = f"time limit reached after {duration}s; switch to the documented fallback"
         print(f"run_phase: {message}", file=sys.stderr)
@@ -248,6 +262,7 @@ def run_background(
     label: str,
     command: list[str],
     timeout_seconds: float,
+    expected_exit_codes: set[int],
 ) -> int:
     """Re-exec this wrapper in foreground mode, fully detached."""
     _logs_dir().mkdir(parents=True, exist_ok=True)
@@ -258,6 +273,8 @@ def run_background(
     if label:
         inner += ["--label", label]
     inner += ["--timeout-seconds", str(timeout_seconds)]
+    for exit_code in sorted(expected_exit_codes):
+        inner += ["--expected-exit-code", str(exit_code)]
     inner += ["--", *command]
     with open(log_path, "a", encoding="utf-8") as log_file:
         process = subprocess.Popen(
@@ -332,6 +349,13 @@ def main(argv: list[str] | None = None) -> int:
         help="hard phase limit; defaults by phase, use 0 to disable",
     )
     run_parser.add_argument("--bg", action="store_true", help="detach and return immediately")
+    run_parser.add_argument(
+        "--expected-exit-code",
+        action="append",
+        default=[],
+        type=int,
+        help="repeatable non-zero exit code to record as a warning while preserving the command exit",
+    )
     run_parser.add_argument("cmd", nargs=argparse.REMAINDER, help="-- command to execute")
 
     status_parser = sub.add_parser("status", help="report background jobs")
@@ -368,6 +392,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.label,
                 command,
                 timeout_seconds,
+                set(args.expected_exit_code),
             )
         return run_foreground(
             args.phase,
@@ -375,6 +400,7 @@ def main(argv: list[str] | None = None) -> int:
             args.label,
             command,
             timeout_seconds,
+            set(args.expected_exit_code),
         )
     phases = [p.strip() for p in args.phases.split(",") if p.strip()] if args.phases else None
     return cmd_status(args.wait, args.interval, args.timeout, args.max_wait, phases)

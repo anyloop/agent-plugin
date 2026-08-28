@@ -39,6 +39,40 @@ def find_free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def readiness_expression(wait_seconds: float) -> str:
+    """Return a bounded browser-side promise for fonts, images, and layout."""
+    timeout_ms = max(1, int(wait_seconds * 1000))
+    return f"""
+async () => {{
+  const timeout = new Promise((resolve) =>
+    setTimeout(() => resolve({{timedOut: true}}), {timeout_ms}));
+  const ready = (async () => {{
+    if (document.readyState !== "complete") {{
+      await new Promise((resolve) => window.addEventListener("load", resolve, {{once: true}}));
+    }}
+    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+    await Promise.all(Array.from(document.images).map(async (image) => {{
+      if (!image.complete) {{
+        await new Promise((resolve) => {{
+          image.addEventListener("load", resolve, {{once: true}});
+          image.addEventListener("error", resolve, {{once: true}});
+        }});
+      }}
+      if (image.decode) await image.decode().catch(() => undefined);
+    }}));
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return {{
+      timedOut: false,
+      readyState: document.readyState,
+      fonts: document.fonts ? document.fonts.status : "unsupported",
+      images: document.images.length,
+    }};
+  }})();
+  return Promise.race([ready, timeout]);
+}}
+""".strip()
+
+
 async def generate_pdf(
     file_url: str,
     out_path: str,
@@ -80,8 +114,31 @@ async def generate_pdf(
                         return response
 
             await send("Page.enable")
+            await send("Runtime.enable")
             await send("Page.navigate", {"url": file_url})
-            await asyncio.sleep(wait_seconds)
+            readiness = await send(
+                "Runtime.evaluate",
+                {
+                    "expression": f"({readiness_expression(wait_seconds)})()",
+                    "awaitPromise": True,
+                    "returnByValue": True,
+                },
+            )
+            ready_value = (
+                readiness.get("result", {}).get("result", {}).get("value", {})
+            )
+            if ready_value.get("timedOut"):
+                print(
+                    f"Page readiness reached the {wait_seconds:g}s cap; printing current layout",
+                    file=sys.stderr,
+                )
+            else:
+                print(
+                    "Page ready: "
+                    f"state={ready_value.get('readyState', 'unknown')} "
+                    f"fonts={ready_value.get('fonts', 'unknown')} "
+                    f"images={ready_value.get('images', 0)}"
+                )
             result = await send(
                 "Page.printToPDF",
                 {
@@ -119,9 +176,14 @@ def main() -> None:
     parser.add_argument("--width", type=int, default=1280, help="Slide width in px")
     parser.add_argument("--height", type=int, default=720, help="Slide height in px")
     parser.add_argument(
-        "--wait", type=float, default=5.0, help="Page-load wait in seconds"
+        "--wait",
+        type=float,
+        default=15.0,
+        help="maximum seconds to wait for page, fonts, images, and layout readiness",
     )
     args = parser.parse_args()
+    if args.wait <= 0:
+        parser.error("--wait must be positive")
 
     file_url = f"file://{Path(args.input).resolve()}"
     out_path = str(Path(args.output).resolve())

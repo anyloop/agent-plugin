@@ -128,3 +128,7 @@ uv run --project skills/browse-instagram-reels/runtime \
 ```
 
 Output: `{accepted: [{url, shortcode, handle, likes, comments, caption, thumbnail, hashtags, found_via}], queries_used, rejected_below_threshold}` — sorted by likes, ready for curation. Exit code 2 if nothing clears the threshold (then widen the seed keywords).
+When this discovery command runs through `runtime/run_phase.py`, pass
+`--expected-exit-code 2` before `--`. The command still returns 2 so the agent
+advances to the next threshold or acquisition path, while the Sidecar displays
+an exhausted fallback warning instead of a failed research step.

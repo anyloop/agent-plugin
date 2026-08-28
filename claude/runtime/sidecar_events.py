@@ -11,7 +11,7 @@ Event shape (one JSON object per line):
      "phase": "platform-instagram", "status": "progress",
      "message": "query 3/5", "counts": {"videos": 47}, "thumb": null}
 
-``status`` is one of: start | progress | need-user | done | error.
+``status`` is one of: start | progress | need-user | done | warning | error.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-VALID_STATUSES = ("start", "progress", "need-user", "done", "error")
+VALID_STATUSES = ("start", "progress", "need-user", "done", "warning", "error")
 _EVENTS_FILE = "events.jsonl"
 
 

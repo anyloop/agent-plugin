@@ -67,6 +67,10 @@ class EmitTests(SidecarEnvironment):
         self.assertTrue(sidecar_events.emit("x", "bogus", "m"))
         self.assertEqual(self.events()[0]["status"], "progress")
 
+    def test_warning_is_a_valid_terminal_status(self) -> None:
+        self.assertTrue(sidecar_events.emit("x", "warning", "fallback exhausted"))
+        self.assertEqual(self.events()[0]["status"], "warning")
+
     def test_long_message_is_truncated(self) -> None:
         self.assertTrue(sidecar_events.emit("x", "progress", "a" * 2000))
         self.assertEqual(len(self.events()[0]["message"]), 500)
@@ -147,6 +151,19 @@ class RunPhaseTests(SidecarEnvironment):
         self.assertEqual(self.job("curation")["exit"], 3)
         self.assertEqual([e["status"] for e in self.events()][-1], "error")
 
+    def test_expected_exit_code_emits_warning_without_failing_status(self) -> None:
+        result = self.run_phase(
+            "run", "--phase", "platform-instagram", "--expected-exit-code", "2",
+            "--", sys.executable, "-c", "print('no qualifying results'); raise SystemExit(2)",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(self.job("platform-instagram")["status"], "warning")
+        event = self.events()[-1]
+        self.assertEqual(event["status"], "warning")
+        self.assertTrue(event["expected_exit"])
+        status = self.run_phase("status", "--phases", "platform-instagram")
+        self.assertEqual(status.returncode, 0, status.stdout + status.stderr)
+
     def test_foreground_timeout_stops_command_and_reports_budget(self) -> None:
         started = time.monotonic()
         result = self.run_phase(
@@ -192,6 +209,20 @@ class RunPhaseTests(SidecarEnvironment):
             self.assertEqual(self.job(phase)["status"], "done")
             log = Path(self._tmp.name) / "progress" / "logs" / f"{phase}.log"
             self.assertIn("done sleeping", log.read_text())
+
+    def test_background_expected_exit_code_propagates_to_worker(self) -> None:
+        result = self.run_phase(
+            "run", "--bg", "--phase", "platform-instagram",
+            "--expected-exit-code", "2", "--", sys.executable, "-c",
+            "print('empty fallback'); raise SystemExit(2)",
+        )
+        self.assertEqual(result.returncode, 0)
+        status = self.run_phase(
+            "status", "--wait", "--interval", "0.05", "--timeout", "5",
+            "--phases", "platform-instagram",
+        )
+        self.assertEqual(status.returncode, 0, status.stdout + status.stderr)
+        self.assertEqual(self.job("platform-instagram")["status"], "warning")
 
     def test_status_max_wait_returns_while_job_continues(self) -> None:
         script = "import time; time.sleep(1); print('slice finished')"
