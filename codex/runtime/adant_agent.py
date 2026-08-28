@@ -166,12 +166,15 @@ def _http_json(method: str, path: str, token: str, body: "dict | None",
     try:
         return urllib.request.urlopen(request, timeout=timeout)
     except urllib.error.HTTPError as exc:
-        detail = exc.read().decode(errors="replace")[:200]
         if exc.code == 401:
             raise AdantAgentError(
                 "The stored AdAnt local token was rejected (expired or revoked). "
                 "Mint a fresh one with adant_mint_local_token, then auth_bootstrap."
             ) from exc
+        try:
+            detail = exc.read().decode(errors="replace")[:200]
+        except OSError:
+            detail = str(exc.reason)[:200]
         raise AdantAgentError(f"AdAnt API {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
         raise AdantAgentError(f"AdAnt API unreachable: {exc.reason}") from exc

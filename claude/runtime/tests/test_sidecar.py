@@ -98,6 +98,8 @@ class EmitTests(SidecarEnvironment):
                 "Instagram coverage is thin",
                 "--eta-minutes",
                 "8-12",
+                "--timeout-seconds",
+                "480",
             ],
             capture_output=True,
             text=True,
@@ -109,6 +111,7 @@ class EmitTests(SidecarEnvironment):
         self.assertEqual(event["next"], "Curate the shortlist")
         self.assertEqual(event["risk"], "Instagram coverage is thin")
         self.assertEqual(event["eta_minutes"], "8-12")
+        self.assertEqual(event["timeout_seconds"], 480)
 
 
 class RunPhaseTests(SidecarEnvironment):
@@ -143,6 +146,29 @@ class RunPhaseTests(SidecarEnvironment):
         self.assertEqual(result.returncode, 3)
         self.assertEqual(self.job("curation")["exit"], 3)
         self.assertEqual([e["status"] for e in self.events()][-1], "error")
+
+    def test_foreground_timeout_stops_command_and_reports_budget(self) -> None:
+        started = time.monotonic()
+        result = self.run_phase(
+            "run",
+            "--phase",
+            "strategy-pick-1",
+            "--timeout-seconds",
+            "0.2",
+            "--",
+            sys.executable,
+            "-c",
+            "import time; time.sleep(5)",
+        )
+        self.assertEqual(result.returncode, 124)
+        self.assertLess(time.monotonic() - started, 2)
+        job = self.job("strategy-pick-1")
+        self.assertTrue(job["timed_out"])
+        self.assertEqual(job["timeout_seconds"], 0.2)
+        event = self.events()[-1]
+        self.assertTrue(event["timed_out"])
+        self.assertEqual(event["timeout_seconds"], 0.2)
+        self.assertIn("time limit reached", event["message"])
 
     def test_missing_command_reports_127(self) -> None:
         result = self.run_phase("run", "--phase", "x", "--", "definitely-not-a-command-xyz")
@@ -241,8 +267,10 @@ class WorkflowPlanTests(SidecarEnvironment):
         self.assertEqual(plan["status"], "running")
         self.assertEqual(plan["subject"], "Example")
         self.assertEqual(plan["target_minutes"], "30–45")
+        self.assertEqual(plan["target_seconds"], 45 * 60)
         stages = {stage["id"]: stage for stage in plan["stages"]}
         self.assertEqual(stages["discovery"]["kind"], "parallel")
+        self.assertEqual(stages["discovery"]["budget_seconds"], 720)
         self.assertEqual(len(stages["discovery"]["phases"]), 4)
         self.assertIn("delivery", stages)
 
@@ -270,6 +298,45 @@ class WorkflowPlanTests(SidecarEnvironment):
         self.assertEqual(plan["status"], "complete")
         self.assertIn("completed", plan)
         self.assertEqual(self.events()[-1]["status"], "done")
+
+    def test_manual_stage_records_start_check_and_completion(self) -> None:
+        self.run_plan("production-complete")
+        for option in ("--stage-start", "--stage-check", "--stage-complete"):
+            result = subprocess.run(
+                [sys.executable, str(RUNTIME / "workflow_plan.py"), option, "discovery"],
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        plan = json.loads((Path(self._tmp.name) / "progress" / "workflow.json").read_text())
+        stage = next(item for item in plan["stages"] if item["id"] == "discovery")
+        self.assertEqual(stage["status"], "complete")
+        self.assertIn("started", stage)
+        self.assertIn("completed", stage)
+        self.assertGreaterEqual(stage["elapsed_seconds"], 0)
+
+    def test_manual_stage_check_stops_new_work_after_budget(self) -> None:
+        plan = self.run_plan("production-complete")
+        stage = next(item for item in plan["stages"] if item["id"] == "discovery")
+        stage["started"] = "2020-01-01T00:00:00Z"
+        stage["status"] = "running"
+        plan["started"] = "2020-01-01T00:00:00Z"
+        (Path(self._tmp.name) / "progress" / "workflow.json").write_text(json.dumps(plan))
+
+        result = subprocess.run(
+            [sys.executable, str(RUNTIME / "workflow_plan.py"), "--stage-check", "discovery"],
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+        )
+
+        self.assertEqual(result.returncode, 124, result.stdout + result.stderr)
+        payload = json.loads(result.stdout)
+        self.assertTrue(payload["exhausted"])
+        self.assertEqual(payload["remaining_seconds"], 0)
+        self.assertEqual(payload["exhausted_by"], ["stage", "workflow"])
+        self.assertIn("time budget reached", self.events()[-1]["message"])
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ import tempfile
 import time
 from pathlib import Path
 
+from video_acquisition import AcquisitionResult, acquire_video
+
 
 ANALYSIS_PROMPT = """Analyze this short-form social video using visuals and audio together.
 
@@ -96,26 +98,6 @@ def log(message: str) -> None:
     print(message, flush=True)
 
 
-def download_video(url: str, work_dir: Path) -> Path | None:
-    output_template = str(work_dir / "source.%(ext)s")
-    command = [
-        "yt-dlp",
-        "--no-playlist",
-        "--max-filesize",
-        "200M",
-        "-f",
-        "best[ext=mp4]/best",
-        "-o",
-        output_template,
-        url,
-    ]
-    result = subprocess.run(command, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(result.stderr.strip(), file=sys.stderr)
-        return None
-    return next(iter(work_dir.glob("source.*")), None)
-
-
 def analyze_video(video: Path, prompt: str, model: str | None, output: Path) -> None:
     command = [
         "npx",
@@ -154,17 +136,39 @@ def analyze_video(video: Path, prompt: str, model: str | None, output: Path) -> 
         raise RuntimeError(detail)
 
 
-def write_status(output: Path, url: str, status: str, error: str | None = None) -> None:
+def write_status(
+    output: Path,
+    url: str,
+    status: str,
+    error: str | None = None,
+    acquisition: dict | None = None,
+) -> None:
     result = {"url": url, "analyzed_at": time.strftime("%Y-%m-%d"), "status": status}
     if error:
         result["error"] = error
+    if acquisition:
+        result["acquisition"] = acquisition
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, ensure_ascii=False))
 
 
+def successful_output_exists(output: Path) -> bool:
+    if not output.exists():
+        return False
+    try:
+        return json.loads(output.read_text()).get("status") == "ok"
+    except (OSError, json.JSONDecodeError, AttributeError):
+        return False
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Analyze a short-form video through AdAnt")
-    parser.add_argument("--url", required=True, help="TikTok, Instagram, or YouTube URL")
+    parser.add_argument("--url", help="TikTok, Instagram, or YouTube URL")
+    parser.add_argument(
+        "--video",
+        type=Path,
+        help="already-downloaded local video; bypasses yt-dlp while retaining --url as provenance",
+    )
     parser.add_argument("-o", "--output", required=True, help="Output JSON path")
     parser.add_argument("--context", default="", help="Optional niche or product context")
     parser.add_argument(
@@ -175,12 +179,28 @@ def main() -> None:
     parser.add_argument("--model", help="Optional AdAnt video-understanding model override")
     parser.add_argument("--work-dir", help="Directory for the downloaded video")
     parser.add_argument("--keep-video", action="store_true", help="Keep the downloaded video")
+    parser.add_argument(
+        "--cookies-from-browser",
+        help="optional yt-dlp browser cookie spec, e.g. chrome:/path/to/research-profile",
+    )
+    parser.add_argument(
+        "--download-timeout",
+        type=float,
+        default=120,
+        help="seconds allowed for media acquisition",
+    )
     args = parser.parse_args()
+    if not args.url and not args.video:
+        parser.error("one of --url or --video is required")
+    if args.download_timeout <= 0:
+        parser.error("--download-timeout must be positive")
 
     output = Path(args.output)
-    if output.exists():
+    if successful_output_exists(output):
         log(f"Output already exists, skipping: {output}")
         return
+    if output.exists():
+        log(f"Retrying previous incomplete output: {output}")
 
     temp_dir = None
     if args.work_dir:
@@ -190,10 +210,40 @@ def main() -> None:
         temp_dir = tempfile.TemporaryDirectory()
         work_dir = Path(temp_dir.name)
 
-    log(f"Downloading: {args.url}")
-    video = download_video(args.url, work_dir)
+    source_url = args.url or args.video.expanduser().resolve().as_uri()
+    if args.video:
+        local_video = args.video.expanduser().resolve()
+        if not local_video.is_file():
+            acquisition = AcquisitionResult(
+                None,
+                "local-file",
+                "failed",
+                "missing_local_file",
+                f"local video not found: {local_video}",
+            )
+        else:
+            acquisition = AcquisitionResult(local_video, "local-file", "ok")
+        video = acquisition.path
+    else:
+        log(f"Downloading: {source_url}")
+        acquisition = acquire_video(
+            source_url,
+            work_dir,
+            cookies_from_browser=args.cookies_from_browser,
+            timeout_seconds=args.download_timeout,
+        )
+        video = acquisition.path
     if not video:
-        write_status(output, args.url, "download_failed")
+        metadata = acquisition.metadata()
+        write_status(
+            output,
+            source_url,
+            "download_failed",
+            acquisition.error,
+            metadata,
+        )
+        if acquisition.error:
+            print(acquisition.error, file=sys.stderr)
         sys.exit(2)
 
     prompt = ANALYSIS_PROMPT
@@ -208,19 +258,26 @@ def main() -> None:
         analyze_video(video, prompt, args.model, raw_output)
         analysis = json.loads(raw_output.read_text())
         result = {
-            "url": args.url,
+            "url": source_url,
             "analyzed_at": time.strftime("%Y-%m-%d"),
             "status": "ok",
+            "acquisition": acquisition.metadata(),
             **analysis,
         }
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(result, indent=2, ensure_ascii=False))
     except Exception as exc:  # noqa: BLE001
-        write_status(output, args.url, "analysis_failed", str(exc))
+        write_status(
+            output,
+            source_url,
+            "analysis_failed",
+            str(exc),
+            acquisition.metadata(),
+        )
         print(str(exc), file=sys.stderr)
         sys.exit(1)
     finally:
-        if args.work_dir and not args.keep_video and video.exists():
+        if not args.video and args.work_dir and not args.keep_video and video.exists():
             video.unlink()
         if temp_dir:
             temp_dir.cleanup()

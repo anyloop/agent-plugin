@@ -184,6 +184,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--risk", help="current blocker or coverage risk")
     parser.add_argument("--eta-minutes", help="estimated minutes remaining, or a short range")
     parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        help="phase budget for browser/manual phases shown in the progress panel",
+    )
+    parser.add_argument(
         "--count",
         action="append",
         default=[],
@@ -205,6 +210,9 @@ def main(argv: list[str] | None = None) -> int:
         next_step=args.next_step,
         risk=args.risk,
         eta_minutes=args.eta_minutes,
+        extra={"timeout_seconds": args.timeout_seconds}
+        if args.timeout_seconds is not None
+        else None,
     )
     print(f"sidecar: {'ok' if ok else 'disabled'} ({events_path()})")
     return 0

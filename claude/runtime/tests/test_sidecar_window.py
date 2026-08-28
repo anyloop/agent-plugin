@@ -81,6 +81,9 @@ class ServerTests(WindowEnvironment):
         page = self.get(lock["url"]).decode()
         self.assertIn("AdAnt Research", page)
         self.assertIn("flowbar", page)
+        self.assertIn('id="timebar"', page)
+        self.assertIn("data-phase-clock", page)
+        self.assertIn("target_seconds", page)
         self.assertEqual(json.loads(self.get(lock["url"] + "healthz")), {"ok": True})
         self.assertEqual(json.loads(self.get(lock["url"] + "jobs")), [])
 

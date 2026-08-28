@@ -43,6 +43,15 @@ boundary and at least every 60 seconds during background work, report `Current`,
 artifact when available. Observe background work in bounded slices with
 `runtime/run_phase.py status --wait --max-wait 45`, communicate, then repeat if
 jobs remain; never block silently for multiple minutes.
+The workflow plan publishes a budget for every stage, and `run_phase.py run`
+enforces phase-specific hard limits by default. The Sidecar shows live total
+elapsed time against the workflow target and each active phase against its
+limit; yellow means 80% consumed and red means over budget or timed out. At a
+limit, narrow, use the documented fallback, or advance to a reserve instead of
+letting the ETA grow silently. Do not disable limits during normal research.
+For an in-app Browser phase that cannot run through `run_phase.py`, emit its
+`start` event with `sidecar_events.py ... --timeout-seconds <limit>` before the
+first navigation and stop browser batches at that deadline.
 After the selected mode's artifacts are verified and delivered, run
 `runtime/workflow_plan.py --complete`; do not mark the workflow complete at an
 intermediate phase boundary.
@@ -759,7 +768,22 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
    - `connect` — About Adant AI product overview: keep the capability-card defaults, use `contact@anyloop.ai`, and include case-study identities, URLs, or performance metrics only when they are verified public information or explicitly approved by the user
    - `strategies` — the Sample Content Strategy section (see the sub-step below)
 
-2. **Sample Content Strategy** — pick the **top 5 inspiration videos** out of everything curated in Step 5 and turn each into one copy-paste Adant message.
+   As soon as the research fields validate, emit `report_data.json` as a
+   Sidecar artifact and build a distinct 13-slide `research_preview.html` plus
+   markdown copy. Emit the HTML preview too, so the first human-readable report
+   appears before the bounded strategy analyses and final rendering continue.
+
+2. **Sample Content Strategy** — rank the **top 8 inspiration videos** out of
+everything curated in Step 5: five primary picks and three reserves. Launch at
+most two primary analyses concurrently, launching the next pick when one active
+job finishes. In Codex Browser mode, save each clip
+through the authenticated browser and pass `--video <local-path> --url
+<permanent-platform-url>` without inspecting cookies or storage; a DOM `blob:`
+URL is not itself downloadable. On other hosts use the hardened `yt-dlp` path.
+On a structured `download_failed` or phase timeout, switch acquisition backend
+once, then promote the next ranked reserve rather than rerunning the same
+command in the foreground. Stop when five analyses succeed and turn those into
+copy-paste Adant messages.
 
    **Cover the types, not just the platforms.** Distribute the 5 strategies across the content types the evidence supports, weighted to where the client can realistically win — a type nobody occupies deserves a strategy even at a low view count, because the ceiling is a statement about competition, not about demand. Title each strategy with its type (`Type 1 · …`) so the section reads as a plan. State plainly when a type has no strategy and why (no evidence, or the client cannot produce it).
 
@@ -792,6 +816,10 @@ Review the curated per-platform lists and thumbnails in `{brandFolder}/`. Swap o
    narrative pass's visual-style notes. Defaulting to "a UGC avatar" is the most
    common failure here: it puts a phone-shot person in front of an animated
    reference, a studio commercial, or a piece with no character at all.
+   Prefer its `--video` seam when the authenticated browser already downloaded
+   a clip; otherwise pass the dedicated research-profile cookie spec only when
+   that profile was used for discovery. Never inspect or print cookie values.
+   Only `status: ok` is cached, so a failed acquisition remains retryable.
 
    Name a TYPE and then the specific look:
 

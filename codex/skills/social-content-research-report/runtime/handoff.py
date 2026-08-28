@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import json
 import mimetypes
+import ssl
 import sys
 import urllib.request
 from pathlib import Path
@@ -39,6 +40,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from strategy_slides import strategy_message  # noqa: E402
 
 DECK_KEYS = {"pdf": "pdfUploadId", "html": "htmlUploadId", "audit": "auditUploadId"}
+
+
+def _upload_context() -> ssl.SSLContext:
+    """Use a portable CA bundle for presigned uploads.
+
+    Python installations on macOS do not always inherit the operating system's
+    trusted roots. The report runtime installs certifi, while the fallback keeps
+    direct system-Python usage functional when its trust store is configured.
+    """
+    try:
+        import certifi
+    except ImportError:
+        return ssl.create_default_context()
+    return ssl.create_default_context(cafile=certifi.where())
 
 
 def _thumb_paths(data: dict) -> list[str]:
@@ -139,7 +154,9 @@ def cmd_upload(args: argparse.Namespace) -> dict:
             headers={"Content-Type": entry["contentType"], "Content-Length": str(len(body))},
         )
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310 — presigned URL from our own server
+            with urllib.request.urlopen(  # noqa: S310 — presigned URL from our own server
+                req, timeout=120, context=_upload_context()
+            ) as resp:
                 if resp.status >= 300:
                     raise RuntimeError(f"PUT returned {resp.status}")
         except Exception as exc:  # noqa: BLE001 — report and continue

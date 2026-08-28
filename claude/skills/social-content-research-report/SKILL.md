@@ -129,9 +129,10 @@ when those tools are not connected, and say so in the closing message.
 `runtime/handoff.py` does the file work around three MCP calls:
 
 ```bash
-H="skills/social-content-research-report/runtime/handoff.py"
+REPORT_RUNTIME="skills/social-content-research-report/runtime"
+H="$REPORT_RUNTIME/handoff.py"
 # 1. list every thumbnail + the deck files → the adant_prepare_uploads input
-python3 $H manifest --data {brandFolder}/report_data.json \
+uv run --project "$REPORT_RUNTIME" "$H" manifest --data {brandFolder}/report_data.json \
   --pdf {brandFolder}/{stem}.pdf --html {brandFolder}/{stem}.html \
   --audit {brandFolder}/curation_audit.json -o {brandFolder}/.handoff/manifest.json
 ```
@@ -141,7 +142,8 @@ python3 $H manifest --data {brandFolder}/report_data.json \
 
 ```bash
 # 3. PUT each file to its presigned URL → the adant_complete_uploads input
-python3 $H upload --manifest {brandFolder}/.handoff/manifest.json \
+uv run --project "$REPORT_RUNTIME" "$H" upload \
+  --manifest {brandFolder}/.handoff/manifest.json \
   --slots {brandFolder}/.handoff/slots.json -o {brandFolder}/.handoff/uploads.json
 ```
 
@@ -150,7 +152,8 @@ python3 $H upload --manifest {brandFolder}/.handoff/manifest.json \
 
 ```bash
 # 5. assemble the adant_save_product_report input
-python3 $H payload --data {brandFolder}/report_data.json \
+uv run --project "$REPORT_RUNTIME" "$H" payload \
+  --data {brandFolder}/report_data.json \
   --manifest {brandFolder}/.handoff/manifest.json \
   --completed {brandFolder}/.handoff/completed.json \
   --uploads {brandFolder}/.handoff/uploads.json \

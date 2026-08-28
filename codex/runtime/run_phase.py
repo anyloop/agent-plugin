@@ -28,13 +28,17 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import queue
+import signal
 import subprocess
 import sys
+import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from phase_limits import phase_timeout_seconds  # noqa: E402
 from sidecar_bootstrap import announce, ensure_sidecar  # noqa: E402
 from sidecar_events import emit, progress_dir  # noqa: E402
 
@@ -79,7 +83,65 @@ def _pid_alive(pid: int) -> bool:
     return True
 
 
-def run_foreground(phase: str, skill: str | None, label: str, command: list[str]) -> int:
+def _stop_process(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, signal.SIGTERM)
+        else:
+            process.terminate()
+        process.wait(timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        try:
+            if os.name == "posix":
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except OSError:
+            pass
+
+
+def _stream_process(
+    process: subprocess.Popen,
+    on_line,
+    timeout_seconds: float,
+) -> bool:
+    """Stream output without letting a quiet child bypass its time limit."""
+    output: queue.Queue[str | None] = queue.Queue()
+
+    def read_output() -> None:
+        assert process.stdout is not None
+        for line in process.stdout:
+            output.put(line)
+        output.put(None)
+
+    reader = threading.Thread(target=read_output, daemon=True)
+    reader.start()
+    deadline = time.monotonic() + timeout_seconds if timeout_seconds > 0 else None
+    while True:
+        if deadline is not None and time.monotonic() >= deadline:
+            _stop_process(process)
+            return True
+        wait_for = min(0.25, max(0.01, deadline - time.monotonic())) if deadline else 0.25
+        try:
+            line = output.get(timeout=wait_for)
+        except queue.Empty:
+            if process.poll() is not None and not reader.is_alive():
+                return False
+            continue
+        if line is None:
+            return False
+        on_line(line)
+
+
+def run_foreground(
+    phase: str,
+    skill: str | None,
+    label: str,
+    command: list[str],
+    timeout_seconds: float,
+) -> int:
     log_path = _logs_dir() / f"{phase}.log"
     try:
         _logs_dir().mkdir(parents=True, exist_ok=True)
@@ -94,10 +156,17 @@ def run_foreground(phase: str, skill: str | None, label: str, command: list[str]
         "command": command,
         "status": "running",
         "started": _now(),
+        "timeout_seconds": timeout_seconds,
         "log": str(log_path),
     }
     _write_job(phase, record)
-    emit(phase, "start", label or " ".join(command[:3]), skill=skill)
+    emit(
+        phase,
+        "start",
+        label or " ".join(command[:3]),
+        skill=skill,
+        extra={"timeout_seconds": timeout_seconds},
+    )
     started = time.monotonic()
     last_progress = 0.0
     try:
@@ -107,6 +176,7 @@ def run_foreground(phase: str, skill: str | None, label: str, command: list[str]
             stderr=subprocess.STDOUT,
             text=True,
             errors="replace",
+            start_new_session=os.name == "posix",
         )
     except FileNotFoundError:
         message = f"command not found: {command[0]}"
@@ -117,9 +187,10 @@ def run_foreground(phase: str, skill: str | None, label: str, command: list[str]
         if log_file:
             log_file.close()
         return 127
-    assert process.stdout is not None
     last_line = ""
-    for line in process.stdout:
+
+    def handle_line(line: str) -> None:
+        nonlocal last_line, last_progress
         sys.stdout.write(line)
         sys.stdout.flush()
         if log_file:
@@ -132,20 +203,52 @@ def run_foreground(phase: str, skill: str | None, label: str, command: list[str]
             if now - last_progress >= PROGRESS_THROTTLE_SECONDS:
                 last_progress = now
                 emit(phase, "progress", stripped[:300], skill=skill)
-    exit_code = process.wait()
+
+    timed_out = _stream_process(process, handle_line, timeout_seconds)
+    exit_code = 124 if timed_out else process.wait()
     duration = int(time.monotonic() - started)
-    record.update(status="done" if exit_code == 0 else "failed", ended=_now(), exit=exit_code, duration_seconds=duration)
+    record.update(
+        status="done" if exit_code == 0 else "failed",
+        ended=_now(),
+        exit=exit_code,
+        duration_seconds=duration,
+        timed_out=timed_out,
+    )
     _write_job(phase, record)
     if exit_code == 0:
         emit(phase, "done", f"completed in {duration}s", skill=skill, counts={"duration_seconds": duration})
+    elif timed_out:
+        message = f"time limit reached after {duration}s; switch to the documented fallback"
+        print(f"run_phase: {message}", file=sys.stderr)
+        emit(
+            phase,
+            "error",
+            message,
+            skill=skill,
+            counts={"exit": exit_code, "duration_seconds": duration},
+            extra={"timed_out": True, "timeout_seconds": timeout_seconds},
+        )
     else:
-        emit(phase, "error", f"exit {exit_code}: {last_line[:200]}", skill=skill, counts={"exit": exit_code})
+        emit(
+            phase,
+            "error",
+            f"exit {exit_code}: {last_line[:200]}",
+            skill=skill,
+            counts={"exit": exit_code, "duration_seconds": duration},
+            extra={"timeout_seconds": timeout_seconds},
+        )
     if log_file:
         log_file.close()
     return exit_code
 
 
-def run_background(phase: str, skill: str | None, label: str, command: list[str]) -> int:
+def run_background(
+    phase: str,
+    skill: str | None,
+    label: str,
+    command: list[str],
+    timeout_seconds: float,
+) -> int:
     """Re-exec this wrapper in foreground mode, fully detached."""
     _logs_dir().mkdir(parents=True, exist_ok=True)
     log_path = _logs_dir() / f"{phase}.log"
@@ -154,6 +257,7 @@ def run_background(phase: str, skill: str | None, label: str, command: list[str]
         inner += ["--skill", skill]
     if label:
         inner += ["--label", label]
+    inner += ["--timeout-seconds", str(timeout_seconds)]
     inner += ["--", *command]
     with open(log_path, "a", encoding="utf-8") as log_file:
         process = subprocess.Popen(
@@ -222,6 +326,11 @@ def main(argv: list[str] | None = None) -> int:
     run_parser.add_argument("--phase", required=True, help="canonical phase id, e.g. platform-tiktok")
     run_parser.add_argument("--skill", help="skill name emitting the events")
     run_parser.add_argument("--label", default="", help="human-readable label for the start event")
+    run_parser.add_argument(
+        "--timeout-seconds",
+        type=float,
+        help="hard phase limit; defaults by phase, use 0 to disable",
+    )
     run_parser.add_argument("--bg", action="store_true", help="detach and return immediately")
     run_parser.add_argument("cmd", nargs=argparse.REMAINDER, help="-- command to execute")
 
@@ -244,10 +353,29 @@ def main(argv: list[str] | None = None) -> int:
             command = command[1:]
         if not command:
             parser.error("missing command after --")
+        timeout_seconds = (
+            args.timeout_seconds
+            if args.timeout_seconds is not None
+            else phase_timeout_seconds(args.phase)
+        )
+        if timeout_seconds < 0:
+            parser.error("--timeout-seconds must be non-negative")
         announce(ensure_sidecar())
         if args.bg:
-            return run_background(args.phase, args.skill, args.label, command)
-        return run_foreground(args.phase, args.skill, args.label, command)
+            return run_background(
+                args.phase,
+                args.skill,
+                args.label,
+                command,
+                timeout_seconds,
+            )
+        return run_foreground(
+            args.phase,
+            args.skill,
+            args.label,
+            command,
+            timeout_seconds,
+        )
     phases = [p.strip() for p in args.phases.split(",") if p.strip()] if args.phases else None
     return cmd_status(args.wait, args.interval, args.timeout, args.max_wait, phases)
 

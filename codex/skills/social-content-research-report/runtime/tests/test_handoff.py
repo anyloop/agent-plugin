@@ -2,6 +2,7 @@ import json
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import handoff  # noqa: E402
@@ -91,3 +92,49 @@ def test_payload_maps_uploads_fills_messages_and_drops_connect(tmp_path: Path) -
         "analyze https://x/1\n\nAvatar: UGC — a\n\nKeep: k\n\nChange: c\n\nOverlay:\no1\no2"
     )
     assert any("tiktok-2.jpg" in n for n in result["notes"])
+
+
+def test_upload_uses_the_runtime_ca_bundle(tmp_path: Path) -> None:
+    source = tmp_path / "thumb.jpg"
+    source.write_bytes(b"image")
+    manifest = {
+        "entries": [
+            {
+                "filename": "thumb.jpg",
+                "contentType": "image/jpeg",
+                "local": str(source),
+            }
+        ]
+    }
+    slots = {
+        "uploads": [
+            {
+                "filename": "thumb.jpg",
+                "uploadUrl": "https://uploads.example/thumb.jpg",
+                "uploadId": "up_1",
+            }
+        ]
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    (tmp_path / "slots.json").write_text(json.dumps(slots))
+    response = MagicMock(status=200)
+    response.__enter__.return_value = response
+    context = MagicMock()
+
+    with patch.object(handoff, "_upload_context", return_value=context), patch.object(
+        handoff.urllib.request, "urlopen", return_value=response
+    ) as urlopen:
+        result = handoff.cmd_upload(
+            SimpleNamespace(
+                manifest=str(tmp_path / "manifest.json"),
+                slots=str(tmp_path / "slots.json"),
+            )
+        )
+
+    assert result == {
+        "uploads": [
+            {"uploadId": "up_1", "filename": "thumb.jpg", "contentType": "image/jpeg"}
+        ],
+        "failed": [],
+    }
+    assert urlopen.call_args.kwargs["context"] is context

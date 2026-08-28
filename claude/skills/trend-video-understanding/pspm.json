@@ -7,11 +7,11 @@
   "license": "Apache-2.0",
   "type": "skill",
   "capabilities": [
-    "Download short-form videos via yt-dlp (TikTok, Instagram Reels, YouTube Shorts)",
+    "Acquire short-form videos through an authenticated browser local file or browser-compatible yt-dlp fallback",
     "Upload through adant-cli media analyze and run server-side video understanding (visuals + audio together)",
     "Produce the clone-video Pass-1 narrative analysis (visual style, story, text overlays, dialogue, scene breakdown)",
     "Emit a structured concept fingerprint: hook, hook type, viral format, concept summary, why it works, adaptability notes",
-    "Skip-if-output-exists so candidate batches can resume cheaply"
+    "Cache successful analyses while keeping failed acquisition outputs retryable"
   ],
   "main": "SKILL.md",
   "files": ["SKILL.md", "runtime"],

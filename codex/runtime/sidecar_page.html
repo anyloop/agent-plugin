@@ -46,6 +46,10 @@ body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:
 .head h1{font-size:15px; font-weight:600; margin:0; letter-spacing:-.01em}
 .status{font-size:12.5px; color:var(--sub)}
 .elapsed{margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--faint); font-variant-numeric:tabular-nums}
+.timebar{height:3px; border-radius:999px; overflow:hidden; background:var(--line-2); margin-top:-7px}
+.timebar span{display:block; height:100%; width:0; border-radius:inherit; background:var(--ok); transition:width .35s var(--ease),background .35s}
+.timebar.warn span{background:var(--warn)}
+.timebar.over span{background:var(--err)}
 .shimmer{background-image:linear-gradient(90deg,var(--faint) 38%,var(--ink) 50%,var(--faint) 62%);
   background-size:220% 100%; -webkit-background-clip:text; background-clip:text; color:transparent;
   animation:shimmer 2s linear infinite}
@@ -79,6 +83,8 @@ body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:
 .lane .lname{font-size:12.5px; font-weight:500; color:var(--body); flex:none}
 .lane .ldetail{margin-left:auto; font-family:var(--mono); font-size:10.5px; color:var(--faint);
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.lane .ldetail.warn{color:var(--warn)}
+.lane .ldetail.over{color:var(--err); font-weight:600}
 .spin{width:11px; height:11px; border-radius:50%; flex:none;
   background:conic-gradient(from 0deg,var(--flow-a),var(--flow-b),var(--flow-c),var(--flow-a));
   -webkit-mask:radial-gradient(farthest-side,transparent 55%,#000 60%); mask:radial-gradient(farthest-side,transparent 55%,#000 60%);
@@ -160,6 +166,7 @@ body{background:var(--bg); color:var(--ink); font-family:var(--sans); font-size:
     <span class="status shimmer" id="status">waiting for activity…</span>
     <span class="elapsed" id="elapsed"></span>
   </div>
+  <div class="timebar" id="timebar"><span id="timefill"></span></div>
   <div id="alertBox" class="alert hidden">
     <b><span class="pulse"></span><span id="alertTitle">Action needed</span></b>
     <p class="amsg" id="alertMsg"></p>
@@ -230,6 +237,22 @@ function fmtClock(seconds){
   const m = Math.floor(seconds / 60), s = Math.floor(seconds % 60);
   return m + ":" + String(s).padStart(2, "0");
 }
+function phaseBudget(p){
+  if (p.timeoutSeconds != null) return Number(p.timeoutSeconds);
+  if (!state.workflow || !Array.isArray(state.workflow.stages)) return null;
+  const stage = state.workflow.stages.find(item => (item.phases || []).some(prefix => phaseMatches(p.id, prefix)));
+  return stage && stage.budget_seconds != null ? Number(stage.budget_seconds) : null;
+}
+function phaseElapsed(p){
+  if (p.duration != null) return Number(p.duration);
+  return p.started ? Math.max(0, (Date.now() - p.started) / 1000) : 0;
+}
+function budgetLabel(p){
+  const elapsed = phaseElapsed(p), budget = phaseBudget(p);
+  if (!budget) return fmtClock(elapsed);
+  const over = elapsed > budget;
+  return fmtClock(elapsed) + " / " + fmtClock(budget) + (over ? " · over" : "");
+}
 function workspaceRoot(){
   if (!state.workspace) return null;
   return state.workspace.split("/").slice(0, -2).join("/") || null;
@@ -268,11 +291,13 @@ function onEvent(ev){
     if (m) state.doctor.set(m[1], { state:m[2], detail:m[3] });
   }
   let p = state.phases.get(ev.phase);
-  if (!p){ p = { id:ev.phase, status:"pending", msg:"", started:ts, duration:null, log:[], counts:{} }; state.phases.set(ev.phase, p); }
+  if (!p){ p = { id:ev.phase, status:"pending", msg:"", started:ts, duration:null, timeoutSeconds:null, log:[], counts:{} }; state.phases.set(ev.phase, p); }
+  if (ev.timeout_seconds != null) p.timeoutSeconds = Number(ev.timeout_seconds);
   if (ev.status === "start"){ p.status = "active"; p.started = ts; p.msg = ev.message || ""; }
   else if (ev.status === "progress"){ if (p.status !== "done") p.status = "active"; p.msg = ev.message || p.msg; }
   else if (ev.status === "done"){ p.status = "done"; p.duration = (ev.counts && ev.counts.duration_seconds) || null; }
   else if (ev.status === "error"){ p.status = "error"; p.msg = ev.message || p.msg; }
+  if (ev.counts && ev.counts.duration_seconds != null) p.duration = Number(ev.counts.duration_seconds);
   if (ev.message){
     p.log.push((ev.ts || "").slice(11, 19) + "  " + ev.message);
     if (p.log.length > LOG_CAP) p.log.shift();
@@ -305,7 +330,7 @@ function phaseRowMeta(p){
   const bits = [];
   const stat = statText(p.counts);
   if (stat) bits.push(stat);
-  if (p.duration != null) bits.push(fmtClock(p.duration));
+  if (p.duration != null) bits.push(budgetLabel(p));
   return bits.join(" · ") || (p.status === "error" ? "failed" : "done");
 }
 
@@ -387,7 +412,12 @@ function render(){
     const meta = [];
     if (active.length > 1) meta.push(active.length + " in parallel");
     if (state.workflow) meta.push(state.workflow.mode === "fast-draft" ? "fast draft" : "production");
-    head.appendChild(el("span", "nmeta", meta.join(" · ")));
+    const headMeta = el("span", "nmeta", meta.join(" · "));
+    if (active.length === 1){
+      headMeta.dataset.phaseClock = active[0].id;
+      headMeta.dataset.phasePrefix = meta.join(" · ");
+    }
+    head.appendChild(headMeta);
     card.appendChild(head);
     const laneSet = platforms.length > 1
       ? research.filter(p => p.id.startsWith(PLATFORM_PREFIX))
@@ -399,7 +429,9 @@ function render(){
       const lname = el("span", "lname", PHASE_NAMES[p.id] || p.id);
       if (p.status === "active") lname.classList.add("shimmer");
       lane.appendChild(lname);
-      lane.appendChild(el("span", "ldetail", p.status === "done" ? phaseRowMeta(p) : p.status === "pending" ? "queued" : (p.msg || "")));
+      const detail = el("span", "ldetail", p.status === "done" ? phaseRowMeta(p) : p.status === "pending" ? "queued" : (p.msg || ""));
+      if (p.status === "active") detail.dataset.phaseClock = p.id;
+      lane.appendChild(detail);
       card.appendChild(lane);
     }
     if (!laneSet.length && active[0] && active[0].msg){
@@ -495,7 +527,8 @@ function render(){
       for (const stage of upcoming){
         const chip = el("span");
         chip.appendChild(icon("circle"));
-        chip.appendChild(el("span", null, stage.label || PHASE_NAMES[stage.id] || stage.id));
+        const budget = stage.budget_seconds ? " · " + fmtClock(stage.budget_seconds) : "";
+        chip.appendChild(el("span", null, (stage.label || PHASE_NAMES[stage.id] || stage.id) + budget));
         row.appendChild(chip);
       }
       ghostWrap.appendChild(row);
@@ -505,6 +538,7 @@ function render(){
   document.getElementById("app").classList.toggle("haspreview", state.selected != null);
   document.getElementById("evCount").textContent = state.events + " events" + (allDone ? " · archived" : "");
   document.getElementById("wsline").textContent = transportLabel;
+  updateClocks();
 }
 function buildResCard(a, big){
   const card = el("div", "rescard" + (state.selected === a.path ? " sel" : ""));
@@ -528,10 +562,29 @@ function buildResCard(a, big){
   card.addEventListener("click", ()=>{ openPreview(a); });
   return card;
 }
-setInterval(()=>{
-  if (state.firstTs && state.lastTs)
-    document.getElementById("elapsed").textContent = fmtClock((state.lastTs - state.firstTs) / 1000);
-}, 1000);
+function updateClocks(){
+  const now = Date.now();
+  const completeTs = state.workflow && state.workflow.completed ? Date.parse(state.workflow.completed) : null;
+  const elapsed = state.firstTs ? Math.max(0, ((completeTs || now) - state.firstTs) / 1000) : 0;
+  const target = state.workflow && Number(state.workflow.target_seconds);
+  document.getElementById("elapsed").textContent = state.firstTs
+    ? fmtClock(elapsed) + (target ? " / " + fmtClock(target) : "") : "";
+  const ratio = target ? elapsed / target : 0;
+  document.getElementById("timefill").style.width = Math.min(1, ratio) * 100 + "%";
+  const bar = document.getElementById("timebar");
+  bar.classList.toggle("warn", ratio >= .8 && ratio <= 1);
+  bar.classList.toggle("over", ratio > 1);
+  for (const node of document.querySelectorAll("[data-phase-clock]")){
+    const p = state.phases.get(node.dataset.phaseClock);
+    if (!p) continue;
+    const phaseRatio = phaseBudget(p) ? phaseElapsed(p) / phaseBudget(p) : 0;
+    const prefix = node.dataset.phasePrefix || "";
+    node.textContent = (prefix ? prefix + " · " : "") + budgetLabel(p) + (p.msg && !prefix ? " · " + p.msg : "");
+    node.classList.toggle("warn", phaseRatio >= .8 && phaseRatio <= 1);
+    node.classList.toggle("over", phaseRatio > 1);
+  }
+}
+setInterval(updateClocks, 1000);
 
 /* ---------- preview ---------- */
 async function openPreview(art){

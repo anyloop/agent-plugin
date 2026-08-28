@@ -14,10 +14,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from phase_limits import stage_budget_seconds  # noqa: E402
 from sidecar_events import emit, progress_dir, write_pointer  # noqa: E402
 
 
-PRODUCTION_STAGES = [
+_PRODUCTION_STAGES = [
     {"id": "setup", "label": "Setup", "phases": ["doctor"], "kind": "gate"},
     {"id": "product", "label": "Product profile", "phases": ["product-profile"], "kind": "sequential"},
     {"id": "competitors", "label": "Competitors", "phases": ["competitors"], "kind": "sequential"},
@@ -34,26 +35,51 @@ PRODUCTION_STAGES = [
     {"id": "delivery", "label": "Save to AdAnt", "phases": ["delivery"], "kind": "sequential"},
 ]
 
-FAST_DRAFT_STAGES = [
-    *PRODUCTION_STAGES[:5],
+_FAST_DRAFT_STAGES = [
+    *_PRODUCTION_STAGES[:5],
     {"id": "curation", "label": "Relevance screen", "phases": ["curation"], "kind": "sequential"},
     {"id": "report", "label": "Gap-labeled draft", "phases": ["report"], "kind": "sequential"},
 ]
+
+
+def _with_budgets(mode: str, stages: list[dict]) -> list[dict]:
+    return [
+        {**stage, "budget_seconds": stage_budget_seconds(mode, stage["id"])}
+        for stage in stages
+    ]
+
+
+PRODUCTION_STAGES = _with_budgets("production-complete", _PRODUCTION_STAGES)
+FAST_DRAFT_STAGES = _with_budgets("fast-draft", _FAST_DRAFT_STAGES)
 
 MODES = {
     "production-complete": {
         "label": "Production-complete research",
         "target_minutes": "30–45",
+        "target_seconds": 45 * 60,
         "deliverable": "Validated 20-page report with five analyzed strategies and AdAnt handoff",
         "stages": PRODUCTION_STAGES,
     },
     "fast-draft": {
         "label": "Fast diagnostic draft",
         "target_minutes": "15–25",
+        "target_seconds": 25 * 60,
         "deliverable": "Source-labeled findings and an explicitly incomplete gap report",
         "stages": FAST_DRAFT_STAGES,
     },
 }
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _timestamp(value: datetime | None = None) -> str:
+    return (value or _now()).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _parse_timestamp(value: str) -> datetime:
+    return datetime.strptime(value, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
 
 
 def build_plan(mode: str, subject: str = "") -> dict:
@@ -65,8 +91,9 @@ def build_plan(mode: str, subject: str = "") -> dict:
         "label": selected["label"],
         "subject": subject,
         "target_minutes": selected["target_minutes"],
+        "target_seconds": selected["target_seconds"],
         "deliverable": selected["deliverable"],
-        "started": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "started": _timestamp(),
         "stages": selected["stages"],
     }
 
@@ -86,15 +113,68 @@ def complete_plan() -> tuple[Path, dict]:
     path = progress_dir() / "workflow.json"
     plan = json.loads(path.read_text())
     plan["status"] = "complete"
-    plan["completed"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    plan["completed"] = _timestamp()
     return write_plan(plan), plan
+
+
+def update_stage(stage_id: str, action: str) -> tuple[Path, dict, dict]:
+    """Start, inspect, or complete one manual workflow stage.
+
+    Browser work cannot be interrupted by ``run_phase.py``, so the workflow
+    calls ``check`` between query batches. A non-zero result means no new work
+    should start; the current evidence should be curated or delivered instead.
+    """
+    path = progress_dir() / "workflow.json"
+    plan = json.loads(path.read_text())
+    stage = next((item for item in plan["stages"] if item["id"] == stage_id), None)
+    if stage is None:
+        raise KeyError(f"unknown stage: {stage_id}")
+
+    now = _now()
+    if action == "start":
+        stage.setdefault("started", _timestamp(now))
+        stage["status"] = "running"
+    elif "started" not in stage:
+        raise KeyError(f"stage has not started: {stage_id}")
+
+    stage_elapsed = max(0, int((now - _parse_timestamp(stage["started"])).total_seconds()))
+    total_elapsed = max(0, int((now - _parse_timestamp(plan["started"])).total_seconds()))
+    stage_remaining = int(stage["budget_seconds"]) - stage_elapsed
+    total_remaining = int(plan["target_seconds"]) - total_elapsed
+    exhausted_by = []
+    if stage_remaining <= 0:
+        exhausted_by.append("stage")
+    if total_remaining <= 0:
+        exhausted_by.append("workflow")
+
+    if action == "complete":
+        stage["status"] = "complete"
+        stage["completed"] = _timestamp(now)
+        stage["elapsed_seconds"] = stage_elapsed
+
+    result = {
+        "stage": stage_id,
+        "action": action,
+        "elapsed_seconds": stage_elapsed,
+        "remaining_seconds": max(0, min(stage_remaining, total_remaining)),
+        "workflow_elapsed_seconds": total_elapsed,
+        "exhausted": bool(exhausted_by),
+        "exhausted_by": exhausted_by,
+    }
+    if action != "check" or exhausted_by:
+        path = write_plan(plan)
+    return path, plan, result
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--mode", choices=tuple(MODES), default="production-complete")
     parser.add_argument("--subject", default="", help="product or brand name, when already known")
-    parser.add_argument("--complete", action="store_true", help="mark the active workflow complete")
+    actions = parser.add_mutually_exclusive_group()
+    actions.add_argument("--complete", action="store_true", help="mark the active workflow complete")
+    actions.add_argument("--stage-start", metavar="ID", help="start a manual/browser stage timer")
+    actions.add_argument("--stage-check", metavar="ID", help="check whether a stage may start more work")
+    actions.add_argument("--stage-complete", metavar="ID", help="complete a stage and record its elapsed time")
     args = parser.parse_args(argv)
 
     if args.complete:
@@ -111,6 +191,33 @@ def main(argv: list[str] | None = None) -> int:
         )
         print(json.dumps({"workflow": str(path), **plan}, ensure_ascii=False))
         return 0
+
+    stage_id = args.stage_start or args.stage_check or args.stage_complete
+    if stage_id:
+        action = "start" if args.stage_start else "check" if args.stage_check else "complete"
+        try:
+            path, plan, result = update_stage(stage_id, action)
+        except (OSError, json.JSONDecodeError, KeyError, ValueError) as error:
+            parser.error(f"cannot {action} workflow stage: {error}")
+        if result["exhausted"]:
+            emit(
+                "workflow",
+                "progress",
+                f"{stage_id} time budget reached",
+                risk="No new query or analysis batch should start; curate the current evidence or deliver the documented gap.",
+                next_step="Close the current stage without another retry loop.",
+                extra={"workflow": plan, "budget_gate": result},
+            )
+        elif action != "check":
+            action_label = "started" if action == "start" else "completed"
+            emit(
+                "workflow",
+                "progress",
+                f"{stage_id} stage {action_label}",
+                extra={"workflow": plan, "budget_gate": result},
+            )
+        print(json.dumps({"workflow": str(path), **result}, ensure_ascii=False))
+        return 124 if action in ("start", "check") and result["exhausted"] else 0
 
     plan = build_plan(args.mode, args.subject)
     path = write_plan(plan)

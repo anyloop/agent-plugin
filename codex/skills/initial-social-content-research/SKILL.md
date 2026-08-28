@@ -57,6 +57,27 @@ python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --mode production-complete
 python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --mode fast-draft
 ```
 
+The plan publishes a target budget for every stage. Every `run_phase.py run`
+also enforces a phase-specific hard limit unless `--timeout-seconds` explicitly
+overrides it. Do not disable limits in normal research. When a limit is reached,
+use the documented fallback or reserve candidate and preserve the timeout in the
+audit; never keep the same blocked command alive while the ETA silently grows.
+
+Browser and other agent-driven work cannot be killed by the subprocess wrapper.
+Bracket those stages with the workflow budget gate, and check it between query,
+top-up, and analysis batches:
+
+```bash
+python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --stage-start discovery
+python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --stage-check discovery
+python3 {PLUGIN_ROOT}/runtime/workflow_plan.py --stage-complete discovery
+```
+
+Use the matching stage id for `curation`, `strategy`, `report`, and `delivery`.
+Starting or checking exits 124 when the applicable total budget is exhausted.
+Do not start another batch after that result: curate the evidence already found,
+promote a ready reserve, or deliver the documented gap.
+
 ## Choose the browser backend
 
 When the host lists the `control-in-app-browser` skill, read and follow it before
@@ -105,13 +126,21 @@ without Codex Browser keep the portable Chrome/CDP workflow.
   itself; never call it repeatedly. Separately, the first research command
   (`doctor.py` or any `run_phase.py run`) automatically starts a local
   progress server bound to 127.0.0.1 — you never start it as a separate step.
+  The panel shows live total elapsed time against the workflow target and live
+  phase time against each hard limit; yellow means 80% of budget and red means
+  over budget or timed out. Treat those states as decisions to narrow, fall back,
+  or advance—not as decorative telemetry.
   Read the `sidecar: ready <url>` / `sidecar: disabled (<reason>)` line it
   prints: on a host without the panel tool, offer the URL once, and only if
   the user wants a standalone window export `ADANT_SIDECAR_WINDOW=1` before
   the next phase (it opens one small Chrome app window). On `disabled`,
   continue chat-only without treating it as an error. All decisions stay in
   chat; the panel only observes. `ADANT_NO_SIDECAR=1` turns all of it off.
-  The server exits by itself when research goes quiet.
+  The server exits by itself when research goes quiet. For an in-app Browser
+  phase that cannot be wrapped by `run_phase.py`, emit its `start` event with
+  `sidecar_events.py ... --timeout-seconds <limit>` before the first navigation.
+  Stop issuing browser batches when that limit is reached and advance through
+  the same fallback rules as a timed-out local phase.
 - **Get the user signed in to TikTok and Instagram before browsing them.** In
   Codex Browser mode, reuse its persistent session and follow the Browser skill's
   sign-in flow if authentication is required. In the Chrome fallback, signed out
@@ -221,9 +250,10 @@ user's time:
   status command again. Never use a single multi-minute blocking wait. Phase
   runtimes retain their own hard time limits.
 
-- Step 7: the five `trend-video-understanding` analyses are independent — run
-  them concurrently the same way (`--phase strategy`, one suffix per pick, e.g.
-  `strategy-pick-1`).
+- Step 7: the five `trend-video-understanding` analyses are independent, but the
+  inference service is more reliable with bounded fan-out. Run at most two at a
+  time (`--phase strategy`, one suffix per pick, e.g. `strategy-pick-1`); launch
+  the next pick when either active job finishes.
 
 Where the host supports parallel agents or parallel tool calls, those may
 replace background jobs; detached `--bg` jobs are the portable default and
@@ -231,8 +261,10 @@ survive the end of a single tool call. Rules: parallel jobs must write
 **separate output files** (the documented per-platform paths already do);
 never share an output path; check `status` output and each job's log before
 declaring a phase complete; top-up passes that depend on curation results stay
-sequential. A failed background job is a failed phase — rerun it in the
-foreground to diagnose, never silently continue.
+sequential. For a structured `download_failed` or phase timeout, do not repeat
+the same command in the foreground: try one different acquisition backend, then
+promote the next ranked reserve. Rerun in the foreground only for an unknown
+failure that lacks actionable structured evidence.
 
 ## Run the workflow
 
@@ -364,9 +396,18 @@ foreground to diagnose, never silently continue.
    maximums. The intro should interpret the cards, not enumerate them. Follow
    the field budgets in `social-content-research-report` and run its builder
    with `--strict` before rendering.
-7. **Sample content strategy (production-complete only):** pick the 5 strongest inspiration videos from the
-   curated set — rank by engagement, then cloneability and format diversity, at
-   most one per account and at least two platforms. **Run
+7. **Sample content strategy (production-complete only):** rank the 8 strongest
+   inspiration videos from the curated set—five primary and three reserves—by
+   engagement, then cloneability and format diversity, at most one per account
+   and at least two platforms. Launch at most two primary analyses concurrently;
+   start the next queued pick when one finishes.
+   In Codex Browser mode, save each selected clip through the already-authenticated
+   browser and pass `--video <local-path> --url <permanent-platform-url>`; never
+   treat a DOM `blob:` URL as a downloadable source or inspect cookies/storage.
+   On hosts without a browser media download, use the hardened `yt-dlp` path.
+   When acquisition returns `download_failed` or the phase reaches its limit,
+   switch acquisition backend once, then promote the next reserve immediately.
+   Stop once five analyses succeed. **Run
    `trend-video-understanding` on every pick before writing its strategy** and
    derive two things from the analysis rather than from habit: the **avatar
    type** (UGC / animation — naming the style / commercial / cinematic /
@@ -375,13 +416,33 @@ foreground to diagnose, never silently continue.
    inverted). Defaulting every pick to a UGC avatar and "keep the hook" is the
    failure mode this step exists to avoid. Read `social-content-strategist`'s
    `SKILL.md` first; the deck reuses its General Instructions verbatim.
+   A failed analysis output is retryable; only `status: ok` is a cache hit. Do
+   not spend strategy time diagnosing the same public URL repeatedly.
    In fast-draft mode, stop after the relevance screen and gap-labeled research
    data; do not run video understanding or imply that strategies were validated.
-8. **Report:** in production-complete mode, run `social-content-research-report`, then
+8. **Report:** once curation validates, publish `report_data.json` as an interim
+   Sidecar artifact and immediately build the report skill's 13-slide HTML and
+   markdown research preview before strategy work continues. Emit the preview
+   HTML as a Sidecar artifact so the user gets a readable result without waiting
+   for video analysis. Keep the preview under a distinct `research_preview`
+   filename; the final build adds the strategy section and does not overwrite it.
+   In production-complete mode, run `social-content-research-report`, then
    `slide-pdf-generator`, using absolute runtime paths under `PLUGIN_ROOT` and
    output paths under `WORKSPACE_ROOT`. In fast-draft mode, build only the
    report skill's 13-slide research section when the evidence supports it,
    label every gap, and state that production validation was not run.
+
+   ```bash
+   uv run --project {PLUGIN_ROOT}/skills/social-content-research-report/runtime \
+     {PLUGIN_ROOT}/skills/social-content-research-report/runtime/build_deck.py \
+     --data {WORKSPACE_ROOT}/{brandFolder}/report_data.json --strict \
+     -o {WORKSPACE_ROOT}/{brandFolder}/research_preview.html \
+     --md {WORKSPACE_ROOT}/{brandFolder}/research_preview.md
+   python3 {PLUGIN_ROOT}/runtime/sidecar_events.py report progress \
+     "Research preview ready; strategy analysis continues" \
+     --artifact {WORKSPACE_ROOT}/{brandFolder}/research_preview.html \
+     --artifact-label "13-slide research preview"
+   ```
 9. **Save to AdAnt (production-complete only):** when the AdAnt Remote MCP (`adant_*` tools) is
    connected, follow `social-content-research-report`'s **Save to AdAnt**
    section — `handoff.py manifest` → `adant_prepare_uploads` →
