@@ -69,12 +69,16 @@ Generation spends AdAnt credits. The skills require an explicit confirmation
 before submitting credit-spending work and derive project ownership from the
 authorized AdAnt account.
 
-Social-research model work reuses AdAnt's authenticated CLI and server-side
-credentials. If the CLI has not been authorized on this machine, run
-`npx @anyloop/adant-cli auth login`; no Gemini or other model-provider API key is needed.
-Local adapters may also require Python 3.11+, `uv`, Chrome, and an interactive
-TikTok or Instagram session. They store browser state outside the plugin via
-`ADANT_SOCIAL_DATA_DIR` and must never expose cookies or credentials.
+Social-research model work uses the installed AdAnt connection to mint a
+short-lived, scoped local token; it does not require a second CLI login or a
+Gemini/provider key. Local tools require `uv` and Chrome; `uv` provisions the
+locked Python runtime automatically, so no system Python or Node.js install is
+needed. Some searches also require an interactive TikTok or Instagram session.
+The progress view is a live MCP App; hosts that cannot render it receive a
+tokenized local-only fallback URL. Remote generation and local media tools
+share a content-hashed MCP App preview for job state, credits, analysis,
+cancellation, and completed assets. Browser state and credentials must never
+be exposed.
 
 ## Support
 

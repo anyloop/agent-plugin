@@ -5,12 +5,16 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 import tempfile
 import time
 from pathlib import Path
 
+_skill_dir = Path(__file__).resolve().parent.parent
+_plugin_root = _skill_dir.parent.parent
+sys.path.insert(0, str(_plugin_root / "local-server" / "src"))
+
+from adant_local.inference import analyze_video_file  # noqa: E402
 from video_acquisition import AcquisitionResult, acquire_video
 
 
@@ -99,41 +103,14 @@ def log(message: str) -> None:
 
 
 def analyze_video(video: Path, prompt: str, model: str | None, output: Path) -> None:
-    command = [
-        "npx",
-        "--yes",
-        "@anyloop/adant-cli",
-        "media",
-        "analyze",
-        "--video",
-        str(video),
-        "--prompt",
+    result = analyze_video_file(
+        video,
         prompt,
-        "--schema",
-        json.dumps(ANALYSIS_SCHEMA),
-        "-o",
-        str(output),
-    ]
-    if model:
-        command.extend(["--model", model])
-    result = subprocess.run(command, capture_output=True, text=True, timeout=900)
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
-        auth_markers = (
-            "http 401",
-            "status: 401",
-            "not authenticated",
-            "authentication required",
-            "not logged in",
-            "unauthorized",
-        )
-        if any(marker in detail.lower() for marker in auth_markers):
-            detail = (
-                "AdAnt authentication is required. Run "
-                "`npx @anyloop/adant-cli auth login` in your system terminal, then "
-                "retry. No Gemini API key is needed."
-            )
-        raise RuntimeError(detail)
+        schema=ANALYSIS_SCHEMA,
+        model=model,
+        timeout=900,
+    )
+    output.write_text(result)
 
 
 def write_status(

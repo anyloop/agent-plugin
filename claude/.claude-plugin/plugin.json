@@ -1,6 +1,6 @@
 {
   "name": "adant",
-  "version": "0.8.3",
+  "version": "0.9.0",
   "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt from Claude Code.",
   "author": {
     "name": "AdAnt AI",
@@ -26,6 +26,15 @@
       "type": "http",
       "url": "https://api.adant.ai/mcp",
       "oauth_resource": "https://api.adant.ai/mcp"
+    },
+    "adant-local": {
+      "command": "sh",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/local-server/bootstrap.sh"
+      ],
+      "env": {
+        "UV_PROJECT_ENVIRONMENT": "${CLAUDE_PLUGIN_DATA}/adant-local-venv"
+      }
     }
   },
   "skills": "./skills/"

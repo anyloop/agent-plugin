@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>AdAnt Media</title>
+<link rel="stylesheet" href="./media-preview.css">
+</head>
+<body>
+<main id="card" data-status="running">
+  <section id="media" class="media">
+    <div class="placeholder"><span class="spinner"></span><span id="placeholderText">Preparing media…</span></div>
+  </section>
+  <section class="details">
+    <div class="heading">
+      <div><h1 id="title">AdAnt media</h1><p id="subtitle">Waiting for the tool result…</p></div>
+      <span id="status" class="status">Running</span>
+    </div>
+    <p id="analysis" class="analysis" hidden></p>
+    <p id="error" class="error" hidden></p>
+    <div id="credits" class="credits"></div>
+    <div class="actions">
+      <button id="refresh" type="button">Refresh</button>
+      <button id="cancel" class="danger" type="button">Cancel</button>
+      <button id="open" class="primary" type="button" hidden>Open media</button>
+    </div>
+  </section>
+</main>
+<script type="module" src="./media-preview.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AdAnt Research</title>
+<link rel="stylesheet" href="./research-progress.css">
+</head>
+<body>
+<div class="flowbar" id="flowbar"></div>
+<div class="app" id="app">
+<div class="maincol" id="maincol">
+  <div class="head">
+    <h1 id="title">AdAnt Research</h1>
+    <span class="status shimmer" id="status">waiting for activity…</span>
+    <span class="elapsed" id="elapsed"></span>
+  </div>
+  <div class="timebar" id="timebar"><span id="timefill"></span></div>
+  <div id="alertBox" class="alert hidden">
+    <b><span class="pulse"></span><span id="alertTitle">Action needed</span></b>
+    <p class="amsg" id="alertMsg"></p>
+  </div>
+  <div id="finale" class="hidden"></div>
+  <div class="rows" id="doneRows"></div>
+  <div id="nowWrap"></div>
+  <div id="resWrap"></div>
+  <div id="ghostWrap"></div>
+  <div class="foot"><span id="evCount">0 events</span><span id="wsline">connecting…</span></div>
+</div>
+<div class="previewcol" id="previewcol"></div>
+</div>
+
+<script type="module" src="./research-progress.js"></script>
+</body>
+</html>

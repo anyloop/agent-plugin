@@ -4,6 +4,7 @@
 
 - ChatGPT desktop with Codex, or Codex CLI with plugin support.
 - A browser for AdAnt sign-in and OAuth consent.
+- `uv` for local research tools. `uv` provisions Python automatically.
 
 ## ChatGPT desktop / Codex app
 

@@ -1,72 +1,41 @@
 ---
 name: adant-init
-description: >-
-  First-run initialization and orientation for the AdAnt plugin. Verify the
-  AdAnt connection with one read-only call, open the live progress panel,
-  check local research readiness, and offer three ready-to-send starting
-  prompts personalized to the user's product. Trigger on "$adant-init",
-  "init adant", "set up adant", when the user asks what AdAnt can do, how to
-  start or try it, whether setup or installation worked, says the plugin was
-  just installed, or arrives with no concrete task.
+description: First-run initialization for AdAnt. Verify the remote connection, open the live progress panel, check local research readiness, and offer three personalized starting prompts. Trigger on "$adant-init", setup, installation checks, or requests for how to start.
 ---
 
 # Initialize AdAnt
 
-Goal: from "just installed" to a first successful action in under five
-minutes, with at most one question asked along the way. This skill is the
-plugin's front door — when in doubt about what a new user needs, run it.
+Move from installation to a useful first action with at most one question.
 
-## Show the panel first
+## Verify both MCP surfaces
 
-When the session exposes the local `research_progress_open` tool (the
-plugin's `adant-sidecar` MCP server), call it **before** running checks. The
-panel renders inside the conversation and fills in live as the checks run —
-the user sees the product working instead of reading about it. Tell them in
-one clause that this panel is where research progress will live. If the tool
-is absent, skip this without comment.
+1. If `research_progress_open` exists, call it **before** running checks and say briefly
+   that it shows live research progress.
+2. Call `adant_get_credit_balance` to prove the remote OAuth connection.
+3. Call `doctor(sessions=false)` once when research is relevant.
 
-## Verify the connection
+The remote `adant_*` tools and local research tools are independent. If neither
+is present, say: “Quit and reopen the desktop app, then start a new task.” If only
+one is absent, report that partial state; never work around a missing server or
+ask for provider/API secrets. Reinstalling plugin files does not repair a stored
+OAuth connection.
 
-1. When the session exposes `adant_*` MCP tools, call
-   `adant_get_credit_balance` — read-only, and it proves OAuth end to end.
-   Otherwise run `npx --yes @anyloop/adant-cli credit balance`.
-2. On success, report the balance in one line. On failure, follow the `adant`
-   skill's **Recover a missing connection** steps for the current host; never
-   guess at OAuth state and never ask for API keys.
+If `doctor` reports local authentication missing, call
+`device_identity`, pass its two returned fields to
+`adant_mint_local_token(scopes=["research"], device_id=..., device_name=...)`,
+and pass the minted token directly to `auth_bootstrap`. Never print or repeat
+the token.
 
-## Check research readiness
+Consolidate all missing prerequisites into one message.
 
-Run the plugin doctor once (it also feeds the panel's Setup checklist):
+## Offer exactly three starts
 
-```bash
-python3 {PLUGIN_ROOT}/runtime/doctor.py --skip-sessions
-```
+Use the known product, or ask once for its website. Then offer these personalized,
+copy-ready prompts:
 
-`--skip-sessions` keeps it fast; platform sign-ins are handled later by the
-research workflow itself. Fold any missing items into the same message as the
-prompts below — one consolidated message, never a series of interruptions.
-Skip the doctor entirely when the user only wants media generation; generation
-needs no local tools.
+1. Research its short-form content landscape and build a report.
+2. Create a 15-second vertical product ad with AdAnt.
+3. Clone a supplied reference ad for the product.
 
-## Offer three ways to start
-
-Ask for the product website URL only if no product is known from context.
-Then offer exactly three ready-to-send prompts, personalized to the product:
-
-1. **Research** — "Research the short-form content landscape for `<product>`
-   and build the research report."
-2. **Create** — "Create a 15-second vertical product ad for `<product>` with
-   AdAnt."
-3. **Clone** — "Clone this reference ad for `<product>`: `<video URL>`."
-
-Present them as copy-ready lines. Note once that generation spends AdAnt
-credits and that the packaged skills confirm before credit-spending work.
-Route the user's choice to `initial-social-content-research`,
-`adant-create-ad`, or `adant-clone-ad`; keep the `adant` skill for one-off
-media primitives.
-
-## Keep it short
-
-The entire orientation fits in one consolidated status-and-prompts message
-plus at most one follow-up. Never dump the full skill catalog — three
-personalized prompts beat seventeen skill names.
+Mention once that generation spends credits and requires confirmation. Route to
+`initial-social-content-research`, `adant-create-ad`, or `adant-clone-ad`.

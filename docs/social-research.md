@@ -7,26 +7,19 @@ Product research → Trend discovery → Strategy → Media and ad generation
 ```
 
 AdAnt account access and generation use the plugin's one OAuth MCP connection.
-Some research skills run local, locked Python adapters because TikTok,
-Instagram, Meta Ads Library, and YouTube do not share that AdAnt session.
+Some research skills run local, locked adapters because TikTok, Instagram,
+Meta Ads Library, and YouTube do not share that AdAnt session.
 
 ## Local prerequisites
 
-Check everything in one pass instead of discovering gaps mid-run:
+Start `$adant-init` to run the local `doctor` tool before research. It reports
+the managed Python environment, `uv`, Chrome, `yt-dlp`, AdAnt authentication,
+and platform sessions together, with a fix for each missing prerequisite. It
+only reads state; it never starts a platform login flow.
 
-```bash
-python3 <plugin root>/runtime/doctor.py
-```
-
-The doctor reports Python, `uv`, Node.js, Chrome, `yt-dlp`, AdAnt
-authentication, and both platform sessions together, each failure with its fix
-command. It only reads state; it never opens windows or starts a login flow.
-
-
-- Python 3.11 or newer and `uv`.
+- `uv`; it provisions the locked Python runtime automatically, so a system
+  Python or Node.js installation is not required.
 - Google Chrome.
-- `GEMINI_API_KEY` for skills that use Gemini search, browser control, or video
-  understanding.
 - `yt-dlp` for inspiration-video analysis.
 - An interactive TikTok or Instagram login when those platforms require it.
 

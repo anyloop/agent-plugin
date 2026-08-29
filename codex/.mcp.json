@@ -4,11 +4,12 @@
       "oauth_resource": "https://api.adant.ai/mcp",
       "url": "https://api.adant.ai/mcp"
     },
-    "adant-sidecar": {
-      "command": "python3",
+    "adant-local": {
+      "command": "sh",
       "args": [
-        "${PLUGIN_ROOT}/runtime/sidecar_mcp.py"
-      ]
+        "./local-server/bootstrap.sh"
+      ],
+      "cwd": "."
     }
   }
 }

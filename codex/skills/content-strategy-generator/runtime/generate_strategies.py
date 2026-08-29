@@ -35,9 +35,9 @@ from pathlib import Path
 
 _skill_dir = Path(__file__).resolve().parent.parent
 _plugin_root = _skill_dir.parent.parent
-sys.path.insert(0, str(_plugin_root / "runtime"))
+sys.path.insert(0, str(_plugin_root / "local-server" / "src"))
 
-from adant_agent import ask_adant  # noqa: E402
+from adant_local.inference import ask_adant  # noqa: E402
 
 GENERAL_INSTRUCTIONS = """Analyze [INSPIRATION VIDEO URL]
 with character as [YOUR AVATAR IMAGE], no text overlay. Only regenerate the first frame for review. You can ask to change character cloth, background setting and anything.

@@ -18,9 +18,9 @@ from pathlib import Path
 _runtime_dir = Path(__file__).resolve().parent
 _skill_dir = _runtime_dir.parent
 _plugin_root = _skill_dir.parent.parent
-sys.path.insert(0, str(_plugin_root / "runtime"))
+sys.path.insert(0, str(_plugin_root / "local-server" / "src"))
 
-from adant_agent import ask_adant  # noqa: E402
+from adant_local.inference import ask_adant  # noqa: E402
 from local_report import generate_report  # noqa: E402
 from local_tiktok import (  # noqa: E402
     research_tiktok_presence,
@@ -116,9 +116,16 @@ Return ONLY valid JSON with this shape:
   "research_sources": [{{"url": "https://source", "title": "source title"}}]
 }}
 
-Order direct before partial_overlap before behavioral_substitute, then by overlap_count.
-The competitors array must contain no more than {max_competitors} entries. Make
-overlap_count equal the length of capability_overlap."""
+IMPORTANT:
+- Return AT MOST {max_competitors} entries in "competitors" — keep the strongest
+  matches and stop there. Do not exceed this cap.
+- Order direct before partial_overlap before behavioral_substitute, then by
+  overlap_count descending.
+- Include 2-5 entries in "not_competitors" — especially tool-layer companies that people commonly confuse as competitors
+- Be specific and factual — use information from search results, not vague marketing language
+- For each competitor, the capability_overlap array should ONLY contain clusters from the capability_clusters list
+- overlap_count must match the length of capability_overlap
+- competitive_strength and competitive_weakness should be honest and specific"""
 
     print("  Phase 1: Running bounded web research (execution stays local)...")
     parsed, sources = _call_adant_json(prompt, f"Competitors: {client}")
