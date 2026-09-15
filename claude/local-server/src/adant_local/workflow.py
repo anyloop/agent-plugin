@@ -15,16 +15,23 @@ STAGE_SPECS = [
     ("product", "Product profile", ["product-profile"], "sequential"),
     ("competitors", "Competitors", ["competitors"], "sequential"),
     ("keywords", "Search plan", ["keywords"], "parallel"),
+    # Collection and gap-fill are two stages because they cost the user
+    # different things. `collect` reaches all four platforms from AdAnt's
+    # servers in seconds and needs nothing installed; `discovery` drives the
+    # user's own logged-in browser, one platform at a time, for minutes. A
+    # single "Platform discovery" stage hid that difference and told every
+    # user to expect the expensive one.
+    ("collect", "Supplier search", ["collect"], "remote"),
     (
         "discovery",
-        "Platform discovery",
+        "Browser gap fill",
         [
             "platform-tiktok",
             "platform-instagram",
             "platform-meta-ads",
             "platform-youtube",
         ],
-        "parallel",
+        "conditional",
     ),
     (
         "curation",
@@ -42,7 +49,8 @@ STAGE_BUDGETS = {
         "product": 180,
         "competitors": 300,
         "keywords": 120,
-        "discovery": 720,
+        "collect": 90,
+        "discovery": 630,
         "curation": 360,
         "strategy": 480,
         "report": 300,
@@ -53,7 +61,8 @@ STAGE_BUDGETS = {
         "product": 150,
         "competitors": 210,
         "keywords": 120,
-        "discovery": 540,
+        "collect": 60,
+        "discovery": 480,
         "curation": 180,
         "report": 180,
     },
@@ -170,6 +179,24 @@ def start(mode: str, subject: str = "") -> dict:
     return plan
 
 
+def _mirror_remote_stage(stage: dict, action: str) -> None:
+    """Give a stage whose work runs elsewhere a phase event of its own.
+
+    The progress card derives each stage's state from phase events, because
+    normally the local runner spawns a process per phase and that process
+    reports. A remote stage has no local process, so without this it reads as
+    pending from first paint to last — and the step that actually found the
+    user's videos would be the one step the progress card never showed.
+    """
+    if stage.get("kind") != "remote":
+        return
+    phase_id = (stage.get("phases") or [stage["id"]])[0]
+    if action == "start":
+        events.emit(phase_id, "start", stage["label"])
+    elif action == "complete":
+        events.emit(phase_id, "done", f"{stage['label']} complete")
+
+
 def update_stage(stage_id: str, action: str) -> dict:
     plan = read()
     if plan is None:
@@ -198,6 +225,7 @@ def update_stage(stage_id: str, action: str) -> dict:
             completed=_timestamp(now),
             elapsed_seconds=stage_elapsed,
         )
+    _mirror_remote_stage(stage, action)
     _write(plan)
     result = {
         "stage": stage_id,

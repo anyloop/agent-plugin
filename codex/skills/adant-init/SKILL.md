@@ -20,8 +20,8 @@ one is absent, report that partial state; never work around a missing server or
 ask for provider/API secrets. Reinstalling plugin files does not repair a stored
 OAuth connection.
 
-If `doctor` reports local authentication missing, call
-`device_identity`, pass its two returned fields to
+If `doctor` reports local authentication missing, pass the two fields of its
+`device` to
 `adant_mint_local_token(scopes=["research"], device_id=..., device_name=...)`,
 and pass the minted token directly to `auth_bootstrap`. Never print or repeat
 the token.

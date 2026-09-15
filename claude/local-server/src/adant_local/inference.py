@@ -4,6 +4,11 @@ The phase runtimes execute in their own ``uv`` environments, so this module
 intentionally avoids local-server-only dependencies such as httpx. It accepts
 only the short-lived ``alt_*`` token stored by ``auth_bootstrap``; there is no
 CLI or second-login fallback.
+
+The device id it presents comes from ``adant_local.identity`` — the same
+module the local server uses — because that id is half of the credential: the
+server matches a local token on the token hash *and* the device hash, so a
+second opinion about this machine's identity authenticates as nobody.
 """
 
 from __future__ import annotations
@@ -19,6 +24,8 @@ import uuid
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
+
+from adant_local.identity import device_id, token_file
 
 BRAIN_PROXY_PATH = "/api/app/brain"
 DEFAULT_SERVER_URL = "https://api.adant.ai"
@@ -36,18 +43,9 @@ def _server_url() -> str:
     )
 
 
-def _token_file() -> Path:
-    root = (
-        os.environ.get("PLUGIN_DATA", "").strip()
-        or os.environ.get("CLAUDE_PLUGIN_DATA", "").strip()
-    )
-    base = Path(root) if root else Path.home() / ".adant" / "plugin-data"
-    return base / "local-token.json"
-
-
 def _load_token() -> str:
     try:
-        token = json.loads(_token_file().read_text())["token"]
+        token = json.loads(token_file().read_text())["token"]
     except (OSError, KeyError, ValueError) as exc:
         raise AdantInferenceError(
             "AdAnt authentication is required. Mint a scoped token with "
@@ -76,6 +74,7 @@ def _request(
             "content-type": "application/json",
             "accept": accept,
             "user-agent": USER_AGENT,
+            "x-adant-device-id": device_id(),
         },
     )
     try:
@@ -135,10 +134,14 @@ def _parse_json(text: str) -> Any:
 
 
 def _chat(session_id: str, prompt: str, timeout: int) -> str:
+    body: dict[str, Any] = {"sessionId": session_id, "message": prompt}
+    model = os.environ.get("ADANT_BRAIN_MODEL", "").strip()
+    if model:
+        body["model"] = model
     response = _request(
         "POST",
         f"{BRAIN_PROXY_PATH}/api/chat",
-        body={"sessionId": session_id, "message": prompt},
+        body=body,
         timeout=timeout,
         accept="text/event-stream",
     )

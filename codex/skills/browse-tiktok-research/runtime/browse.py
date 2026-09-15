@@ -20,6 +20,7 @@ import asyncio
 import http.client
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -49,6 +50,8 @@ from config import (
     SORT_TYPE,
     TOP_VIDEOS_LIMIT,
 )
+from counts import JS_PARSE_COUNT, parse_count
+from recovery import parse_markdown_video_list
 
 CDP_PORT = 9333  # Different port — never conflicts with user's Chrome
 CHROME_BIN = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -418,19 +421,7 @@ def _build_search_task(
     keywords_list = "\n".join(f'  - "{k}"' for k in keywords)
 
     js_extract = r"""(function() {
-  function parseCount(s) {
-    if (!s) return 0;
-    s = s.toString().trim().replace(/,/g, '');
-    var m = s.match(/^([\d.]+)\s*([KkMmBb]?)$/);
-    if (!m) return parseInt(s, 10) || 0;
-    var n = parseFloat(m[1]);
-    var u = (m[2] || '').toUpperCase();
-    if (u === 'K') return Math.round(n * 1000);
-    if (u === 'M') return Math.round(n * 1000000);
-    if (u === 'B') return Math.round(n * 1000000000);
-    return Math.round(n);
-  }
-  var videos = [];
+""" + JS_PARSE_COUNT + r"""  var videos = [];
   var seen = new Set();
   // Find all links that contain /video/ with a numeric ID
   document.querySelectorAll('a[href*="/video/"]').forEach(function(a) {
@@ -505,21 +496,10 @@ IMPORTANT:
 # Phase 2: Visit individual video pages for detailed metrics
 # ---------------------------------------------------------------------------
 
-JS_EXTRACT_VIDEO_DETAIL = r"""
+JS_EXTRACT_VIDEO_DETAIL = (
+    r"""
 (function() {
-  function parseCount(s) {
-    if (!s) return null;
-    s = s.toString().trim().replace(/,/g, '');
-    var m = s.match(/^([\d.]+)\s*([KkMmBb]?)$/);
-    if (!m) return parseInt(s, 10) || null;
-    var n = parseFloat(m[1]);
-    var u = (m[2] || '').toUpperCase();
-    if (u === 'K') return Math.round(n * 1000);
-    if (u === 'M') return Math.round(n * 1000000);
-    if (u === 'B') return Math.round(n * 1000000000);
-    return Math.round(n);
-  }
-  var d = {};
+""" + JS_PARSE_COUNT + r"""  var d = {};
   // Title/description
   var descEl = document.querySelector('[data-e2e="browse-video-desc"], [data-e2e="video-desc"], h1[data-e2e], [class*="SpanText"]');
   d.title = descEl ? descEl.textContent.trim().substring(0, 300) : null;
@@ -625,7 +605,8 @@ JS_EXTRACT_VIDEO_DETAIL = r"""
   } catch(e) {}
   return JSON.stringify(d);
 })()
-""".strip()
+"""
+).strip()
 
 
 async def _cdp_get_video_detail(video_url: str) -> dict:
@@ -818,43 +799,6 @@ def _recover_results_from_files(since_timestamp: float = 0) -> dict | None:
     return result
 
 
-def _parse_markdown_video_list(text: str) -> list[dict]:
-    """Parse markdown-formatted video list from extract tool output."""
-    import re
-    videos = []
-    current = {}
-
-    for line in text.split("\n"):
-        line = line.strip().lstrip("- ")
-        # Match Video URL
-        url_match = re.search(r'Video URL[:\s]*`?(https://www\.tiktok\.com/@[^`\s]+/video/\d+)`?', line)
-        if url_match:
-            if current.get("url"):
-                videos.append(current)
-            current = {"url": url_match.group(1)}
-            continue
-        # Match Caption
-        caption_match = re.search(r'(?:Caption|Video Caption|Caption/[Dd]escription)[:\s]*`?(.+?)`?$', line)
-        if caption_match and current:
-            current["title"] = caption_match.group(1).strip()
-            continue
-        # Match Creator
-        creator_match = re.search(r"(?:Creator|Creator's @username|@username)[:\s]*@?`?(\S+?)`?$", line)
-        if creator_match and current:
-            current["uploader"] = creator_match.group(1).strip()
-            continue
-        # Match View/Like Count (search results show likes, not views)
-        view_match = re.search(r'(?:View|Like) [Cc]ount[:\s]*`?(\d+)`?', line)
-        if view_match and current:
-            current["like_count"] = int(view_match.group(1))
-            continue
-
-    if current.get("url"):
-        videos.append(current)
-
-    return videos
-
-
 def _recover_from_agent_history(result, keywords: list[str] | None = None) -> dict | None:
     """Scan agent history for JSON blocks or markdown-formatted video data."""
     if not hasattr(result, "history") or not result.history:
@@ -879,7 +823,7 @@ def _recover_from_agent_history(result, keywords: list[str] | None = None) -> di
                 continue
             for r in entry.result:
                 if hasattr(r, "extracted_content") and r.extracted_content:
-                    videos = _parse_markdown_video_list(r.extracted_content)
+                    videos = parse_markdown_video_list(r.extracted_content)
                     if len(videos) >= 3:  # Only use substantial extractions
                         all_videos.extend(videos)
 
@@ -962,21 +906,10 @@ def _filter_videos_by_date(videos: list[dict], time_range: str) -> list[dict]:
 # Direct CDP extraction (no browser-use, no screenshots, fast)
 # ---------------------------------------------------------------------------
 
-JS_EXTRACT_VIDEOS = r"""
+JS_EXTRACT_VIDEOS = (
+    r"""
 (function() {
-  function parseCount(s) {
-    if (!s) return 0;
-    s = s.toString().trim().replace(/,/g, '');
-    var m = s.match(/^([\d.]+)\s*([KkMmBb]?)$/);
-    if (!m) return parseInt(s, 10) || 0;
-    var n = parseFloat(m[1]);
-    var u = (m[2] || '').toUpperCase();
-    if (u === 'K') return Math.round(n * 1000);
-    if (u === 'M') return Math.round(n * 1000000);
-    if (u === 'B') return Math.round(n * 1000000000);
-    return Math.round(n);
-  }
-  var videos = [];
+""" + JS_PARSE_COUNT + r"""  var videos = [];
   var seen = new Set();
   // Scope to search results container only — avoid sidebar, recommendations, etc.
   var container = document.querySelector('[data-e2e="search_video-item-list"], [data-e2e="search-common-link"], #search-result-container, [class*="search-result"], main')
@@ -1015,7 +948,8 @@ JS_EXTRACT_VIDEOS = r"""
   });
   return JSON.stringify(videos);
 })()
-""".strip()
+"""
+).strip()
 
 def _build_filter_click_js(sort_label: str, time_label: str) -> str:
     """Build JS that clicks TikTok search filter buttons by visible text."""

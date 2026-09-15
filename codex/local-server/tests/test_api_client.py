@@ -140,3 +140,16 @@ def test_auth_bootstrap_verifies_end_to_end(stub_server, plugin_data):
             assert (plugin_data / "local-token.json").exists()
 
     asyncio.run(scenario())
+
+
+def test_both_clients_present_one_device_identity(stub_server, plugin_data):
+    """The local server and the phase runtimes must agree on who this is.
+
+    A local token is matched server-side on the token hash *and* the device
+    hash, so a second opinion about this machine authenticates as nobody —
+    and the only symptom is a 401 that says nothing about its cause.
+    """
+    from adant_local import inference
+
+    store_token(plugin_data, GOOD)
+    assert inference.device_id() == api.device_identity()["device_id"]

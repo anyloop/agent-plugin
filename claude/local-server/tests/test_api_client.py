@@ -24,7 +24,10 @@ class StubProxy(BaseHTTPRequestHandler):
         pass
 
     def _token_ok(self) -> bool:
-        return self.headers.get("Authorization") == f"Bearer {GOOD}"
+        return (
+            self.headers.get("Authorization") == f"Bearer {GOOD}"
+            and len(self.headers.get("x-adant-device-id", "")) >= 20
+        )
 
     def do_GET(self):
         if self.path == "/api/app/brain/api/health":
@@ -105,6 +108,9 @@ def store_token(plugin_data: Path, token: str):
 def test_agent_infer_roundtrip(stub_server, plugin_data):
     store_token(plugin_data, GOOD)
     assert api.agent_infer("say hello") == "Hello world"
+    identity = api.device_identity()
+    assert api.device_identity() == identity
+    assert (plugin_data / "device.json").stat().st_mode & 0o777 == 0o600
 
 
 def test_missing_token_is_structured(stub_server, plugin_data):
@@ -134,3 +140,16 @@ def test_auth_bootstrap_verifies_end_to_end(stub_server, plugin_data):
             assert (plugin_data / "local-token.json").exists()
 
     asyncio.run(scenario())
+
+
+def test_both_clients_present_one_device_identity(stub_server, plugin_data):
+    """The local server and the phase runtimes must agree on who this is.
+
+    A local token is matched server-side on the token hash *and* the device
+    hash, so a second opinion about this machine authenticates as nobody —
+    and the only symptom is a 401 that says nothing about its cause.
+    """
+    from adant_local import inference
+
+    store_token(plugin_data, GOOD)
+    assert inference.device_id() == api.device_identity()["device_id"]

@@ -10,6 +10,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from engagement_policy import primary_strategy_errors, selection_errors
+
 PLATFORMS = ("tiktok", "instagram", "youtube")
 RELEVANCE_TESTS = {
     "exact-client-product": 3,
@@ -174,6 +176,8 @@ def validate_group(
             f"{platform}.{group}: report URLs and audit selected URLs differ",
         )
 
+    if len(selected_urls) != len(selected_report):
+        errors.append(f"{platform}.{group}: duplicate selected URLs")
     gap_note = str(audit_platform.get(f"{group}_gap_note") or "").strip()
     if len(candidates) < 10 and not gap_note:
         errors.append(
@@ -221,8 +225,15 @@ def validate_group(
                 selected_required=item.get("selected") is True,
             ),
         )
-        if metric_value(item.get("metric")) < 0:
+        metric_reading = metric_value(item.get("metric"))
+        if metric_reading < 0:
             errors.append(f"{label}: metric is missing or unparsable")
+        elif metric_reading == 0:
+            # A scraper that loses the engagement row writes 0, not nothing, so
+            # a zero here is a failed measurement rather than a quiet post — and
+            # unlike a missing metric it clears every engagement floor below,
+            # including the 0 verified-niche fallback. Re-measure the candidate.
+            errors.append(f"{label}: metric reads zero — re-measure, do not curate")
         if (
             item.get("selected") is not True
             and not str(item.get("exclusion_reason") or "").strip()
@@ -244,6 +255,10 @@ def validate_group(
         if url not in by_url:
             errors.append(f"{label}: URL is absent from the candidate audit")
             continue
+        if item.get("metric") != by_url[url].get("metric"):
+            errors.append(f"{label}: report metric does not match audit evidence")
+        if item.get("duration_seconds") != by_url[url].get("duration_seconds"):
+            errors.append(f"{label}: report duration does not match audit evidence")
         audited_relevance = by_url[url].get("relevance")
         if item.get("relevance") != audited_relevance:
             errors.append(f"{label}: report relevance does not match audit evidence")
@@ -258,11 +273,17 @@ def validate_group(
         errors.append(f"{platform}.{group}: 5 selections require at least 3 formats")
 
     if group == "creator":
+        errors.extend(
+            selection_errors(
+                selected_report,
+                candidates,
+                platform,
+                str(audit_platform.get("creator_quality_gap") or ""),
+            )
+        )
         floor = creator_floor
         if floor not in (0, 1_000, 10_000, 50_000):
-            errors.append(
-                f"{platform}.creator_floor: must be 0, 1000, 10000, or 50000"
-            )
+            errors.append(f"{platform}.creator_floor: must be 0, 1000, 10000, or 50000")
             floor = 50_000
         if floor < 50_000 and not gap_note:
             errors.append(
@@ -390,6 +411,7 @@ def validate(
         errors.extend(validate_brand_reach(platform_audit, platform))
         if require_type_coverage:
             errors.extend(validate_content_type_coverage(data, platform))
+    errors.extend(primary_strategy_errors(data))
     return errors
 
 

@@ -18,6 +18,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -40,6 +41,8 @@ from config import (
     DEFAULT_RESULTS_PER_KEYWORD,
     MAX_RESULTS_PER_KEYWORD,
 )
+from counts import JS_COUNT_NOUN, JS_PARSE_COUNT, parse_count
+from recovery import parse_markdown_reel_list
 
 CDP_PORT = 9334  # Different port — never conflicts with user's Chrome or TikTok skill (9333)
 CHROME_BIN = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -457,19 +460,7 @@ def _build_detail_task(reel_urls: list[str]) -> str:
     url_list = "\n".join(f"  {i+1}. {url}" for i, url in enumerate(reel_urls))
 
     js_detail = r"""(function() {
-  function parseCount(s) {
-    if (!s) return null;
-    s = s.toString().trim().replace(/,/g, '');
-    var m = s.match(/^([\d.]+)\s*([KkMmBb]?)$/);
-    if (!m) return parseInt(s, 10) || null;
-    var n = parseFloat(m[1]);
-    var u = (m[2] || '').toUpperCase();
-    if (u === 'K') return Math.round(n * 1000);
-    if (u === 'M') return Math.round(n * 1000000);
-    if (u === 'B') return Math.round(n * 1000000000);
-    return Math.round(n);
-  }
-  var d = {};
+""" + JS_PARSE_COUNT + r"""  var d = {};
   // Caption
   var captionEl = document.querySelector('h1, [class*="Caption"], span[class*="_a9zs"]');
   d.caption = captionEl ? captionEl.textContent.trim().substring(0, 500) : null;
@@ -487,39 +478,25 @@ def _build_detail_task(reel_urls: list[str]) -> str:
     var userSpan = document.querySelector('header a span, a[role="link"] span');
     if (userSpan) d.username = userSpan.textContent.trim();
   }
-  // Engagement metrics — Instagram uses section elements with spans
-  var sections = document.querySelectorAll('section');
-  sections.forEach(function(sec) {
-    var spans = sec.querySelectorAll('span');
-    spans.forEach(function(span) {
-      var txt = span.textContent.trim();
-      var val = parseCount(txt);
-      if (val === null) return;
-      // Check nearby text/aria labels for context
-      var parent = span.parentElement;
-      var context = (parent ? parent.textContent : '').toLowerCase();
-      var ariaLabel = (span.getAttribute('aria-label') || parent?.getAttribute('aria-label') || '').toLowerCase();
-      if (ariaLabel.includes('like') || context.includes('like')) {
-        if (!d.like_count || val > d.like_count) d.like_count = val;
-      } else if (ariaLabel.includes('comment') || context.includes('comment')) {
-        if (!d.comment_count) d.comment_count = val;
-      } else if (ariaLabel.includes('view') || ariaLabel.includes('play') || context.includes('view') || context.includes('play')) {
-        if (!d.view_count || val > d.view_count) d.view_count = val;
-      }
-    });
-  });
-  // Also check for view/play counts in other elements
-  var allSpans = document.querySelectorAll('span[class]');
-  allSpans.forEach(function(span) {
-    var ariaLabel = (span.getAttribute('aria-label') || '').toLowerCase();
-    if (ariaLabel.includes('play') || ariaLabel.includes('view')) {
-      var val = parseCount(span.textContent.trim());
-      if (val && (!d.view_count || val > d.view_count)) d.view_count = val;
-    }
-    if (ariaLabel.includes('like')) {
-      var val = parseCount(span.textContent.trim());
-      if (val && (!d.like_count || val > d.like_count)) d.like_count = val;
-    }
+  // Engagement metrics. The noun must come from the SAME node as the number.
+  // Reading it from the parent's text instead put every count in the
+  // engagement row — which names likes, comments and plays together — into the
+  // first branch that matched, and "keep the larger value" then handed
+  // like_count the view count, always the biggest number in the row. Every
+  // Reel with a visible play count reported its plays as its likes.
+""" + JS_COUNT_NOUN + r"""  function recordCount(kind, val) {
+    if (!kind || val === null || val === undefined) return;
+    if (d[kind] === null || d[kind] === undefined) d[kind] = val;
+  }
+  document.querySelectorAll('section span, span[class], span[aria-label]').forEach(function(span) {
+    var val = parseCount(span.textContent.trim());
+    if (val === null) return;
+    var parent = span.parentElement;
+    var kind = countNoun(span.getAttribute('aria-label'))
+      || countNoun(span.textContent)
+      || countNoun(parent ? parent.getAttribute('aria-label') : null)
+      || countNoun(parent ? parent.textContent : null);
+    recordCount(kind, val);
   });
   // Follower count — visit the profile link area
   var metaEls = document.querySelectorAll('meta[name="description"], meta[property="og:description"]');
@@ -652,43 +629,6 @@ def _recover_results_from_files(since_timestamp: float = 0) -> dict | None:
     return result
 
 
-def _parse_markdown_reel_list(text: str) -> list[dict]:
-    """Parse markdown-formatted Reel list from extract tool output."""
-    import re
-    reels = []
-    current: dict = {}
-
-    for line in text.split("\n"):
-        line = line.strip().lstrip("- ")
-        # Match Reel URL
-        url_match = re.search(r'(?:Reel |URL)[:\s]*`?(https://www\.instagram\.com/reel/[A-Za-z0-9_-]+/?)`?', line)
-        if url_match:
-            if current.get("url"):
-                reels.append(current)
-            current = {"url": url_match.group(1)}
-            continue
-        # Match Caption
-        caption_match = re.search(r'(?:Caption|Description)[:\s]*`?(.+?)`?$', line)
-        if caption_match and current:
-            current["caption"] = caption_match.group(1).strip()
-            continue
-        # Match Creator/Username
-        creator_match = re.search(r"(?:Creator|Username|@username)[:\s]*@?`?(\S+?)`?$", line)
-        if creator_match and current:
-            current["username"] = creator_match.group(1).strip()
-            continue
-        # Match View Count
-        view_match = re.search(r'(?:View|Play)\s*[Cc]ount[:\s]*`?(\d+)`?', line)
-        if view_match and current:
-            current["view_count"] = int(view_match.group(1))
-            continue
-
-    if current.get("url"):
-        reels.append(current)
-
-    return reels
-
-
 def _recover_from_agent_history(result, keywords: list[str] | None = None) -> dict | None:
     """Scan agent history for JSON blocks or markdown-formatted Reel data."""
     if not hasattr(result, "history") or not result.history:
@@ -713,7 +653,7 @@ def _recover_from_agent_history(result, keywords: list[str] | None = None) -> di
                 continue
             for r in entry.result:
                 if hasattr(r, "extracted_content") and r.extracted_content:
-                    reels = _parse_markdown_reel_list(r.extracted_content)
+                    reels = parse_markdown_reel_list(r.extracted_content)
                     if len(reels) >= 3:  # Only use substantial extractions
                         all_reels.extend(reels)
 

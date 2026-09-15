@@ -1,12 +1,13 @@
 import { App } from "@modelcontextprotocol/ext-apps";
 
 "use strict";
-const PHASE_ORDER = ["doctor","product-profile","competitors","keywords",
+const PHASE_ORDER = ["doctor","product-profile","competitors","keywords","collect",
   "platform-tiktok","platform-instagram","platform-meta-ads","platform-youtube",
   "curation","report","strategy"];
 const PHASE_NAMES = {
   doctor:"Setup","product-profile":"Product profile", competitors:"Competitors",
-  keywords:"Keywords","platform-tiktok":"TikTok","platform-instagram":"Instagram",
+  keywords:"Keywords", collect:"Supplier search",
+  "platform-tiktok":"TikTok","platform-instagram":"Instagram",
   "platform-meta-ads":"Meta Ads","platform-youtube":"YouTube Shorts",
   curation:"Curation", report:"Report", strategy:"Strategy", delivery:"Save to AdAnt"};
 const GHOST_CANDIDATES = ["curation","report","strategy"];

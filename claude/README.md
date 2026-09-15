@@ -23,9 +23,11 @@ sh "${CLAUDE_PLUGIN_ROOT}/skills/adant-claude-setup/scripts/login-adant.sh"
 
 Social-research model work uses the installed AdAnt connection to mint a
 short-lived, scoped local token; it does not require a second CLI login or a
-Gemini/provider key. Local tools require `uv` and Chrome; `uv` provisions the
-locked Python runtime automatically, so no system Python or Node.js install is
-needed. Some searches also require an interactive TikTok or Instagram session.
+Gemini/provider key. Local tools require `uv`, which provisions the locked
+Python runtime automatically, so no system Python or Node.js install is needed.
+Platform search runs on AdAnt's servers; Chrome is needed only to fill gaps
+from the user's own logged-in browser and to export the PDF. Some of those
+searches also require an interactive TikTok or Instagram session.
 Hosts that cannot render the live MCP App receive a tokenized local-only
 progress URL.
 

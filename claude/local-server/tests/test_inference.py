@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -23,7 +24,10 @@ class StubApi(BaseHTTPRequestHandler):
         pass
 
     def _authed(self) -> bool:
-        return self.headers.get("authorization") == f"Bearer {TOKEN}"
+        return (
+            self.headers.get("authorization") == f"Bearer {TOKEN}"
+            and len(self.headers.get("x-adant-device-id", "")) >= 20
+        )
 
     def _json(self, value: dict, status: int = 200) -> None:
         data = json.dumps(value).encode()
@@ -44,6 +48,8 @@ class StubApi(BaseHTTPRequestHandler):
             self._json({"session": {"id": "s-1"}})
         elif self.path == "/api/app/brain/api/chat":
             assert body["sessionId"] == "s-1"
+            expected_model = os.environ.get("ADANT_BRAIN_MODEL")
+            assert body.get("model") == expected_model
             self.send_response(200)
             self.send_header("content-type", "text/event-stream")
             self.end_headers()
@@ -117,6 +123,12 @@ def test_agent_roundtrip_parses_json_and_cleans_up(stub_api, plugin_data):
     store_token(plugin_data)
     assert inference.ask_adant("give keywords") == {"keywords": ["neck relief"]}
     assert StubApi.deleted == ["/api/app/brain/api/sessions/s-1"]
+
+
+def test_agent_can_select_brain_model(stub_api, plugin_data, monkeypatch):
+    store_token(plugin_data)
+    monkeypatch.setenv("ADANT_BRAIN_MODEL", "claude-sonnet-5")
+    assert inference.ask_adant("give keywords") == {"keywords": ["neck relief"]}
 
 
 def test_missing_token_has_no_cli_fallback(stub_api, plugin_data):

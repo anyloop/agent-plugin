@@ -4,5 +4,11 @@ version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
     "python-dotenv>=1.0.0",
-    "yt-dlp[default,curl-cffi]>=2026.7.4",
+    # Exact pins, on purpose: this is the same downloader the brain's
+    # video-download skill and the harness's download_source run. When the
+    # three resolve different yt-dlp builds they disagree about which TikTok
+    # pages extract (#641). packages/agent/harness/tests/pipeline-download-pins
+    # fails if this lock drifts from theirs. Move all of them together.
+    "yt-dlp[default,curl-cffi]==2026.8.19",
+    "curl-cffi==0.10.0",
 ]

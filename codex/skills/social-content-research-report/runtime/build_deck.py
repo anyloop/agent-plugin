@@ -33,6 +33,7 @@ from strategy_slides import (
     MSG_WRAP_COLS,
     build_strategy_section,
     overlong_message_lines,
+    report_product,
     strategy_markdown,
     strategy_message,
 )
@@ -54,17 +55,23 @@ MIN_VIEWS_PREFERRED = 50_000
 ALLOWED_CREATOR_FLOORS = (50_000, 10_000, 1_000, 0)
 
 
+_METRIC_MULTIPLIER = {"": 1, "K": 1_000, "M": 1_000_000, "B": 1_000_000_000}
+
+
 def parse_metric(metric: str) -> int:
-    """Parse '1.2M likes' / '37.6K views' / '854 views' into an int, 0 if unparseable."""
-    m = re.search(r"([\d.,]+)\s*([KM]?)", str(metric), re.IGNORECASE)
+    """Parse '1.2M likes' / '37.6K views' / '854 views' into an int, 0 if unparseable.
+
+    B belongs in the table: without it "1.2B views" rounds to 1, and a video
+    that out-performs the whole set sorts to the bottom of it.
+    """
+    m = re.search(r"([\d,]+(?:\.\d+)?)\s*([KMB])?\b", str(metric), re.IGNORECASE)
     if not m:
         return 0
     try:
         n = float(m.group(1).replace(",", ""))
     except ValueError:
         return 0
-    unit = m.group(2).upper()
-    return int(n * (1_000_000 if unit == "M" else 1_000 if unit == "K" else 1))
+    return round(n * _METRIC_MULTIPLIER[(m.group(2) or "").upper()])
 
 
 def build_vid_grid(
@@ -347,8 +354,9 @@ def main() -> None:
             warnings += validate_platform(label, platforms[key])
     # A message line wider than the block still copies correctly, but it lands in
     # the paste with a line break the author never wrote. Warn so it gets cut.
+    product = report_product(data)
     for index, item in enumerate(data.get("strategies", {}).get("items", []), 1):
-        for line in overlong_message_lines(item):
+        for line in overlong_message_lines(item, product):
             warnings.append(
                 f"strategy {index} ({item.get('handle', '?')}): message line is "
                 f"{len(line)} chars, over the {MSG_WRAP_COLS} that fit — it will "
@@ -433,7 +441,7 @@ def main() -> None:
         blocks = []
         for index, item in enumerate(strategies, 1):
             title = item.get("title", "")
-            blocks.append(f"# {index}. {title}\n{strategy_message(item)}")
+            blocks.append(f"# {index}. {title}\n{strategy_message(item, product)}")
         txt_out.write_text("\n\n\n".join(blocks) + "\n")
         print(f"Copy-paste strategies written to {txt_out}")
 

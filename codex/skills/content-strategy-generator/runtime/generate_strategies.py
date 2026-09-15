@@ -210,13 +210,16 @@ RULES:
 - Pick the {n} STRONGEST candidates. The inspiration-video choice is the most important part:
   favor proven engagement, a hook that maps naturally onto the product, and format diversity
   across the batch (do not pick {n} videos of the same format).
-- Each strategy must be CONCISE - it becomes a short copy-paste message for the Adant clone
-  tool. Focus ONLY on: the inspiration video, the avatar, what to KEEP, what to CHANGE.
-  No full scripts, no long editing sections, no timelines.
-- KEEP the hook and the viral format that made the source work; the CHANGE is just how the
-  product ({args.product_name}) gets swapped in. Small changes only.
+- Each strategy must be CONCISE. The pasted brief is only three lines - the source url, a
+  "recreate this for {args.product_name}" line, and the avatar - so the clone stays CLOSE to
+  the source. No full scripts, no long editing sections, no timelines.
+- The source is reproduced, not re-premised: its hook, format, pacing and structure all
+  carry over untouched. The avatar is the ONE deliberate deviation, which makes
+  avatar_suggestion the highest-value field in the strategy - write it precisely.
 - avatar_suggestion: ONE sentence describing who/what is on camera, matched to the source
   video's character (or 'no prominent human character - focus on X' if none).
+- hook_to_keep / what_to_change / adapted_text_overlays are REPORT CONTEXT for the reader,
+  not instructions to the clone tool. Keep them short and descriptive.
 - adapted_text_overlays: 2-3 SHORT lines max, based on the fingerprint's exact overlays with
   the product swapped in. The last line can be a short product tag (e.g. "{args.product_name}: Ingredient Scanner").
 
@@ -288,7 +291,6 @@ Return JSON:
         c = by_url.get(s.get("inspiration_url", ""), {})
         url = s.get("inspiration_url", "")
         avatar = s.get("avatar_suggestion", "")
-        overlays = "\n".join(s.get("adapted_text_overlays", [])[:3])
         lines += [
             f"## Strategy {i} — {s.get('title', '')}",
             "",
@@ -301,14 +303,9 @@ Return JSON:
             "Copy below message to Adant (https://adant.ai):",
             "",
             "```text",
-            f"analyze {url}, and use a UGC avatar: {avatar}",
-            "",
-            f"Hook to keep: {s.get('hook_to_keep', '')}",
-            "",
-            f"What to change: {s.get('what_to_change', '')}",
-            "",
-            "Add text overlay:",
-            overlays,
+            f"analyze {url}",
+            f"Recreate the video for {args.product_name}",
+            *([f"Change the Avatar: {avatar}"] if avatar else []),
             "```",
             "",
         ]

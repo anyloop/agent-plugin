@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
+from engagement_policy import quality_gap
+
 PLATFORMS = ("tiktok", "instagram", "youtube")
+
 CREATOR_FLOORS = (50_000, 10_000, 1_000, 0)
 MINIMUM_PER_PAGE = 4
 TARGET_PER_PAGE = 5
@@ -115,9 +118,7 @@ def extract_hashtags(text: str, *, limit: int = 20) -> list[str]:
     return _dedupe(re.findall(r"#[\w]+", text, flags=re.UNICODE))[:limit]
 
 
-def mine_relevant_hashtags(
-    audit: dict[str, Any], *, limit: int = 24
-) -> list[str]:
+def mine_relevant_hashtags(audit: dict[str, Any], *, limit: int = 24) -> list[str]:
     """Mine hashtags only from candidates that already pass relevance review."""
     found: list[str] = []
     for platform in audit.get("platforms", {}).values():
@@ -130,10 +131,9 @@ def mine_relevant_hashtags(
                 relevance = item.get("relevance")
                 if not isinstance(relevance, dict):
                     continue
-                if (
-                    relevance.get("test") not in RELEVANT_TESTS
-                    or relevance.get("specificity") not in (2, 3)
-                ):
+                if relevance.get("test") not in RELEVANT_TESTS or relevance.get(
+                    "specificity"
+                ) not in (2, 3):
                     continue
                 text = " ".join(
                     _string_values(
@@ -144,11 +144,9 @@ def mine_relevant_hashtags(
                     )
                 )
                 found.extend(extract_hashtags(text, limit=limit))
-    return [
-        tag
-        for tag in _dedupe(found)
-        if tag.casefold() not in GENERIC_HASHTAGS
-    ][:limit]
+    return [tag for tag in _dedupe(found) if tag.casefold() not in GENERIC_HASHTAGS][
+        :limit
+    ]
 
 
 def choose_creator_floor(
@@ -189,7 +187,18 @@ def build_gap_plan(
                 candidate_count = len(audited_candidates)
             else:
                 candidate_count = candidate_target if count >= target else count
-            if count >= target and candidate_count >= candidate_target:
+            quality = (
+                quality_gap(
+                    platform_data.get(key, []), audited_candidates or [], platform
+                )
+                if pool == "creator" and isinstance(audited_candidates, list)
+                else {}
+            )
+            if (
+                count >= target
+                and candidate_count >= candidate_target
+                and not quality.get("performance_missing")
+            ):
                 continue
             search_modes = list(
                 BRAND_SEARCH_MODES if pool == "brand" else CREATOR_SEARCH_MODES
@@ -198,6 +207,7 @@ def build_gap_plan(
                 {
                     "platform": platform,
                     "pool": pool,
+                    **quality,
                     "current": count,
                     "target": target,
                     "minimum": minimum,
@@ -214,7 +224,7 @@ def build_gap_plan(
                     "stop_condition": (
                         "Do not render below the minimum card count. Continue to the "
                         "target from the relevance-qualified candidate buffer; lower "
-                        "creator reach only after every query mode is exhausted."
+                        "creator reach only after recorded searches; label quality gaps and context exceptions."
                     ),
                 }
             )
@@ -302,9 +312,7 @@ def _mode_queries(
 ) -> list[dict[str, Any]]:
     """Build ordered, auditable query passes for one underfilled pool."""
     names = _dedupe(
-        str(entity.get("name") or "")
-        for entity in all_entities
-        if entity.get("name")
+        str(entity.get("name") or "") for entity in all_entities if entity.get("name")
     )
     compact_tags = _dedupe(compact_hashtag(name) for name in names)
     domain_queries = _dedupe(
@@ -348,9 +356,7 @@ def _mode_queries(
             "content-type-expansion": [
                 f"{name} {action}" for name in names for action in type_actions
             ],
-            "indexed-fallback": [
-                f'site:{platform_domain} "{name}"' for name in names
-            ],
+            "indexed-fallback": [f'site:{platform_domain} "{name}"' for name in names],
         }
     else:
         product_names = _dedupe([client_name, *competitor_names])
@@ -409,7 +415,7 @@ def _mode_queries(
                 "max_results_per_query": 20,
                 "run_policy": (
                     "Run primary batches, re-curate, then run reserve batches only "
-                    "while this page remains below four qualified cards."
+                    "while this page lacks enough qualified cards or strong engagement evidence."
                 ),
             }
         )

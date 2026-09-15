@@ -15,6 +15,29 @@ Meta ads, cross-platform patterns, five primary strategies, and next steps with
 three reserves. Missing thumbnails use an intentional placeholder; missing
 required evidence fails strict mode.
 
+## Strategy briefs
+
+Each of the five strategy cards ends in one copy-paste brief, and it is exactly
+three lines — the report builder renders it, so never hand-write one:
+
+```text
+analyze <inspiration video url>
+Recreate the video for <cover.clientName, or the strategy's own `product`>
+Change the Avatar: <avatar>
+```
+
+The brief asks for a CLOSE recreation. It carries no "keep", "change", "style",
+or "overlay" direction: those briefed a bigger departure than the source
+warranted, and a proven video is worth cloning because it is reproduced, not
+re-premised. Keep writing `keep`, `change`, and `overlays` onto each strategy —
+they still render as report context — they are just not pasted.
+
+Those three lines are also what ROUTES the paste: `analyze <url>` plus a source
+and a modification note is the high-fidelity-video-clone trigger, so a brief
+missing the `analyze` opener or the avatar note can land in template-led
+generation instead. Set `cover.clientName` to a brand name or a product URL;
+either reads correctly. Per-strategy `product` overrides it for one card.
+
 ## Save to AdAnt
 
 1. Call `report_local(action="manifest", params={data, pdf, html, audit})`.

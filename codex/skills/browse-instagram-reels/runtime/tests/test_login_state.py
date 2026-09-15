@@ -2,9 +2,18 @@ import json
 import sqlite3
 import sys
 import time
+import unittest
 from pathlib import Path
 
-import browse
+try:
+    import browse
+except ModuleNotFoundError as exc:
+    # `unittest discover` imports every test module, and the plugin runtime
+    # check runs it on a bare interpreter that has none of this skill's
+    # runtime dependencies. This file is pytest-shaped and contributes no
+    # unittest cases either way, so let discovery skip past it rather than
+    # error; pytest still runs it in full where the deps are installed.
+    raise unittest.SkipTest(f"browse runtime dependencies unavailable: {exc}") from exc
 
 
 def _write_cookie(

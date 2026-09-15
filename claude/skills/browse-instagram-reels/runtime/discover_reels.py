@@ -45,17 +45,19 @@ def log(msg: str) -> None:
     print(msg, flush=True)
 
 
+_COUNT_MULTIPLIER = {"": 1, "K": 1_000, "M": 1_000_000, "B": 1_000_000_000}
+
+
 def parse_count(text: str) -> int:
-    """'12.3K' / '1,234' / '2M' -> int."""
-    m = re.match(r"([\d.,]+)\s*([KM]?)", text.strip(), re.IGNORECASE)
+    """'12.3K' / '1,234' / '2M' / '1.1B' -> int."""
+    m = re.match(r"([\d.,]+)\s*([KMB]?)", text.strip(), re.IGNORECASE)
     if not m:
         return 0
     try:
         n = float(m.group(1).replace(",", ""))
     except ValueError:
         return 0
-    unit = m.group(2).upper()
-    return int(n * (1_000_000 if unit == "M" else 1_000 if unit == "K" else 1))
+    return round(n * _COUNT_MULTIPLIER[m.group(2).upper()])
 
 
 def _extract_reel_urls(hrefs: list[str], max_results: int) -> list[str]:
@@ -111,7 +113,7 @@ def fetch_reel(url: str) -> dict | None:
     if not desc and not title:
         return None
     likes = comments = 0
-    m = re.match(r"([\d.,KM]+) likes, ([\d.,KM]+) comments", desc or "")
+    m = re.match(r"([\d.,KMB]+) likes, ([\d.,KMB]+) comments", desc or "", re.IGNORECASE)
     if m:
         likes, comments = parse_count(m.group(1)), parse_count(m.group(2))
     handle = ""

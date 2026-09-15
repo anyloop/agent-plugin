@@ -88,8 +88,10 @@ def test_payload_maps_uploads_fills_messages_and_drops_connect(tmp_path: Path) -
     assert payload["reportId"] == "rp_1"
     assert payload["source"] == "chatgpt"
     assert "connect" not in payload["data"]
+    # The brief names the source, the product it is recreated for (taken from
+    # cover.clientName), and the one deviation — never keep/change/overlay.
     assert payload["data"]["strategies"]["items"][0]["message"] == (
-        "analyze https://x/1\n\nAvatar: UGC — a\n\nKeep: k\n\nChange: c\n\nOverlay:\no1\no2"
+        "analyze https://x/1\nRecreate the video for Acme\nChange the Avatar: UGC — a"
     )
     assert any("tiktok-2.jpg" in n for n in result["notes"])
 

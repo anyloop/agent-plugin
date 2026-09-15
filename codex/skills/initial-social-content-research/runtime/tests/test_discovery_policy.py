@@ -101,8 +101,14 @@ class DiscoveryPolicyTest(unittest.TestCase):
         data = {
             "platforms": {
                 "tiktok": {"brand_videos": [{}], "creator_videos": []},
-                "instagram": {"brand_videos": [{}, {}, {}, {}, {}], "creator_videos": [{}, {}, {}, {}]},
-                "youtube": {"brand_videos": [{}, {}, {}, {}, {}], "creator_videos": [{}, {}, {}, {}, {}]},
+                "instagram": {
+                    "brand_videos": [{}, {}, {}, {}, {}],
+                    "creator_videos": [{}, {}, {}, {}],
+                },
+                "youtube": {
+                    "brand_videos": [{}, {}, {}, {}, {}],
+                    "creator_videos": [{}, {}, {}, {}, {}],
+                },
             }
         }
 
@@ -110,7 +116,11 @@ class DiscoveryPolicyTest(unittest.TestCase):
 
         self.assertEqual(
             [(item["platform"], item["pool"], item["missing"]) for item in plan],
-            [("tiktok", "brand", 4), ("tiktok", "creator", 5), ("instagram", "creator", 1)],
+            [
+                ("tiktok", "brand", 4),
+                ("tiktok", "creator", 5),
+                ("instagram", "creator", 1),
+            ],
         )
         self.assertEqual(
             plan[0]["search_modes"][:3],
@@ -177,7 +187,8 @@ class DiscoveryPolicyTest(unittest.TestCase):
 
         plan = build_gap_plan(data, audit=audit)
 
-        self.assertEqual(len(plan), 1)
+        # Placeholder creator cards also require engagement verification.
+        self.assertEqual(len(plan), 4)
         self.assertEqual(plan[0]["platform"], "tiktok")
         self.assertEqual(plan[0]["missing"], 0)
         self.assertEqual(plan[0]["candidate_missing"], 7)
@@ -327,7 +338,9 @@ class DiscoveryPolicyTest(unittest.TestCase):
             passes["mined-hashtag"]["queries"],
         )
 
-    def test_thin_page_still_expands_formats_when_platform_types_are_covered(self) -> None:
+    def test_thin_page_still_expands_formats_when_platform_types_are_covered(
+        self,
+    ) -> None:
         covered_types = [
             "branded / owned IP",
             "branded commercial",
@@ -338,8 +351,7 @@ class DiscoveryPolicyTest(unittest.TestCase):
             "platforms": {
                 "tiktok": {
                     "brand_videos": [
-                        {"content_type": content_type}
-                        for content_type in covered_types
+                        {"content_type": content_type} for content_type in covered_types
                     ],
                     "creator_videos": [{"content_type": "educational"}] * 3,
                 },

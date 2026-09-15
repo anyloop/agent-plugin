@@ -37,9 +37,8 @@ an idempotency key only for the identical logical request.
 ## Local files
 
 Call `doctor` first. If local authentication is absent, mint the minimum scopes
-needed by first calling `device_identity`, then passing its fields to
-`adant_mint_local_token`; pass the token directly to `auth_bootstrap` and never
-echo it in chat.
+needed by passing the fields of its `device` to `adant_mint_local_token`; pass
+the token directly to `auth_bootstrap` and never echo it in chat.
 
 - Upload: `media_local(action="upload", path=<file>, params={})`.
 - Analyze: use action `analyze` with `prompt` and optional `response_format`,

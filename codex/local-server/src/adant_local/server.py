@@ -11,11 +11,9 @@ from __future__ import annotations
 
 import json
 import os
-import platform
 import re
 import shutil
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +24,7 @@ from adant_local import (
     artifacts,
     events,
     fallback,
+    identity,
     media,
     phases,
     report,
@@ -54,7 +53,7 @@ def error(code: str, message: str, fix: str | None = None) -> dict:
 
 
 def plugin_data_dir() -> Path:
-    return api.data_dir()
+    return identity.data_dir()
 
 
 # ---------- panel ----------
@@ -164,64 +163,59 @@ def _check(
     return {"name": name, "ok": ok, "detail": detail, "fix": fix, "required": required}
 
 
+def _find_chrome() -> str | None:
+    candidates = [
+        "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+        shutil.which("google-chrome"),
+        shutil.which("google-chrome-stable"),
+        shutil.which("chromium"),
+        shutil.which("chromium-browser"),
+    ]
+    return next((c for c in candidates if c and Path(c).exists()), None)
+
+
+def _session_logged_in(platform: str) -> tuple[int, bool | None]:
+    """Run the platform's read-only login check. Returns the exit code and
+    the reported state; None means the check could not tell."""
+    project = phases.skills_root() / phases.LOGIN_PLATFORMS[platform] / "runtime"
+    script = str(project / "browse.py")
+    code, out = _run(
+        ["uv", "run", "--project", str(project), script, "--login-check"], 240
+    )
+    for line in reversed(out.splitlines()):
+        line = line.strip()
+        if line.startswith("{") and "logged_in" in line:
+            try:
+                return code, json.loads(line).get("logged_in")
+            except json.JSONDecodeError:
+                break
+    return code, None
+
+
 @mcp.tool(meta={"ui": {"resourceUri": UI_URI, "visibility": ["model", "app"]}})
 def doctor(sessions: bool = False) -> dict:
-    """One-pass local preflight for AdAnt research: Python, uv, Chrome,
-    yt-dlp, and local auth. Read-only — never opens windows or starts a
-    login flow. Report every missing item to the user in ONE consolidated
-    message. sessions=true adds the slow TikTok/Instagram session checks."""
+    """One-pass local preflight for AdAnt research. Read-only — never opens
+    windows or starts a login flow. Checks local auth, and Chrome as an
+    advisory: supplier search runs on AdAnt's servers, so Chrome is only
+    needed for browser gap-fill and PDF export. `device` is this install's
+    opaque identity — when `adant-auth` is missing, pass both of its fields
+    to adant_mint_local_token, then the minted token to auth_bootstrap.
+    sessions=true adds the slow TikTok/Instagram login-state checks. Report
+    every missing item to the user in ONE consolidated message."""
     events.emit("doctor", "start", "preflight checks running", skill="doctor")
+    chrome = _find_chrome()
     checks = [
-        _check(
-            "python",
-            sys.version_info >= (3, 11),
-            platform.python_version(),
-            None if sys.version_info >= (3, 11) else "Install Python 3.11+",
-        )
-    ]
-    code, out = _run(["uv", "--version"], 15)
-    checks.append(
-        _check(
-            "uv",
-            code == 0,
-            out.splitlines()[0] if out else "not found",
-            None if code == 0 else "curl -LsSf https://astral.sh/uv/install.sh | sh",
-        )
-    )
-    chrome = next(
-        (
-            c
-            for c in [
-                "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                shutil.which("google-chrome"),
-                shutil.which("google-chrome-stable"),
-                shutil.which("chromium"),
-                shutil.which("chromium-browser"),
-            ]
-            if c and Path(c).exists()
-        ),
-        None,
-    )
-    checks.append(
         _check(
             "chrome",
             chrome is not None,
             chrome or "not found",
-            None if chrome else "Install Google Chrome",
-        )
-    )
-    ytdlp = shutil.which("yt-dlp")
-    checks.append(
-        _check(
-            "yt-dlp",
-            ytdlp is not None,
-            ytdlp or "not found",
-            None if ytdlp else "Install yt-dlp (inspiration-video analysis only)",
+            None
+            if chrome
+            else "Install Google Chrome (browser gap-fill and PDF export only)",
             required=False,
         )
-    )
-    token_file = plugin_data_dir() / "local-token.json"
-    has_token = token_file.exists()
+    ]
+    has_token = identity.token_file().exists()
     checks.append(
         _check(
             "adant-auth",
@@ -229,10 +223,26 @@ def doctor(sessions: bool = False) -> dict:
             "local token present" if has_token else "no local token",
             None
             if has_token
-            else "run adant_mint_local_token (remote MCP), then auth_bootstrap",
+            else "pass `device` to adant_mint_local_token (remote MCP), then auth_bootstrap",
             required=False,
         )
     )
+    if sessions:
+        for platform_name in phases.LOGIN_PLATFORMS:
+            _, logged_in = _session_logged_in(platform_name)
+            checks.append(
+                _check(
+                    f"session-{platform_name}",
+                    logged_in,
+                    {True: "logged in", False: "not logged in", None: "unknown"}[
+                        logged_in
+                    ],
+                    None
+                    if logged_in
+                    else f'platform_session("{platform_name}", "open") after asking the user',
+                    required=False,
+                )
+            )
     for check in checks:
         state = {True: "ok", False: "missing", None: "unknown"}[check["ok"]]
         events.emit(
@@ -252,18 +262,14 @@ def doctor(sessions: bool = False) -> dict:
         )
     else:
         events.emit("doctor", "done", "all required checks passed", skill="doctor")
-    return {"ok": not failures, "checks": checks}
+    return {
+        "ok": not failures,
+        "checks": checks,
+        "device": identity.device_identity(),
+    }
 
 
 # ---------- auth ----------
-
-
-@mcp.tool
-def device_identity() -> dict:
-    """Return this local plugin install's stable opaque device identity.
-    Pass both fields directly to adant_mint_local_token; the id is not an
-    account credential and must not be edited or shared across devices."""
-    return api.device_identity()
 
 
 @mcp.tool
@@ -467,18 +473,7 @@ def platform_session(platform: str, action: str = "check") -> dict:
     project = phases.skills_root() / skill / "runtime"
     script = str(project / "browse.py")
     if action == "check":
-        code, out = _run(
-            ["uv", "run", "--project", str(project), script, "--login-check"], 240
-        )
-        logged_in: bool | None = None
-        for line in reversed(out.splitlines()):
-            line = line.strip()
-            if line.startswith("{") and "logged_in" in line:
-                try:
-                    logged_in = json.loads(line).get("logged_in")
-                except json.JSONDecodeError:
-                    pass
-                break
+        code, logged_in = _session_logged_in(platform)
         if code != 0 and logged_in is None:
             return error(
                 "platform-login-required", f"{platform} login check failed to run"

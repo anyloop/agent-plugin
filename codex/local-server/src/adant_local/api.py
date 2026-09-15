@@ -11,11 +11,10 @@ from __future__ import annotations
 
 import json
 import os
-import platform
-import secrets
-from pathlib import Path
 
 import httpx
+
+from adant_local.identity import device_identity, token_file
 
 BRAIN_PROXY_PATH = "/api/app/brain"
 DEFAULT_SERVER_URL = "https://api.adant.ai"
@@ -41,48 +40,9 @@ def server_url() -> str:
     )
 
 
-def data_dir() -> Path:
-    root = (
-        os.environ.get("PLUGIN_DATA", "").strip()
-        or os.environ.get("CLAUDE_PLUGIN_DATA", "").strip()
-    )
-    return Path(root) if root else Path.home() / ".adant" / "plugin-data"
-
-
-def _token_file() -> Path:
-    return data_dir() / "local-token.json"
-
-
-def device_identity() -> dict[str, str]:
-    """Return a stable opaque id and recognizable name for this install."""
-    identity_file = data_dir() / "device.json"
-    try:
-        saved = json.loads(identity_file.read_text())
-        device_id = saved["device_id"]
-        device_name = saved["device_name"]
-        if isinstance(device_id, str) and isinstance(device_name, str):
-            return {"device_id": device_id, "device_name": device_name}
-    except (OSError, KeyError, TypeError, json.JSONDecodeError):
-        pass
-
-    node = platform.node().strip()
-    system = platform.system().strip() or "Local device"
-    device_name = f"{system} · {node}" if node else system
-    identity = {
-        "device_id": secrets.token_urlsafe(32),
-        "device_name": device_name[:100],
-    }
-    identity_file.parent.mkdir(parents=True, exist_ok=True)
-    temp_file = identity_file.with_suffix(".tmp")
-    temp_file.write_text(json.dumps(identity))
-    temp_file.chmod(0o600)
-    temp_file.replace(identity_file)
-    return identity
-
-
 def load_token() -> str:
     try:
-        return json.loads(_token_file().read_text())["token"]
+        return json.loads(token_file().read_text())["token"]
     except (OSError, KeyError, json.JSONDecodeError) as exc:
         raise ApiError(
             "not-authenticated",

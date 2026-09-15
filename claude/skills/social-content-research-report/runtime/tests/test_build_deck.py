@@ -7,7 +7,7 @@ from pathlib import Path
 RUNTIME = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RUNTIME))
 
-from build_deck import validate_platform
+from build_deck import parse_metric, validate_platform
 from copy_validation import validate_reader_copy
 
 
@@ -196,6 +196,23 @@ class ValidatePlatformTest(unittest.TestCase):
         warnings = validate_platform("Instagram", section)
 
         self.assertTrue(any("creator_top_up_complete" in warning for warning in warnings))
+
+
+class ParseMetricTest(unittest.TestCase):
+    def test_reads_the_abbreviated_forms(self) -> None:
+        self.assertEqual(parse_metric("1.2M likes"), 1_200_000)
+        self.assertEqual(parse_metric("37.6K views"), 37_600)
+        self.assertEqual(parse_metric("854 views"), 854)
+        self.assertEqual(parse_metric("1,234,567 views"), 1_234_567)
+
+    def test_keeps_a_billion_a_billion(self) -> None:
+        # Without B in the table this rounded to 1, and the best video in the
+        # set sorted below one with 854 views.
+        self.assertEqual(parse_metric("1.2B views"), 1_200_000_000)
+
+    def test_unparseable_is_zero(self) -> None:
+        self.assertEqual(parse_metric("n/a"), 0)
+        self.assertEqual(parse_metric(""), 0)
 
 
 if __name__ == "__main__":

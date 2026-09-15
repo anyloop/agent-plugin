@@ -6,14 +6,26 @@ slides into copy-paste messages for Adant, using the exact block shape that
 `content-strategy-generator/runtime/generate_strategies.py` emits so a reader
 who later runs the full `social-content-strategist` batch sees the same format:
 
-    analyze <url>, and use a UGC avatar: <avatar>
+    analyze <url>
+    Recreate the video for <product>
+    Change the Avatar: <avatar>
 
-    Hook to keep: <hook>
+Three lines, no blank separators. The brief names the SOURCE, asks for that
+video to be recreated for this product, then states the single deviation that
+is actually wanted — the avatar.
 
-    What to change: <what changes for this product>
+It deliberately carries no "keep" / "change" / "overlay" direction. Those lines
+briefed a bigger rewrite than the source warranted: a `Change:` sentence like
+"contrast wearable posture gadgets with on-device Mac coaching" re-premises the
+ad, and what makes a proven video worth cloning is that it is reproduced
+CLOSELY. `keep`, `change`, and `overlays` stay on the strategy as report
+context and still render on the page; they are simply no longer pasted.
 
-    Add text overlay:
-    <overlay lines>
+The wording is also what ROUTES the paste. The high-fidelity video clone skill
+triggers on an "analyze this video" request that supplies a source plus
+modification notes, so leading with `analyze <url>` and following it with a
+recreate-for-product line and an avatar note lands in that clone flow rather
+than in template-led generation. Keep those three cues when editing.
 
 The General Instructions block is shown once on the section opener, never per
 strategy, matching the strategy report.
@@ -35,33 +47,36 @@ use Seedance 2.0
 Just mention in the instruction using natural language"""
 
 
-def strategy_message(strategy: dict) -> str:
+def report_product(data: dict) -> str:
+    """What this report's briefs recreate for — the cover's client name.
+
+    A brand name ("Plumb") or a product URL both read correctly in the
+    `Recreate the video for …` line, so either may be set on the cover.
+    """
+    return str((data.get("cover") or {}).get("clientName", "")).strip()
+
+
+def strategy_message(strategy: dict, product: str = "") -> str:
     """Build the copy-paste message body for one strategy (plain text).
 
     One idea per line, each short enough never to wrap. The url sits alone so a
-    long TikTok permalink can never push the avatar onto a second line.
+    long TikTok permalink can never push anything onto a second line.
 
-    `avatar` names a TYPE and a look — the reference video decides which, so an
-    animated reference never yields a "UGC avatar". `keep` names WHAT is being
-    reused (hook, viral format, visual style, structure, pacing) rather than
-    always the hook. Legacy keys still render so older report_data keeps working.
+    `product` is what the clone is for — a brand name or a product URL. A
+    per-strategy `product` key overrides the report-wide one, which lets a
+    single report brief different SKUs. `avatar` names a TYPE and a look: the
+    reference video decides which, so an animated reference never yields a
+    "UGC avatar", and the line is dropped entirely when no avatar is set
+    rather than pasting a dangling label.
     """
-    overlays = [line for line in strategy.get("overlays", []) if line][:3]
-    avatar = strategy.get("avatar", "")
-    keep = strategy.get("keep") or strategy.get("hook_to_keep", "")
-    change = strategy.get("change") or strategy.get("what_to_change", "")
+    name = str(strategy.get("product") or product or "").strip()
+    avatar = str(strategy.get("avatar", "")).strip()
     lines = [
         f"analyze {strategy.get('url', '')}",
-        "",
-        f"Avatar: {avatar}",
-        "",
-        f"Keep: {keep}",
-        "",
-        f"Change: {change}",
+        f"Recreate the video for {name or 'this product'}",
     ]
-    if strategy.get("style"):
-        lines += ["", f"Style: {strategy['style']}"]
-    lines += ["", "Overlay:", *overlays]
+    if avatar:
+        lines.append(f"Change the Avatar: {avatar}")
     return "\n".join(lines)
 
 
@@ -73,7 +88,7 @@ def strategy_message(strategy: dict) -> str:
 MSG_WRAP_COLS = 130
 
 
-def overlong_message_lines(strategy: dict) -> list[str]:
+def overlong_message_lines(strategy: dict, product: str = "") -> list[str]:
     """Logical lines that will have to wrap — the caller warns so they get cut.
 
     A wrapped line still copies correctly, but it lands in the paste with a line
@@ -82,12 +97,12 @@ def overlong_message_lines(strategy: dict) -> list[str]:
     """
     return [
         line
-        for line in strategy_message(strategy).split("\n")
+        for line in strategy_message(strategy, product).split("\n")
         if len(line) > MSG_WRAP_COLS
     ]
 
 
-def message_lines(strategy: dict) -> list[str]:
+def message_lines(strategy: dict, product: str = "") -> list[str]:
     """Physical lines of the copy-paste message, ready to render one-per-element.
 
     Soft-wrapping this text in CSS makes the PDF uncopyable. Chrome's printToPDF
@@ -102,7 +117,7 @@ def message_lines(strategy: dict) -> list[str]:
     off, so a long URL overflows its line rather than being cut in half.
     """
     out: list[str] = []
-    for logical in strategy_message(strategy).split("\n"):
+    for logical in strategy_message(strategy, product).split("\n"):
         if not logical:
             out.append("")
             continue
@@ -146,7 +161,9 @@ def _opener_slide(section: dict, page: int) -> str:
 """
 
 
-def _strategy_slide(strategy: dict, index: int, total: int, page: int, pill: str) -> str:
+def _strategy_slide(
+    strategy: dict, index: int, total: int, page: int, pill: str, product: str = ""
+) -> str:
     # One element per visual line: keeps PDF text runs in document order and
     # lets a copy round-trip. Blank lines need a non-breaking space to hold height.
     # Blank separators carry NO text: a &nbsp; spacer copies out of the PDF as an
@@ -155,7 +172,7 @@ def _strategy_slide(strategy: dict, index: int, total: int, page: int, pill: str
     message = "".join(
         f'<div class="msg-line">{html.escape(line)}</div>' if line
         else '<div class="msg-gap"></div>'
-        for line in message_lines(strategy)
+        for line in message_lines(strategy, product)
     )
     meta_bits = [
         strategy.get("format", ""),
@@ -227,12 +244,15 @@ def build_strategy_section(data: dict, start_page: int, platform_pill: dict) -> 
         return "", 0
 
     connect = data.get("connect", {})
+    product = report_product(data)
     page = start_page
     blocks = [_opener_slide(section, page)]
     for index, strategy in enumerate(items, 1):
         page += 1
         pill = platform_pill.get(strategy.get("platform", ""), strategy.get("platform", "").upper())
-        blocks.append(_strategy_slide(strategy, index, len(items), page, pill))
+        blocks.append(
+            _strategy_slide(strategy, index, len(items), page, pill, product)
+        )
     page += 1
     blocks.append(_closing_slide(section, connect, page))
     return "\n".join(blocks), page - start_page + 1
@@ -246,6 +266,7 @@ def strategy_markdown(data: dict) -> list[str]:
         return []
 
     connect = data.get("connect", {})
+    product = report_product(data)
     url = connect.get("connectUrl", "https://adant.ai")
     lines = [
         "## Sample Content Strategy",
@@ -279,7 +300,7 @@ def strategy_markdown(data: dict) -> list[str]:
             f"Copy below message to Adant ({url}):",
             "",
             "```text",
-            strategy_message(strategy),
+            strategy_message(strategy, product),
             "```",
             "",
         ]

@@ -61,3 +61,61 @@ def test_workflow_complete_freezes_completion(isolated_workspace):
     completed = workflow.run("complete")["workflow"]
     assert completed["status"] == "complete"
     assert completed["completed"].endswith("Z")
+
+
+def test_collect_is_its_own_stage_ahead_of_browser_gap_fill(isolated_workspace):
+    plan = workflow.run(
+        "start",
+        mode="production-complete",
+        subject="Nimbus",
+        workspace=str(isolated_workspace / "research"),
+    )["workflow"]
+    ids = [stage["id"] for stage in plan["stages"]]
+    # Remote collection costs the user nothing to install and answers in
+    # seconds; browser gap fill costs a Chrome install, a logged-in account
+    # and minutes. Folding them into one stage told every user to expect the
+    # expensive one.
+    assert ids.index("collect") < ids.index("discovery")
+    stages = {stage["id"]: stage for stage in plan["stages"]}
+    assert stages["collect"]["kind"] == "remote"
+    assert stages["discovery"]["kind"] == "conditional"
+    # The budgets partition the mode target rather than adding to it.
+    assert sum(stage["budget_seconds"] for stage in plan["stages"]) == plan[
+        "target_seconds"
+    ]
+
+
+def test_remote_stage_reports_itself_as_a_phase(isolated_workspace):
+    workflow.run(
+        "start",
+        mode="production-complete",
+        subject="Nimbus",
+        workspace=str(isolated_workspace / "research"),
+    )
+    workflow.run("stage_start", stage="collect")
+    workflow.run("stage_complete", stage="collect")
+    phases = [
+        (event["phase"], event["status"])
+        for event in events.snapshot()["events"]
+        if event["phase"] == "collect"
+    ]
+    # The progress card derives stage state from phase events, and a remote
+    # stage has no local process to emit any — so without this the step that
+    # actually found the videos is the one step the card never shows.
+    assert ("collect", "start") in phases
+    assert ("collect", "done") in phases
+
+
+def test_a_local_stage_does_not_forge_a_phase_event(isolated_workspace):
+    workflow.run(
+        "start",
+        mode="production-complete",
+        subject="Nimbus",
+        workspace=str(isolated_workspace / "research"),
+    )
+    workflow.run("stage_start", stage="discovery")
+    assert not [
+        event
+        for event in events.snapshot()["events"]
+        if event["phase"].startswith("platform-")
+    ]

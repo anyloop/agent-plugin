@@ -11,8 +11,8 @@ from urllib.request import urlopen
 import pytest
 from fastmcp import Client
 
-from adant_local import events
-from adant_local.server import UI_MIME, UI_URI, mcp
+from adant_local import events, server
+from adant_local.server import MEDIA_UI_URI, UI_MIME, UI_URI, mcp
 
 
 @pytest.fixture(autouse=True)
@@ -28,7 +28,7 @@ def run(coro):
     return asyncio.run(coro)
 
 
-def test_tools_and_panel_contract():
+def test_tools_and_panel_contract(isolated_workspace):
     async def scenario():
         async with Client(mcp) as client:
             tools = {t.name: t for t in await client.list_tools()}
@@ -47,13 +47,25 @@ def test_tools_and_panel_contract():
                 "platform_session",
             }
             assert tools["research_progress_open"].meta["ui"]["resourceUri"] == UI_URI
+            assert tools["media_local"].meta["ui"]["resourceUri"] == MEDIA_UI_URI
             assert "PROACTIVELY" in tools["research_progress_open"].description
-            resource = (await client.list_resources())[0]
-            assert str(resource.uri) == UI_URI
+            resources = {str(item.uri): item for item in await client.list_resources()}
+            resource = resources[UI_URI]
             assert resource.mimeType == UI_MIME
+            assert resources[MEDIA_UI_URI].mimeType == UI_MIME
             page = (await client.read_resource(UI_URI))[0].text
             assert "ui/initialize" in page and "AdAnt Research" in page
             assert "callServerTool" in page and "bridgeRequest" not in page
+            media_page = (await client.read_resource(MEDIA_UI_URI))[0].text
+            assert "ui/initialize" in media_page
+            assert "callServerTool" in media_page
+            assert "window.parent.postMessage" not in media_page
+            first_device = (await client.call_tool("doctor", {})).data["device"]
+            second_device = (await client.call_tool("doctor", {})).data["device"]
+            assert first_device == second_device
+            assert len(first_device["device_id"]) >= 20
+            assert first_device["device_name"]
+            assert (isolated_workspace / "plugin-data" / "device.json").stat().st_mode & 0o777 == 0o600
             opened = (await client.call_tool("research_progress_open", {})).data
             assert opened["widgetSessionId"]
             assert opened["fallbackUrl"].startswith("http://127.0.0.1:")
@@ -68,13 +80,43 @@ def test_doctor_emits_events_and_shape():
         async with Client(mcp) as client:
             result = (await client.call_tool("doctor", {"sessions": False})).data
             names = [c["name"] for c in result["checks"]]
-            assert names == ["python", "uv", "chrome", "yt-dlp", "adant-auth"]
-            assert "node" not in names  # v2 drops the Node/npx prerequisite
+            assert names == ["chrome", "adant-auth"]
+            # The server is launched by uv, so Python and uv are implied by the
+            # call itself; yt-dlp ships inside the strategy phase's own uv
+            # environment and was never read off the system PATH; Chrome is
+            # advisory now that supplier search runs server-side. Nothing
+            # local can block a run any more.
+            assert all(check["required"] is False for check in result["checks"])
+            assert result["ok"] is True
             for check in result["checks"]:
                 assert set(check) == {"name", "ok", "detail", "fix", "required"}
+            assert set(result["device"]) == {"device_id", "device_name"}
         snap = events.snapshot()
         statuses = [e["status"] for e in snap["events"] if e["phase"] == "doctor"]
         assert statuses[0] == "start" and statuses[-1] in ("done", "need-user")
+
+    run(scenario())
+
+
+def test_doctor_sessions_reuses_the_login_check(isolated_workspace, monkeypatch):
+    seen: list[str] = []
+
+    def fake_check(platform_name: str) -> tuple[int, bool | None]:
+        seen.append(platform_name)
+        return 0, {"tiktok": True, "instagram": None}[platform_name]
+
+    monkeypatch.setattr(server, "_session_logged_in", fake_check)
+
+    async def scenario():
+        async with Client(mcp) as client:
+            result = (await client.call_tool("doctor", {"sessions": True})).data
+            by_name = {c["name"]: c for c in result["checks"]}
+            assert seen == ["tiktok", "instagram"]
+            assert by_name["session-tiktok"]["ok"] is True
+            assert by_name["session-tiktok"]["fix"] is None
+            assert by_name["session-instagram"]["ok"] is None
+            assert "platform_session" in by_name["session-instagram"]["fix"]
+            assert result["ok"] is True  # sessions are advisory too
 
     run(scenario())
 

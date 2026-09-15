@@ -29,7 +29,7 @@ def candidate(platform: str, group: str, index: int, selected: bool) -> dict:
     item = {
         "url": f"https://example.com/{platform}/{group}/{index}",
         "handle": f"@{group}{index % 3}",
-        "metric": f"{500 - index}K views",
+        "metric": f"{500 - index}K {'views' if platform == 'youtube' else 'likes'}",
         "format": ("REVIEW", "SETUP", "COMPARISON")[index % 3],
         "content_type": content_types[index % len(content_types)],
         "selected": selected,
@@ -110,6 +110,28 @@ class ValidateCurationTest(unittest.TestCase):
         self.assertEqual(1, len(errors))
         self.assertIn("found 2", errors[0])
 
+    def test_report_cannot_omit_audited_long_form_duration(self) -> None:
+        data, audit = valid_payloads()
+        audit["platforms"]["tiktok"]["creator_candidates"][0]["duration_seconds"] = 453
+        self.assertTrue(
+            any("duration does not match" in e for e in validate(data, audit))
+        )
+
+    def test_report_cannot_inflate_audited_engagement(self) -> None:
+        data, audit = valid_payloads()
+        data["platforms"]["tiktok"]["creator_videos"][0]["metric"] = "9M likes"
+        self.assertTrue(
+            any("metric does not match" in e for e in validate(data, audit))
+        )
+
+    def test_duplicate_posts_cannot_fill_quality_quota(self) -> None:
+        data, audit = valid_payloads()
+        cards = data["platforms"]["tiktok"]["creator_videos"]
+        cards[1] = copy.deepcopy(cards[0])
+        self.assertTrue(
+            any("duplicate selected URLs" in e for e in validate(data, audit))
+        )
+
     def test_accepts_relevant_high_reach_selection(self) -> None:
         data, audit = valid_payloads()
         self.assertEqual(validate(data, audit), [])
@@ -163,7 +185,7 @@ class ValidateCurationTest(unittest.TestCase):
         validate(data, audit)
         self.assertEqual((data, audit), before)
 
-    def test_allows_one_thousand_floor_after_recorded_targeted_top_up(self) -> None:
+    def test_rejects_low_floor_when_stronger_candidates_are_available(self) -> None:
         data, audit = valid_payloads()
         platform = audit["platforms"]["tiktok"]
         platform["creator_floor"] = 1_000
@@ -172,11 +194,11 @@ class ValidateCurationTest(unittest.TestCase):
         )
         platform["creator_top_up_complete"] = True
         for index, item in enumerate(data["platforms"]["tiktok"]["creator_videos"]):
-            metric = f"{9 - index}K views"
+            metric = f"{9 - index}K likes"
             item["metric"] = metric
             platform["creator_candidates"][index]["metric"] = metric
 
-        self.assertEqual(validate(data, audit), [])
+        self.assertTrue(any("stronger relevant" in e for e in validate(data, audit)))
 
     def test_rejects_one_thousand_floor_without_recorded_targeted_top_up(self) -> None:
         data, audit = valid_payloads()
@@ -191,7 +213,7 @@ class ValidateCurationTest(unittest.TestCase):
             errors,
         )
 
-    def test_allows_zero_floor_for_verified_niche_after_exhaustive_top_up(self) -> None:
+    def test_rejects_zero_floor_when_stronger_candidates_are_available(self) -> None:
         data, audit = valid_payloads()
         platform = audit["platforms"]["instagram"]
         platform["creator_floor"] = 0
@@ -204,7 +226,29 @@ class ValidateCurationTest(unittest.TestCase):
             item["metric"] = metric
             platform["creator_candidates"][index]["metric"] = metric
 
-        self.assertEqual(validate(data, audit), [])
+        self.assertTrue(any("stronger relevant" in e for e in validate(data, audit)))
+
+    def test_rejects_a_zero_metric_even_under_the_zero_floor(self) -> None:
+        # A scrape that loses the engagement row writes 0, and 0 clears every
+        # floor below it — including the verified-niche fallback of 0 — so the
+        # failed measurement is the one reading a floor check cannot catch.
+        data, audit = valid_payloads()
+        platform = audit["platforms"]["instagram"]
+        platform["creator_floor"] = 0
+        platform["creator_gap_note"] = (
+            "The local practitioner niche produced five exact service posts but fewer than five above 1K."
+        )
+        platform["creator_top_up_complete"] = True
+        for index, item in enumerate(data["platforms"]["instagram"]["creator_videos"]):
+            item["metric"] = "0 likes"
+            platform["creator_candidates"][index]["metric"] = "0 likes"
+
+        errors = validate(data, audit)
+
+        self.assertTrue(
+            any("metric reads zero" in error for error in errors),
+            f"expected a zero-metric refusal, got {errors}",
+        )
 
     def test_rejects_relaxed_creator_floor_with_incomplete_search_modes(self) -> None:
         data, audit = valid_payloads()
@@ -266,7 +310,9 @@ class ValidateCurationTest(unittest.TestCase):
 
         errors = validate(data, audit, minimum_cards=4)
 
-        self.assertIn("tiktok.brand: requires at least 4 selected cards, found 3", errors)
+        self.assertIn(
+            "tiktok.brand: requires at least 4 selected cards, found 3", errors
+        )
 
     def test_type_coverage_gate_requires_three_types_per_platform(self) -> None:
         data, audit = valid_payloads()
@@ -297,7 +343,9 @@ class ValidateCurationTest(unittest.TestCase):
 
         self.assertEqual(validate(data, audit), [])
 
-    def test_rejects_unverified_brand_candidate_without_relationship_evidence(self) -> None:
+    def test_rejects_unverified_brand_candidate_without_relationship_evidence(
+        self,
+    ) -> None:
         data, audit = valid_payloads()
         item = audit["platforms"]["instagram"]["brand_candidates"][2]
         item["official_account_verified"] = False

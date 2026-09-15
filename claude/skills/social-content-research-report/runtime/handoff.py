@@ -37,7 +37,7 @@ import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from strategy_slides import strategy_message  # noqa: E402
+from strategy_slides import report_product, strategy_message  # noqa: E402
 
 DECK_KEYS = {"pdf": "pdfUploadId", "html": "htmlUploadId", "audit": "auditUploadId"}
 
@@ -201,8 +201,9 @@ def cmd_payload(args: argparse.Namespace) -> dict:
             payload[DECK_KEYS[entry["kind"]]] = upload_id
     # The brief is the one thing Studio sends verbatim; write it once, here,
     # so the web never has to re-assemble it.
+    product = report_product(data)
     for item in data.get("strategies", {}).get("items", []):
-        item["message"] = strategy_message(item)
+        item["message"] = strategy_message(item, product)
     data.pop("connect", None)
     if args.report_id:
         payload["reportId"] = args.report_id
