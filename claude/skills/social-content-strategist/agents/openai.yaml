@@ -1,4 +1,4 @@
 interface:
   display_name: "Social Content Strategist"
-  short_description: "Turn fresh video trends into content strategies"
-  default_prompt: "Use $social-content-strategist to find fresh video trends and turn them into distinct content strategies."
+  short_description: "Turn fresh video trends into a strategy brief you can run in Studio"
+  default_prompt: "Use $social-content-strategist to find fresh videos like my examples and turn them into distinct content strategies, delivered as a PDF and a saved AdAnt report with one-click Create in Studio."

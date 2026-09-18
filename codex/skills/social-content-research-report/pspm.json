@@ -1,7 +1,7 @@
 {
   "$schema": "https://pspm.dev/schema/v1/pspm.json",
   "name": "social-content-research-report",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generate a Social Content Research deck (13 landscape slides, Adant AI brand) from TikTok, Instagram Reels + Meta Ads, and YouTube Shorts research — content-focused with ~10 diverse contents per platform, no pricing or deliverables, closing with an About Adant AI past-records slide",
   "author": "Adant AI",
   "license": "Apache-2.0",
@@ -12,7 +12,8 @@
     "Enforce content diversity: max 3 videos per account per platform, 3+ distinct content formats",
     "Generate the Meta Ads creative reference grid with Ad Library links",
     "Close with a one-page About Adant AI past-records Let's-connect slide (hero metrics + case phones)",
-    "Validate unfilled placeholders and content counts before PDF rendering"
+    "Validate unfilled placeholders and content counts before PDF rendering",
+    "Trim the deck to the strategy brief (cover, searched platforms, Meta Ads, strategies) when report_data.json carries layout strategy_brief"
   ],
   "main": "SKILL.md",
   "files": ["SKILL.md", "runtime", "templates"],

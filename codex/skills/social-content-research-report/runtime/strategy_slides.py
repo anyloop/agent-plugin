@@ -156,7 +156,7 @@ def _opener_slide(section: dict, page: int) -> str:
       <div class="gen-pre">{html.escape(GENERAL_INSTRUCTIONS)}</div>
     </div>
   </div>
-  <div class="page-num">{page}</div>
+  <div class="page-num">{page:02d}</div>
 </div>
 """
 
@@ -202,7 +202,7 @@ def _strategy_slide(
       <div class="msg-block">{message}</div>
     </div>
   </div>
-  <div class="page-num">{page}</div>
+  <div class="page-num">{page:02d}</div>
 </div>
 """
 
@@ -227,7 +227,7 @@ def _closing_slide(section: dict, connect: dict, page: int) -> str:
     <a class="cn-link" href="{url}" target="_blank">{link_text}</a>
     <div class="cn-contact">{connect.get('connectContact', '')}</div>
   </div>
-  <div class="page-num">{page}</div>
+  <div class="page-num">{page:02d}</div>
 </div>
 """
 

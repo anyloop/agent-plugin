@@ -46,7 +46,32 @@ def log(msg: str) -> None:
     print(msg, flush=True)
 
 
+VIDEO_URL = re.compile(r"^https?://(?:www\.|m\.|vm\.)?(?:tiktok\.com|instagram\.com|youtube\.com|youtu\.be)/")
+
+
+def urls_in_json(node) -> list[str]:
+    """Every platform video URL held in a JSON document — a saved report read back
+    through adant_get_product_report carries them in `videos`, `strategies` and `videoUrls`."""
+    out: list[str] = []
+    if isinstance(node, dict):
+        for v in node.values():
+            out += urls_in_json(v)
+    elif isinstance(node, list):
+        for v in node:
+            out += urls_in_json(v)
+    elif isinstance(node, str) and VIDEO_URL.match(node.strip()):
+        out.append(node.strip())
+    return out
+
+
 def extract_urls(report_path: Path) -> list[str]:
+    if report_path.suffix.lower() == ".json":
+        seen, out = set(), []
+        for u in urls_in_json(json.loads(report_path.read_text())):
+            if u not in seen:
+                seen.add(u)
+                out.append(u)
+        return out
     if report_path.suffix.lower() == ".pdf":
         import fitz
 

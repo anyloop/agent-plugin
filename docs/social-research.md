@@ -46,3 +46,8 @@ The same social skills ship for Codex and local Claude Code. Browser-dependent
 workflows require a local desktop environment; remote or web-only agent hosts
 may provide research through their own browsing tools but cannot run the local
 Chrome adapters directly.
+
+The `browse-*` platform skills are deprecated as of 2026-09-16: platform search
+already runs on AdAnt's servers, and the rest of the research path follows.
+They remain the gap-fill and fallback step until then; do not build new flows
+on them.

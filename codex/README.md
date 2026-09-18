@@ -12,9 +12,10 @@ the AdAnt connection prompt during installation and start a new task so the
 skills and MCP tools are discovered.
 
 If AdAnt was installed or updated in the current task, start a new task first.
-If its tools are still unavailable there, open AdAnt under **Plugins** >
-**Installed** or **Personal**, complete any connection prompt, then start
-another new task. ChatGPT desktop does not require the separate `codex`
+If its tools are still unavailable there, check which MCP server failed.
+For remote authentication, open AdAnt under **Plugins** > **Installed** or
+**Personal** and complete the connection prompt. For local startup failures,
+use the runtime setup and recovery procedure below. ChatGPT desktop does not require the separate `codex`
 terminal command.
 
 ## Install in Codex CLI
@@ -86,3 +87,16 @@ be exposed.
 
 For product information, visit [adant.ai](https://adant.ai). For help, email
 [contact@anyloop.ai](mailto:contact@anyloop.ai).
+
+## Local runtime setup and recovery
+
+If the local MCP server reports that uv is missing, run
+`sh /absolute/path/to/plugin/local-server/setup.sh --install-runtime`, or ask
+AdAnt initialization to repair the local runtime. This installs uv from Astral
+without changing shell profiles and prepares the locked Python environment
+outside the MCP startup timeout. Reconnect the local MCP server afterward; if
+the host has no reconnect control, start a new task with your original request.
+Restarting the desktop app does not install missing dependencies.
+
+You can combine initialization and work in that task: “Initialize AdAnt, then
+research this product: <URL>.” No separate post-initialization task is needed.

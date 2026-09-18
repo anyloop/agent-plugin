@@ -87,10 +87,23 @@ def load_history(path: Path | None) -> dict:
     return {"strategies": [], "excluded_urls": []}
 
 
+def video_key(url: str) -> str:
+    """The platform's own id for a video, so `www.`, redirects, query strings and
+    trailing slashes never let an already-seen video back in."""
+    m = (
+        re.search(r"/video/(\d+)", url)
+        or re.search(r"/(?:reel|reels|p)/([A-Za-z0-9_-]+)", url)
+        or re.search(r"/shorts/([A-Za-z0-9_-]+)", url)
+        or re.search(r"[?&]v=([A-Za-z0-9_-]+)", url)
+        or re.search(r"youtu\.be/([A-Za-z0-9_-]+)", url)
+    )
+    return m.group(1) if m else url.strip().rstrip("/").split("?")[0]
+
+
 def past_urls(history: dict) -> set[str]:
     urls = {s.get("inspiration_url", "") for s in history.get("strategies", [])}
     urls |= set(history.get("excluded_urls", []))
-    return {u.rstrip("/") for u in urls if u}
+    return {video_key(u) for u in urls if u}
 
 
 def main() -> None:
@@ -123,7 +136,7 @@ def main() -> None:
     candidates = json.loads(Path(args.candidates).read_text())
     usable = []
     for c in candidates:
-        if c["url"].rstrip("/") in excluded:
+        if video_key(c["url"]) in excluded:
             log(f"  skip (in history): {c['url']}")
             continue
         apath = Path(c["analysis_path"])

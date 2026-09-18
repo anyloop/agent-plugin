@@ -28,6 +28,7 @@ import urllib.parse
 from collections import Counter
 from pathlib import Path
 
+from brief_layout import BRIEF_COVER_CATEGORY, RESEARCH_COVER_CATEGORY, is_brief, trim_to_brief
 from copy_validation import validate_reader_copy
 from strategy_slides import (
     MSG_WRAP_COLS,
@@ -101,10 +102,14 @@ def build_vid_grid(
     for v in videos[:5]:
         fmt = v.get("format", "")
         fmt_html = f'<div class="f">{fmt}</div>' if fmt else ""
+        # A video with no thumbnail (a brief built from collected metadata)
+        # keeps its frame and platform pill; the frame is the placeholder.
+        thumb = v.get("thumb") or ""
+        img_html = f'<img src="{thumb}" alt="{v.get("handle", "")}">' if thumb else ""
         cards.append(
             f'    <a class="vid-card" href="{v["url"]}" target="_blank">\n'
             f'      <div class="vid-thumb"><div class="pf">{pill}</div>'
-            f'<img src="{v["thumb"]}" alt="{v.get("handle", "")}"></div>\n'
+            f'{img_html}</div>\n'
             f'      <div class="vid-meta"><div class="h">{v.get("handle", "")}</div>'
             f'<div class="v">{v.get("metric", "")}</div>{fmt_html}</div>\n'
             f"    </a>"
@@ -137,9 +142,11 @@ def build_ads_grid(ads: list[dict], cropped: bool = False, empty_note: str | Non
                 "https://www.facebook.com/ads/library/?active_status=active&ad_type=all"
                 f"&country=US&q={query}&search_type=keyword_unordered"
             )
+        thumb = ad.get("thumb") or ""
+        img_html = f'<img src="{thumb}" alt="{ad["advertiser"]} ad">' if thumb else ""
         cards.append(
             f'    <a class="ad-card" href="{href}" target="_blank">\n'
-            f'      <div class="ad-thumb"><img src="{ad["thumb"]}" alt="{ad["advertiser"]} ad"></div>\n'
+            f'      <div class="ad-thumb">{img_html}</div>\n'
             f'      <div class="ad-label">{ad["advertiser"]}</div>\n'
             f"    </a>"
         )
@@ -170,9 +177,14 @@ def build_case_row(connect: dict) -> str:
     return '<div class="case-row">\n' + "\n".join(cards) + "\n      </div>"
 
 
-def validate_platform(name: str, section: dict) -> list[str]:
+def validate_platform(name: str, section: dict, *, brief: bool = False) -> list[str]:
     """Diversity checks for one platform: content count, per-account cap, format mix,
-    and the audit-backed adaptive creator-engagement floor."""
+    and the audit-backed adaptive creator-engagement floor.
+
+    A strategy brief is a scoped run with fewer videos by design, so it skips the
+    per-page minimum and the format-mix floors; the per-account cap and the
+    creator-engagement floor still apply.
+    """
     warnings = []
     videos = section.get("brand_videos", []) + section.get("creator_videos", [])
     creator_floor = section.get("creator_floor", MIN_VIEWS_PREFERRED)
@@ -204,7 +216,9 @@ def validate_platform(name: str, section: dict) -> list[str]:
     total = len(videos)
     for group, key in (("brand", "brand_videos"), ("creator", "creator_videos")):
         count = len(section.get(key, []))
-        if count < MIN_PER_PAGE:
+        if brief and count == 0:
+            continue  # an empty slot is dropped from the brief, not padded
+        if not brief and count < MIN_PER_PAGE:
             warnings.append(
                 f"{name}: {group} page has only {count} cards "
                 f"(minimum {MIN_PER_PAGE}, target {TARGET_PER_PAGE})"
@@ -215,6 +229,8 @@ def validate_platform(name: str, section: dict) -> list[str]:
             warnings.append(
                 f"{name}: @{handle} appears {count}x (max {MAX_PER_ACCOUNT} per account for diversity)"
             )
+    if brief:
+        return warnings
     formats = {v.get("format", "").lower() for v in videos if v.get("format")}
     if total >= 5 and len(formats) < 3:
         warnings.append(f"{name}: only {len(formats)} distinct content formats — aim for 3+")
@@ -254,31 +270,12 @@ def _plain(text: str) -> str:
     return re.sub(r"</?[a-z][^>]*>", "", str(text))
 
 
-def build_markdown(data: dict) -> str:
-    """Render report_data.json as a readable markdown version of the deck."""
-    cover = data.get("cover", {})
-    ex = data.get("exec", {})
-    land = data.get("landscape", {})
-    comp = data.get("competitive", {})
-    platforms = data.get("platforms", {})
-    ads = data.get("meta_ads", {})
-    fmts = data.get("formats", {})
-    conn = data.get("connect", {})
-
-    lines = [
-        f"# {cover.get('clientName', '')} — Social Content Research",
-        f"*{_plain(cover.get('reportSubtitle', ''))}*",
-        "",
-        f"Prepared for {cover.get('clientContact', '')} · {cover.get('reportDate', '')}",
-        "",
-        "## Executive Summary",
-        f"**{_plain(ex.get('execSummaryHeadline', ''))}**",
-        "",
-    ]
+def _narrative_markdown(ex: dict, land: dict, comp: dict) -> list[str]:
+    """The executive summary, landscape and competitive field — deck only."""
+    lines = ["## Executive Summary", f"**{_plain(ex.get('execSummaryHeadline', ''))}**", ""]
     for i in (1, 2, 3):
         lines.append(f"{i}. {_plain(ex.get(f'finding{i}', ''))}")
     lines += ["", f"**What this means for content:** {_plain(ex.get('execRecommendation', ''))}", ""]
-
     lines += [
         "## The Landscape",
         f"**{_plain(land.get('landscapeHeadline', ''))}**",
@@ -293,6 +290,46 @@ def build_markdown(data: dict) -> str:
     for i in (1, 2, 3):
         lines.append(f"- **{comp.get(f'tier{i}Header', '')}: {comp.get(f'tier{i}Brand', '')}** [{comp.get(f'tier{i}Badge', '')}] — {_plain(comp.get(f'tier{i}Desc', ''))}")
     lines.append("")
+    return lines
+
+
+def _closing_markdown(fmts: dict, conn: dict) -> list[str]:
+    """The format patterns and the About page — deck only."""
+    lines = ["## Content Format Patterns", f"**{_plain(fmts.get('formatsHeadline', ''))}**", ""]
+    for i in (1, 2, 3, 4):
+        lines.append(f"- **{fmts.get(f'format{i}Name', '')}** [{fmts.get(f'format{i}Tag', '')}] — {_plain(fmts.get(f'format{i}Desc', ''))}")
+    lines.append("")
+    lines += ["## About Adant AI", "", _plain(conn.get("aboutAdantCopy", "")), ""]
+    for i in (1, 2, 3):
+        if conn.get(f"case{i}_brand"):
+            lines.append(f"- {conn[f'case{i}_brand']} — {conn.get(f'case{i}_stat', '')}: {conn.get(f'case{i}_url', '')}")
+    lines += ["", f"{conn.get('connectContact', '')} · {conn.get('connectUrl', '')}", ""]
+    return lines
+
+
+def build_markdown(data: dict) -> str:
+    """Render report_data.json as a readable markdown version of the deck.
+
+    A strategy brief keeps the cover, the platform slots that hold videos, Meta
+    Ads when present, and the strategies — the same cut `brief_layout` makes.
+    """
+    brief = is_brief(data)
+    cover = data.get("cover", {})
+    platforms = data.get("platforms", {})
+    ads = data.get("meta_ads", {})
+    category = BRIEF_COVER_CATEGORY if brief else RESEARCH_COVER_CATEGORY
+
+    lines = [
+        f"# {cover.get('clientName', '')} — {category}",
+        f"*{_plain(cover.get('reportSubtitle', ''))}*",
+        "",
+        f"Prepared for {cover.get('clientContact', '')} · {cover.get('reportDate', '')}",
+        "",
+    ]
+    if not brief:
+        lines += _narrative_markdown(
+            data.get("exec", {}), data.get("landscape", {}), data.get("competitive", {})
+        )
 
     def vid_table(videos: list[dict]) -> list[str]:
         rows = ["| Account | Metric | Format | Link |", "|---|---|---|---|"]
@@ -305,11 +342,16 @@ def build_markdown(data: dict) -> str:
         if not section:
             continue
         # Brand/competitor leads, then organic creator - same order as the slides.
-        lines += [f"## {label} — Brand & Competitor", f"**{_plain(section.get('brand_headline', ''))}**", "", _plain(section.get("brand_intro", "")), ""]
-        lines += vid_table(section.get("brand_videos", [])) + [""]
-        lines += [f"## {label} — Organic Creators", f"**{_plain(section.get('creator_headline', ''))}**", "", _plain(section.get("creator_intro", "")), ""]
-        lines += vid_table(section.get("creator_videos", [])) + [""]
+        if not brief or section.get("brand_videos"):
+            lines += [f"## {label} — Brand & Competitor", f"**{_plain(section.get('brand_headline', ''))}**", "", _plain(section.get("brand_intro", "")), ""]
+            lines += vid_table(section.get("brand_videos", [])) + [""]
+        if not brief or section.get("creator_videos"):
+            lines += [f"## {label} — Organic Creators", f"**{_plain(section.get('creator_headline', ''))}**", "", _plain(section.get("creator_intro", "")), ""]
+            lines += vid_table(section.get("creator_videos", [])) + [""]
 
+    if brief and not ads.get("ads"):
+        lines += strategy_markdown(data)
+        return "\n".join(lines)
     lines += ["## Meta Ads — Creative Reference", f"**{_plain(ads.get('headline', ''))}**", "", _plain(ads.get("intro", "")), ""]
     lines += ["| Advertiser | Ad |", "|---|---|"]
     for ad in ads.get("ads", []):
@@ -321,16 +363,8 @@ def build_markdown(data: dict) -> str:
         lines.append(f"| {ad.get('advertiser', '')} | [view ad]({href}) |")
     lines.append("")
 
-    lines += ["## Content Format Patterns", f"**{_plain(fmts.get('formatsHeadline', ''))}**", ""]
-    for i in (1, 2, 3, 4):
-        lines.append(f"- **{fmts.get(f'format{i}Name', '')}** [{fmts.get(f'format{i}Tag', '')}] — {_plain(fmts.get(f'format{i}Desc', ''))}")
-    lines.append("")
-
-    lines += ["## About Adant AI", "", _plain(conn.get("aboutAdantCopy", "")), ""]
-    for i in (1, 2, 3):
-        if conn.get(f"case{i}_brand"):
-            lines.append(f"- {conn[f'case{i}_brand']} — {conn.get(f'case{i}_stat', '')}: {conn.get(f'case{i}_url', '')}")
-    lines += ["", f"{conn.get('connectContact', '')} · {conn.get('connectUrl', '')}", ""]
+    if not brief:
+        lines += _closing_markdown(data.get("formats", {}), data.get("connect", {}))
     lines += strategy_markdown(data)
     return "\n".join(lines)
 
@@ -345,13 +379,14 @@ def main() -> None:
 
     data = json.loads(Path(args.data).read_text())
     html = TEMPLATE_PATH.read_text()
+    brief = is_brief(data)
 
     # ── Content validation ──────────────────────────────────────────────
     warnings = validate_reader_copy(data)
     platforms = data.get("platforms", {})
     for key, label in [("tiktok", "TikTok"), ("instagram", "Instagram"), ("youtube", "YouTube Shorts")]:
         if key in platforms:
-            warnings += validate_platform(label, platforms[key])
+            warnings += validate_platform(label, platforms[key], brief=brief)
     # A message line wider than the block still copies correctly, but it lands in
     # the paste with a line break the author never wrote. Warn so it gets cut.
     product = report_product(data)
@@ -414,7 +449,12 @@ def main() -> None:
     placeholders.update(data.get("connect", {}))
     placeholders.update(grids)
 
-    strategy_html, strategy_pages = build_strategy_section(data, RESEARCH_SLIDES + 1, PLATFORM_PILL)
+    # A brief keeps only the slides its data fills; the strategies count on
+    # from wherever that leaves the page numbers.
+    research_pages = RESEARCH_SLIDES
+    if brief:
+        html, research_pages = trim_to_brief(html, data)
+    strategy_html, strategy_pages = build_strategy_section(data, research_pages + 1, PLATFORM_PILL)
     placeholders["strategySectionHtml"] = strategy_html
 
     for k, v in placeholders.items():
@@ -460,7 +500,7 @@ def main() -> None:
     strategies = data.get("strategies", {}).get("items", [])
     if strategies:
         print(f"  Sample Content Strategy: {len(strategies)} strategies over {strategy_pages} slides")
-    print(f"  Total slides: {RESEARCH_SLIDES + strategy_pages}")
+    print(f"  Total slides: {research_pages + strategy_pages}")
 
 
 if __name__ == "__main__":

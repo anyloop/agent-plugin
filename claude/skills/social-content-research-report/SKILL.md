@@ -1,6 +1,6 @@
 ---
 name: social-content-research-report
-description: Build and deliver the fixed 13-slide AdAnt social-content research report from validated research data, including thumbnails, markdown, PDF, and optional Studio save.
+description: Build and deliver the fixed 13-slide AdAnt social-content research report — or its strategy-brief subset — from validated research data, including thumbnails, markdown, PDF, and optional Studio save.
 ---
 
 # Social Content Research Report
@@ -37,6 +37,19 @@ and a modification note is the high-fidelity-video-clone trigger, so a brief
 missing the `analyze` opener or the avatar note can land in template-led
 generation instead. Set `cover.clientName` to a brand name or a product URL;
 either reads correctly. Per-strategy `product` overrides it for one card.
+
+## Strategy brief layout
+
+`report_data.json` may carry `"layout": "strategy_brief"` — the
+social-content-strategist skill's deliverable. The builder then keeps only the
+cover, the platform slides whose slot holds videos, the Meta Ads slide when
+`meta_ads.ads` is non-empty, and the strategy section, renumbered from the
+cover. Strict mode drops the per-page minimum and the format-mix checks for a
+brief (a scoped run has fewer videos by design); the per-account cap and the
+creator floors still apply. The narrative sections (`exec`, `landscape`,
+`competitive`, `formats`, `connect`) are omitted from the data. The save
+handoff below is unchanged; the server files a brief under its own report
+kind, so it never becomes a new version of the product's full research report.
 
 ## Save to AdAnt
 

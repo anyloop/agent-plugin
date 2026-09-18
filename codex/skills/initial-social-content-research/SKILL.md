@@ -31,7 +31,8 @@ the runtime prefers the persistent in-app Browser, with Chrome/CDP fallback.
    four platforms from AdAnt's own servers: no browser, no social account
    of the user's, seconds rather than minutes. It returns posts already
    judged against the outlier thresholds and names any platform it could not
-   reach instead of silently returning fewer. Close with `stage_complete`.
+   reach instead of silently returning fewer. Pass a stable `idempotency_key` per
+   search set (`collect-1`): a repeat replays; a failed key needs a new one. Close with `stage_complete`.
    Read the gaps before deciding what is left; a run that reaches every
    platform needs no browser at all.
 3. Only if step 2 left something unreached or curation identifies a quality gap, call

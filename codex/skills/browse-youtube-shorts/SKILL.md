@@ -5,6 +5,14 @@ description: Browse YouTube Shorts by keywords for visible trend and creator evi
 
 # Browse YouTube Shorts
 
+> **Deprecated (2026-09-16).** Platform search already runs on AdAnt's
+> servers through supplier APIs (`adant_research_collect`: no browser, no
+> social login), and video analysis and the rest of the research path move
+> there next. This skill stays as the gap-fill step of
+> `initial-social-content-research` and as the fallback where the server tool
+> is not available; it goes away once the server path is the only one. Do not
+> build new flows on it.
+
 Use the `control-in-app-browser` skill and its browser-client selection flow when
 available; the runtime prefers the persistent in-app Browser. Never inspect
 browser secrets.

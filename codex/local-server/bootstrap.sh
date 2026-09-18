@@ -1,6 +1,11 @@
 #!/bin/sh
 set -eu
 
+case "${1:-}" in
+  ''|--check-runtime|--prepare) ;;
+  *) printf '%s\n' 'adant-local: unknown bootstrap option' >&2; exit 2 ;;
+esac
+
 # GUI hosts start MCP servers with a minimal PATH. Locate uv in its standard
 # install directories, then let uv provision Python and the locked environment.
 find_uv() {
@@ -30,13 +35,18 @@ find_uv() {
 if ! uv_bin="$(find_uv)"; then
   printf '%s\n' \
     "adant-local: uv is required but was not found." \
-    "Install it with: curl -LsSf https://astral.sh/uv/install.sh | sh" \
+    "Run the plugin's local-server/setup.sh --install-runtime, then reconnect the local MCP server." \
     "Python does not need to be installed; uv provisions it automatically." >&2
   exit 127
 fi
 
 server_root="$(CDPATH= cd "$(dirname "$0")" && pwd)"
 export PATH="$(dirname "$uv_bin")${PATH:+:$PATH}"
+
+case "${1:-}" in
+  --check-runtime) exec "$uv_bin" --version ;;
+  --prepare) exec "$uv_bin" sync --frozen --no-dev --project "$server_root" ;;
+esac
 
 exec "$uv_bin" run \
   --frozen \
