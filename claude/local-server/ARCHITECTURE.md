@@ -12,6 +12,11 @@ contracts are frozen in `docs/design/plugin-v2-r1-schemas.md`.
   single-file asset and has a tokenized 127.0.0.1 HTTP fallback. The POSIX
   launcher locates `uv`; `uv` provisions Python and the frozen production
   environment, so users do not need a system Python installation.
+  Research child processes inherit explicit `SSL_CERT_FILE` / `SSL_CERT_DIR`
+  settings. When neither is configured and Python has no default CA file,
+  the supervisor supplies its bundled certifi CA file through `SSL_CERT_FILE`,
+  so isolated phase environments can verify HTTPS without system CA setup.
+  Certificate and hostname verification remain enabled.
   Run: `uv run adant-local` · Test: `uv run pytest`.
 
 R1 became the default research execution surface in #596. R2 removed the v1

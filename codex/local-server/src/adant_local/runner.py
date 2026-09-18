@@ -11,11 +11,14 @@ from __future__ import annotations
 import json
 import os
 import signal
+import ssl
 import subprocess
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+
+import certifi
 
 from adant_local import events
 
@@ -186,6 +189,17 @@ def _supervise(
         _active_jobs.discard(_job_key(phase, progress_dir))
 
 
+def _child_environment() -> dict[str, str]:
+    """Supply trusted roots to isolated Python phases on incomplete hosts."""
+    env = os.environ.copy()
+    # Explicit trust configuration belongs to the user (including private CAs).
+    # Do not mask an invalid override by silently switching trust stores.
+    if "SSL_CERT_FILE" not in env and "SSL_CERT_DIR" not in env:
+        if ssl.get_default_verify_paths().cafile is None:
+            env["SSL_CERT_FILE"] = certifi.where()
+    return env
+
+
 def start_job(
     phase: str,
     argv: list[str],
@@ -202,6 +216,7 @@ def start_job(
     try:
         process = subprocess.Popen(
             argv,
+            env=_child_environment(),
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,

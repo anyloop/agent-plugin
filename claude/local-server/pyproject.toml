@@ -3,7 +3,7 @@ name = "adant-local"
 version = "0.1.0"
 description = "AdAnt plugin local MCP server: doctor, research fan-out, progress panel"
 requires-python = ">=3.11"
-dependencies = ["fastmcp>=2.14,<3"]
+dependencies = ["certifi>=2024.2.2", "fastmcp>=2.14,<3"]
 
 [project.scripts]
 adant-local = "adant_local.server:main"
