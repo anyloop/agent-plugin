@@ -5,6 +5,10 @@ description: Build and deliver the fixed 13-slide AdAnt social-content research 
 
 # Social Content Research Report
 
+Local rendering needs no AdAnt login. Before any Studio save or upload, follow
+[authentication preflight](../adant/references/authentication.md); return early
+from the save on failure and deliver existing local artifacts with the exact error.
+
 Require validated report data. Call `research_run` phase `report` variant `build`
 with strict validation to produce HTML and markdown, then variant `pdf` for the
 PDF. Slide order is fixed: brand/competitor first, then organic creator evidence.

@@ -13,6 +13,9 @@ description: Browse YouTube Shorts by keywords for visible trend and creator evi
 > is not available; it goes away once the server path is the only one. Do not
 > build new flows on it.
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Use the `control-in-app-browser` skill and its browser-client selection flow when
 available; the runtime prefers the persistent in-app Browser. Never inspect
 browser secrets.

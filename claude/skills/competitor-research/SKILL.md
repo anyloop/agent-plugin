@@ -5,6 +5,9 @@ description: Identify true product competitors, distinguish adjacent tools, and 
 
 # Competitor Research
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Call `doctor`; if authentication is missing, mint `research` and bootstrap it
 without exposing the token. Run `research_run` phase `competitors` with the
 client, product description, website, user-supplied competitors, maximum count,

@@ -5,7 +5,9 @@ shell: every phase (or phase variant) maps to one fixed entry script, and
 only the allow-listed, typed arguments below are translated into argv.
 Unknown keys are rejected; workspace paths are resolved symlink-safe and
 must stay inside the workspace. Multi-script phases select a variant via
-the reserved "variant" argument (e.g. keywords: tiktok|instagram).
+the reserved "variant" argument (e.g. keywords: tiktok|instagram). The
+hashtags phase folds the profile, competitors, keywords and curation audit
+into the brand's recommended hashtag sets.
 
 Inference-backed scripts authenticate through adant_agent's token-direct
 transport (single sign-on) — the child process inherits PLUGIN_DATA and
@@ -193,6 +195,18 @@ REGISTRY: dict[str, PhaseSpec | dict[str, PhaseSpec]] = {
             },
         ),
     },
+    "hashtags": PhaseSpec(
+        "initial-social-content-research",
+        "recommend_hashtags.py",
+        {
+            "profile": ArgSpec("--profile", str, required=True, is_path=True),
+            "competitors": ArgSpec("--competitors", str, required=True, is_path=True),
+            "keywords": ArgSpec("--keywords", list, is_path=True),
+            "audit": ArgSpec("--audit", str, is_path=True),
+            "max_per_post": ArgSpec("--max-per-post", int),
+            "output": ArgSpec("-o", str, required=True, is_path=True),
+        },
+    ),
     "report": {
         "build": PhaseSpec(
             "social-content-research-report",

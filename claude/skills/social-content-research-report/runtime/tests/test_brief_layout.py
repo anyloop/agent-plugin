@@ -99,6 +99,30 @@ class BriefLayoutTest(unittest.TestCase):
         self.assertIn("### Strategy 1 — The morning search", md)
         for gone in ("## Executive Summary", "## The Landscape", "## Content Format Patterns", "## About Adant AI"):
             self.assertNotIn(gone, md)
+        self.assertNotIn("## Recommended Hashtags", md)
+
+    def test_markdown_renders_the_hashtag_recommendation_before_the_strategies(self) -> None:
+        data = brief_data()
+        data["hashtags"] = {
+            "max_per_post": 5,
+            "pools": {"brand": ["#acme"], "niche": ["#morningroutine", "#coffee"], "competitor": ["#rival"], "community": ["#coffeetok"]},
+            "sets": {
+                "tiktok": {"default": ["#acme", "#morningroutine", "#coffee", "#rival", "#coffeetok"], "competitor": ["#acme", "#rival", "#coffee"]},
+                "youtube": {"default": ["#acme", "#coffee", "#rival"], "competitor": ["#acme", "#rival", "#coffee"]},
+            },
+        }
+        data["strategies"]["items"][0]["hashtags"] = ["#acme", "#morningroutine", "#coffeetok"]
+        md = build_markdown(data)
+        self.assertIn("## Recommended Hashtags", md)
+        self.assertIn("**At most 5 per post", md)
+        self.assertIn("- **Brand:** #acme", md)
+        self.assertIn("| TikTok | #acme #morningroutine #coffee #rival #coffeetok | #acme #rival #coffee |", md)
+        self.assertNotIn("| Instagram Reels |", md)
+        self.assertIn("**Hashtags:** #acme #morningroutine #coffeetok", md)
+        self.assertLess(md.index("## Recommended Hashtags"), md.index("### Strategy 1"))
+        # Without ads the brief still renders the section, once.
+        data["meta_ads"] = {"ads": []}
+        self.assertEqual(build_markdown(data).count("## Recommended Hashtags"), 1)
 
 
 if __name__ == "__main__":

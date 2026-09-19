@@ -5,6 +5,9 @@ description: Turn a product URL and notes into a sourced client profile for down
 
 # Product Research
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
 `product-profile` with the URL, user notes, and an output artifact.
 

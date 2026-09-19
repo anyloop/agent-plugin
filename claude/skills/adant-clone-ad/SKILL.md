@@ -5,6 +5,9 @@ description: Clone or adapt a reference short-form video ad through AdAnt's dura
 
 # Clone an Ad with AdAnt
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Use AdAnt's authenticated Remote MCP creative project. AdAnt persists the
 project, jobs, artifacts, approvals, and budget state. Reconnecting the host
 does not cancel the work.

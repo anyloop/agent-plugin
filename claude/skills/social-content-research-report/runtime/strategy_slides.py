@@ -258,6 +258,14 @@ def build_strategy_section(data: dict, start_page: int, platform_pill: dict) -> 
     return "\n".join(blocks), page - start_page + 1
 
 
+def strategy_hashtag_lines(strategy: dict) -> list[str]:
+    """The strategy's own hashtag set (at most five) as one markdown line, when it carries one."""
+    tags = [str(tag).strip() for tag in strategy.get("hashtags") or [] if str(tag).strip()]
+    if not tags:
+        return []
+    return [f"**Hashtags:** {' '.join(tags[:5])}", ""]
+
+
 def strategy_markdown(data: dict) -> list[str]:
     """Render the same section as markdown lines for the .md deck."""
     section = data.get("strategies", {})
@@ -297,6 +305,7 @@ def strategy_markdown(data: dict) -> list[str]:
             "",
             f"**Why this video:** {strategy.get('why_this_video', '')}",
             "",
+            *strategy_hashtag_lines(strategy),
             f"Copy below message to Adant ({url}):",
             "",
             "```text",

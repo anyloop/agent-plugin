@@ -5,6 +5,9 @@ description: Generate TikTok-native discovery queries from a product description
 
 # TikTok Keyword Research
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
 `keywords` with variant `tiktok`, client, description, optional website and
 competitors, maximum count, and an output artifact.

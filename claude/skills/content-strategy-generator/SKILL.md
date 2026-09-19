@@ -5,6 +5,9 @@ description: Generate 5-10 copy-ready product content strategies from an AdAnt r
 
 # Generate Content Strategies
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Call `doctor`; bootstrap a `research` token if needed without exposing it.
 
 1. Run `research_run` phase `strategy-keywords` with the product, niche,

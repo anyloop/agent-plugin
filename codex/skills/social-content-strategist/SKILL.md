@@ -5,8 +5,8 @@ description: Turn example videos, creators, a saved research report, or a produc
 
 # Social Content Strategist
 
-Open the progress panel and call `doctor`; if needed mint `research` and
-`report` and bootstrap without exposing the token.
+Open the progress panel, then follow the mandatory [authentication preflight](../adant/references/authentication.md) before reading seeds.
+Return early if required authentication fails; local work is not a workaround.
 
 ## Scope
 
@@ -51,16 +51,16 @@ content is the point: collect TikTok and Instagram in one call with
 Meta Ads in a second call without it — Shorts carry no publish date and an ad's
 start date is not a post date, so asking would turn both into gaps; label their
 freshness "unverified" in the brief. Only platforms it reports as gaps (or
-every in-scope one when the tool is absent) go to the browser, one platform at
+every in-scope one when only the collector is absent after remote authentication) go to the browser, one platform at
 a time through the matching `platform-*` phase. Use the
 `control-in-app-browser` skill and its browser-client selection flow when
 available; the runtime prefers the persistent in-app Browser, with Chrome/CDP
 fallback only through platform phases. Keep one workflow-owned tab and close
-it. Only then, and only for TikTok/Instagram, call
-`platform_session(platform, "check")`; if false, ask before one
-`platform_session(platform, "open")` per platform per workflow, re-check, and
-continue if the user declines. `logged_in: null` is unknown; if every query on
-that platform returns zero, report likely session blocking once.
+it. Use public pages or an existing session; do not ask for TikTok/Instagram
+login. An optional `platform_session(platform, "check")` diagnoses only that
+browser session. Record blocked browsing as an evidence gap; zero results do
+not establish a login requirement. Never use fallback to bypass a failed or
+unverified AdAnt connection.
 
 Judge relevance before engagement: a candidate must share the seeds' subject or
 category, or their audience problem with the category clearly present; a

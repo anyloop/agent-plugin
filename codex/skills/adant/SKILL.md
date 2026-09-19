@@ -5,6 +5,9 @@ description: Use AdAnt through its authenticated remote and local MCP tools for 
 
 # Use AdAnt
 
+Before work, follow the [authentication preflight](references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Use only the connected AdAnt MCP tools. Never ask for provider keys or replace a
 missing AdAnt tool with an unrelated generator.
 
@@ -20,9 +23,8 @@ missing AdAnt tool with an unrelated generator.
   report with one-click Create in Studio.
 - `adant-init`: first-run connection and readiness help.
 
-If a tool is missing, distinguish the remote and local servers. In a desktop
-host, ask the user to reconnect AdAnt in the app, reopen it, and start a fresh
-task. Do not diagnose OAuth from tool absence alone and do not ask for secrets.
+Report missing tools using the preflight evidence; do not infer OAuth failure
+from absence alone or prescribe a restart without a diagnosed cause.
 
 ## Remote media workflow
 

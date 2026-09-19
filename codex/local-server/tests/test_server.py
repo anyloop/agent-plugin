@@ -84,10 +84,13 @@ def test_doctor_emits_events_and_shape():
             # The server is launched by uv, so Python and uv are implied by the
             # call itself; yt-dlp ships inside the strategy phase's own uv
             # environment and was never read off the system PATH; Chrome is
-            # advisory now that supplier search runs server-side. Nothing
-            # local can block a run any more.
-            assert all(check["required"] is False for check in result["checks"])
-            assert result["ok"] is True
+            # advisory now that supplier search runs server-side. Local
+            # credentials must be verified before local authenticated work.
+            assert result["checks"][0]["required"] is False
+            assert result["checks"][1]["required"] is True
+            assert result["checks"][1]["ok"] is False
+            assert result["ok"] is False
+            assert result["remote_auth"]["status"] == "not-checked"
             for check in result["checks"]:
                 assert set(check) == {"name", "ok", "detail", "fix", "required"}
             assert set(result["device"]) == {"device_id", "device_name"}
@@ -115,8 +118,8 @@ def test_doctor_sessions_reuses_the_login_check(isolated_workspace, monkeypatch)
             assert by_name["session-tiktok"]["ok"] is True
             assert by_name["session-tiktok"]["fix"] is None
             assert by_name["session-instagram"]["ok"] is None
-            assert "platform_session" in by_name["session-instagram"]["fix"]
-            assert result["ok"] is True  # sessions are advisory too
+            assert "supplier search needs no social login" in by_name["session-instagram"]["fix"]
+            assert result["ok"] is False  # local auth is missing, sessions are advisory
 
     run(scenario())
 
@@ -144,7 +147,7 @@ def test_artifact_read_guards_workspace(isolated_workspace):
 def test_auth_bootstrap_stores_token(isolated_workspace, monkeypatch):
     monkeypatch.setenv(
         "ADANT_SERVER_URL", "http://127.0.0.1:9"
-    )  # unreachable: verify stays lazy
+    )  # unreachable: verification must return the actual failure
 
     async def scenario():
         async with Client(mcp) as client:
@@ -155,12 +158,14 @@ def test_auth_bootstrap_stores_token(isolated_workspace, monkeypatch):
                     "auth_bootstrap", {"minted_token": "tok_" + "a" * 40}
                 )
             ).data
-            assert good["ok"] is True and good["verified"] is None
-            stored = json.loads(Path(good["stored"]).read_text())
+            assert good["error"]["code"] == "unreachable"
+            stored = json.loads((isolated_workspace / "plugin-data" / "local-token.json").read_text())
             assert stored["token"].startswith("tok_")
             doctor = (await client.call_tool("doctor", {})).data
             auth = next(c for c in doctor["checks"] if c["name"] == "adant-auth")
-            assert auth["ok"] is True
+            assert auth["ok"] is None
+            assert doctor["ok"] is False
+            assert "unreachable" in auth["detail"]
 
     run(scenario())
 

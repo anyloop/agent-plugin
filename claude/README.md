@@ -25,9 +25,12 @@ Social-research model work uses the installed AdAnt connection to mint a
 short-lived, scoped local token; it does not require a second CLI login or a
 Gemini/provider key. Local tools require `uv`, which provisions the locked
 Python runtime automatically, so no system Python or Node.js install is needed.
-Platform search runs on AdAnt's servers; Chrome is needed only to fill gaps
-from the user's own logged-in browser and to export the PDF. Some of those
-searches also require an interactive TikTok or Instagram session.
+Before authenticated work, the plugin verifies the remote AdAnt connection and
+any required local credential. A failed or unverified connection stops the
+workflow with the observed error and host-specific recovery instructions.
+Platform search uses AdAnt's suppliers without a user social account. Chrome
+is used for public/existing-session gap filling and PDF export; inaccessible
+pages are evidence gaps, not instructions to sign in to TikTok or Instagram.
 Hosts that cannot render the live MCP App receive a tokenized local-only
 progress URL.
 

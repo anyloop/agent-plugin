@@ -11,8 +11,12 @@ Move from installation to a useful first action with at most one question.
 
 1. If `research_progress_open` exists, call it **before** running checks and say briefly
    that it shows live research progress.
-2. If available, call `adant_get_credit_balance` to prove the remote OAuth connection.
+2. Follow the [authentication preflight](../adant/references/authentication.md):
+   call `adant_get_credit_balance` to prove remote authentication. If unavailable
+   or rejected, diagnose and return early with recovery instructions. Do not
+   continue the user's task or offer starting prompts until it succeeds.
 3. Call `doctor(sessions=false)` once when available and research is relevant.
+   It verifies local credentials only; `ok` does not prove remote authentication.
 
 The remote `adant_*` tools and local research tools are independent. Missing
 tools do not prove the plugin is uninstalled or that a restart will fix it.

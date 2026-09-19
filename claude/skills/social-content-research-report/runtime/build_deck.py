@@ -307,6 +307,33 @@ def _closing_markdown(fmts: dict, conn: dict) -> list[str]:
     return lines
 
 
+def hashtags_markdown(hashtags: dict | None) -> list[str]:
+    """The recommended hashtag sets — the research's `hashtags` block, when the run wrote one."""
+    if not isinstance(hashtags, dict) or not hashtags:
+        return []
+    pools = hashtags.get("pools", {}) or {}
+    limit = hashtags.get("max_per_post", 5)
+    lines = [
+        "## Recommended Hashtags",
+        f"**At most {limit} per post: the brand's own tag first, then the niche keywords, one competitor or category tag, one community tag at most.**",
+        "",
+    ]
+    for key, label in (("brand", "Brand"), ("niche", "Niche keywords"), ("competitor", "Competitors"), ("community", "Community")):
+        tags = pools.get(key) or []
+        if tags:
+            lines.append(f"- **{label}:** {' '.join(tags)}")
+    lines.append("")
+    sets = hashtags.get("sets", {}) or {}
+    if sets:
+        lines += ["| Platform | Default set | Competing for a rival's audience |", "|---|---|---|"]
+        for key, label in [("tiktok", "TikTok"), ("instagram", "Instagram Reels"), ("youtube", "YouTube Shorts")]:
+            platform = sets.get(key) or {}
+            if platform:
+                lines.append(f"| {label} | {' '.join(platform.get('default', []))} | {' '.join(platform.get('competitor', []))} |")
+        lines.append("")
+    return lines
+
+
 def build_markdown(data: dict) -> str:
     """Render report_data.json as a readable markdown version of the deck.
 
@@ -350,6 +377,7 @@ def build_markdown(data: dict) -> str:
             lines += vid_table(section.get("creator_videos", [])) + [""]
 
     if brief and not ads.get("ads"):
+        lines += hashtags_markdown(data.get("hashtags"))
         lines += strategy_markdown(data)
         return "\n".join(lines)
     lines += ["## Meta Ads — Creative Reference", f"**{_plain(ads.get('headline', ''))}**", "", _plain(ads.get("intro", "")), ""]
@@ -365,6 +393,7 @@ def build_markdown(data: dict) -> str:
 
     if not brief:
         lines += _closing_markdown(data.get("formats", {}), data.get("connect", {}))
+    lines += hashtags_markdown(data.get("hashtags"))
     lines += strategy_markdown(data)
     return "\n".join(lines)
 

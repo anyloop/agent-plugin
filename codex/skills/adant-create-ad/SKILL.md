@@ -5,6 +5,9 @@ description: Create a complete short-form video ad through AdAnt's durable creat
 
 # Create an Ad with AdAnt
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Use AdAnt's authenticated Remote MCP creative project. AdAnt owns the durable
 project, jobs, artifacts, budgets, and progress. Reconnecting the host does not
 cancel the work.
@@ -17,8 +20,8 @@ analysis, or job operation. Use `adant-clone-ad` when reproducing a reference
 ad's structure is the main goal.
 
 Prefer connected `adant_*` MCP tools. If the creative project tools are not
-available, explain that the user must reconnect the current AdAnt MCP or use
-AdAnt Studio. Do not approximate the full request with uncoordinated,
+available after authentication succeeds, report the missing capability or
+offer AdAnt Studio; do not diagnose it as an authentication failure. Do not approximate the full request with uncoordinated,
 credit-spending primitive generations.
 
 ## Prepare grounded inputs

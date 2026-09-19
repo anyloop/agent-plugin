@@ -12,6 +12,10 @@ description: >-
 Use the plugin-managed MCP server named `plugin:adant:adant`. Do not configure a
 second AdAnt MCP server or ask the user for an API key.
 
+Before continuing a product task after setup, follow the shared
+[authentication preflight](../adant/references/authentication.md). If it fails,
+return its observed error and recovery instructions before doing actual work.
+
 ## Verify
 
 Run:

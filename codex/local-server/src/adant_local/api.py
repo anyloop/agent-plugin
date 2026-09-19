@@ -42,11 +42,14 @@ def server_url() -> str:
 
 def load_token() -> str:
     try:
-        return json.loads(token_file().read_text())["token"]
-    except (OSError, KeyError, json.JSONDecodeError) as exc:
+        token = json.loads(token_file().read_text())["token"]
+        if not isinstance(token, str) or not token.strip():
+            raise ValueError("invalid local token")
+        return token
+    except (OSError, KeyError, TypeError, ValueError) as exc:
         raise ApiError(
             "not-authenticated",
-            "no local token is stored",
+            "no usable local token is stored",
             "mint one with adant_mint_local_token (remote MCP), then call auth_bootstrap",
         ) from exc
 
@@ -97,11 +100,17 @@ def verify_token(token: str, timeout_s: float = 20.0) -> bool:
         # problem — reporting it as "verified" would defer the failure to
         # every later inference call with no explanation.
         raise ApiError(
-            "not-authenticated",
-            f"the account cannot use AdAnt right now: {response.text[:160]}",
-            "verify the account email or contact support, then retry",
+            "access-denied",
+            f"AdAnt denied local credential verification: {response.text[:160]}",
+            "resolve the account or permission restriction reported by AdAnt, then retry",
         )
-    return response.status_code < 500
+    if not response.is_success:
+        raise ApiError(
+            "verification-failed",
+            f"local credential verification returned HTTP {response.status_code}",
+            "resolve the reported service error and retry verification; authentication is unverified",
+        )
+    return True
 
 
 def create_session(

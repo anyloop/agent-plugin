@@ -5,6 +5,9 @@ description: Analyze a short-form video through authenticated AdAnt video unders
 
 # Understand a Trend Video
 
+Before work, follow the [authentication preflight](../adant/references/authentication.md);
+return early with its recovery instructions if a required check fails.
+
 Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
 `strategy` with exactly one source URL or local video artifact, an output
 artifact, and optional context/brand/model controls.

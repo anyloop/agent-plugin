@@ -378,6 +378,23 @@ def test_build_argv_inference_and_variant_phases(isolated):
     )
     assert "--require-min-cards" in validate and "--require-type-coverage" in validate
 
+    hashtags = phases.build_argv(
+        "hashtags",
+        {
+            "profile": "product_profile.json",
+            "competitors": "competitors_research.json",
+            "keywords": ["keywords_tiktok.json", "keywords_instagram.json"],
+            "audit": "curation/audit.json",
+            "max_per_post": 5,
+            "output": "hashtags.json",
+        },
+        isolated,
+    )
+    assert hashtags[4].endswith("recommend_hashtags.py")
+    assert hashtags.count("--keywords") == 2  # one flag per keyword artifact
+    assert hashtags[hashtags.index("--audit") + 1].startswith(str(isolated.resolve()))
+    assert "--max-per-post" in hashtags
+
     strategy = phases.build_argv(
         "strategy",
         {

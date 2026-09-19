@@ -27,6 +27,7 @@ from adant_local import (
     identity,
     media,
     phases,
+    preflight,
     report,
     runner,
     workflow,
@@ -195,7 +196,9 @@ def _session_logged_in(platform: str) -> tuple[int, bool | None]:
 @mcp.tool(meta={"ui": {"resourceUri": UI_URI, "visibility": ["model", "app"]}})
 def doctor(sessions: bool = False) -> dict:
     """One-pass local preflight for AdAnt research. Read-only — never opens
-    windows or starts a login flow. Checks local auth, and Chrome as an
+    windows or starts a login flow. Verifies the local credential, not the
+    host's remote MCP OAuth. Probe adant_get_credit_balance separately before
+    work; ok=true here does not prove remote authentication. Chrome is an
     advisory: supplier search runs on AdAnt's servers, so Chrome is only
     needed for browser gap-fill and PDF export. `device` is this install's
     opaque identity — when `adant-auth` is missing, pass both of its fields
@@ -215,18 +218,7 @@ def doctor(sessions: bool = False) -> dict:
             required=False,
         )
     ]
-    has_token = identity.token_file().exists()
-    checks.append(
-        _check(
-            "adant-auth",
-            has_token or None,
-            "local token present" if has_token else "no local token",
-            None
-            if has_token
-            else "pass `device` to adant_mint_local_token (remote MCP), then auth_bootstrap",
-            required=False,
-        )
-    )
+    checks.append(preflight.local_auth_check())
     if sessions:
         for platform_name in phases.LOGIN_PLATFORMS:
             _, logged_in = _session_logged_in(platform_name)
@@ -239,7 +231,7 @@ def doctor(sessions: bool = False) -> dict:
                     ],
                     None
                     if logged_in
-                    else f'platform_session("{platform_name}", "open") after asking the user',
+                    else "Optional browser session unavailable; supplier search needs no social login",
                     required=False,
                 )
             )
@@ -261,11 +253,15 @@ def doctor(sessions: bool = False) -> dict:
             counts={"missing": len(failures)},
         )
     else:
-        events.emit("doctor", "done", "all required checks passed", skill="doctor")
+        events.emit("doctor", "done", "local checks passed; remote MCP OAuth not checked", skill="doctor")
     return {
         "ok": not failures,
         "checks": checks,
         "device": identity.device_identity(),
+        "remote_auth": {
+            "status": "not-checked",
+            "next_step": "Call remote adant_get_credit_balance before work; stop if unavailable or rejected",
+        },
     }
 
 
@@ -288,14 +284,15 @@ def auth_bootstrap(minted_token: str) -> dict:
     token_file = data_dir / "local-token.json"
     token_file.write_text(json.dumps({"token": minted_token}))
     token_file.chmod(0o600)
-    verified: bool | None
+    verified: bool
     try:
         verified = api.verify_token(minted_token)
     except api.ApiError as exc:
         if exc.code == "not-authenticated":
             token_file.unlink(missing_ok=True)
-            return exc.as_error()
-        verified = None  # network trouble — keep the token, verify lazily
+        # Keep other credentials for a retry, but never hide the reason the
+        # check failed or report unverified authentication as success.
+        return exc.as_error()
     return {"ok": True, "stored": str(token_file), "verified": verified}
 
 
@@ -314,13 +311,15 @@ def research_run(
     {"id": <phase id>, "args": {...}}. Phase ids: product-profile,
     competitors, keywords (variant: tiktok|instagram), platform-tiktok,
     platform-instagram, platform-meta-ads, platform-youtube, curation
-    (variant: plan|validate), report (variant: build|pdf), strategy.
+    (variant: plan|validate), hashtags, report (variant: build|pdf), strategy.
     Paths in args are workspace-relative. Each item may set timeout_s and a list
     of documented expected_exit_codes. Long-running: returns running jobs
     immediately; follow with research_status(wait=true).
     Progress streams to the panel. Browser phases are limited to one per call
-    and strategy phases to two per call. Inference-backed phases need
-    auth_bootstrap first (single sign-on)."""
+    and strategy phases to two per call. Before authenticated work, verify
+    remote OAuth with adant_get_credit_balance and local auth with doctor.
+    Stop with the actual error if either is unavailable or fails; local auth
+    cannot prove remote OAuth. Use auth_bootstrap if local auth needs renewal."""
     root = workflow.activate_workspace(workspace)
     if root is None:
         return error(
