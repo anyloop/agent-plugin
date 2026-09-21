@@ -1,29 +1,11 @@
 ---
 name: competitor-research
-description: Identify true product competitors, distinguish adjacent tools, and gather bounded website/social evidence through AdAnt research tools.
+description: Identify direct product competitors and gather bounded website and social evidence through AdAnt server research.
 ---
 
 # Competitor Research
 
 Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with its recovery instructions if a required check fails.
+return early with the observed error if required authentication fails.
 
-Call `doctor`; if authentication is missing, mint `research` and bootstrap it
-without exposing the token. Run `research_run` phase `competitors` with the
-client, product description, website, user-supplied competitors, maximum count,
-and an output artifact.
-
-Judge competitors by the user's decision layer, not shared technology. Group
-the market into capability clusters and classify each candidate as direct,
-partial, adjacent, substitute, or non-competitor. Preserve user-named companies
-even when evidence changes their classification.
-
-When browser evidence is needed, use the `control-in-app-browser` skill and its
-browser-client selection flow; the runtime prefers the persistent in-app
-Browser with Chrome/CDP fallback through the platform phases. Keep browser work
-bounded and close workflow-owned tabs.
-
-For each candidate return: product/URL, classification, target user, overlapping
-job, key capabilities, differentiators, pricing/positioning evidence, social
-proof, sources, confidence, and open questions. End with a comparison matrix and
-the 3-5 competitors that most affect positioning.
+Use the [content research workflow](../content-research/SKILL.md). Profile the product, distinguish direct competitors from adjacent tools, and profile named competitor URLs when verification is needed. Use bounded `adant_research_collect` queries for their organic posts and Meta ads. Check advertiser identity and treat active ads as positioning evidence, not proof of conversions. A competitor report uses Spy competitors scope and direct server saving.

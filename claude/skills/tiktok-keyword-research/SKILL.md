@@ -1,21 +1,11 @@
 ---
 name: tiktok-keyword-research
-description: Generate TikTok-native discovery queries from a product description, website, niche, and competitors.
+description: Build tiktok-native discovery queries from a sourced product profile and seed evidence.
 ---
 
-# TikTok Keyword Research
+# Tiktok Keyword Research
 
 Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with its recovery instructions if a required check fails.
+return early with the observed error if required authentication fails.
 
-Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
-`keywords` with variant `tiktok`, client, description, optional website and
-competitors, maximum count, and an output artifact.
-
-Return grouped queries for category, pain, benefit, use case, audience, creator
-language, comparison, purchase intent, problem-awareness, and hashtags. Prefer
-phrases users say/type on TikTok rather than SEO strings. Include brand-name and
-brand-hashtag partnership discovery plus at least two product-use queries.
-
-Deduplicate variants, remove generic noise and unsupported claims, explain the
-highest-value clusters, and recommend a balanced first browse batch.
+Use the profile and seed-reading steps of the [content research workflow](../content-research/SKILL.md) when evidence is missing. Compose tiktok-native subject, audience-problem, format-in-category and brand/competitor queries from that evidence in this conversation. Keep each query short and specific, drop feed hashtags, and explain which seed or product fact supports it. Return the query set; only collect or save a report when the user requested that broader work.

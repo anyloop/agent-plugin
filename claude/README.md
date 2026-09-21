@@ -21,18 +21,18 @@ If authentication needs an interactive terminal, run:
 sh "${CLAUDE_PLUGIN_ROOT}/skills/adant-claude-setup/scripts/login-adant.sh"
 ```
 
-Social-research model work uses the installed AdAnt connection to mint a
-short-lived, scoped local token; it does not require a second CLI login or a
-Gemini/provider key. Local tools require `uv`, which provisions the locked
-Python runtime automatically, so no system Python or Node.js install is needed.
-Before authenticated work, the plugin verifies the remote AdAnt connection and
-any required local credential. A failed or unverified connection stops the
-workflow with the observed error and host-specific recovery instructions.
-Platform search uses AdAnt's suppliers without a user social account. Chrome
-is used for public/existing-session gap filling and PDF export; inaccessible
-pages are evidence gaps, not instructions to sign in to TikTok or Instagram.
-Hosts that cannot render the live MCP App receive a tokenized local-only
-progress URL.
+Social research runs through the same durable server jobs as the web app:
+profile, collect, analyze and save. The installed AdAnt connection is the only
+research prerequisite; local tools, `uv`, Chrome, social logins, and provider
+keys are not required. The plugin checks remote authentication and capability
+availability before work. Queued jobs survive a disconnected or sleeping
+computer and resume by operation ID; host reasoning resumes with the host.
+
+Reports are saved directly to Studio with their evidence references and
+original thumbnail URLs. Export a PDF from the report page when needed.
+The shared research procedure is generated from the web workflow and checked
+for drift for both plugin hosts. Local tools remain for explicit local-file
+media, document export and browser investigation, outside normal research.
 
 ## Support
 

@@ -18,12 +18,13 @@ it to Studio or starting any authenticated operation.
    spend credits, or substitute browser discovery while remote authentication
    is failed or unverified. A working `adant-local` server or stored local token
    does not establish that the remote `adant` MCP is authenticated.
-3. After a successful probe, check the tools needed by this workflow. In social
-   research this includes `adant_research_collect`. If that tool alone is
-   missing, report a capability gap on an authenticated connection; do not
-   claim an expired login or supplier outage. Only then may the workflow use
-   its documented public-browser fallback. Never request social-account login
-   to repair a missing or failed AdAnt connection.
+3. After a successful probe, check the remote tools required by the selected
+   workflow. Social research uses `adant_research_profile`,
+   `adant_research_collect`, `adant_research_analyze`, `adant_research_seeds`,
+   `adant_research_status` and `adant_research_save`; it needs no local server.
+   A missing tool is a capability gap on an authenticated connection, not an
+   expired login or supplier outage. Return early with that exact gap; do not
+   substitute a local/browser workflow or request social-account login.
 
 ## Local credential, when local authenticated phases are needed
 

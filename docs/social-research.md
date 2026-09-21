@@ -1,53 +1,30 @@
-# Social research setup
+# Social research
 
-The single AdAnt plugin covers the complete creative loop:
+Codex and Claude Code use the same AdAnt server research workflow as Studio:
+profile the product, collect social evidence, analyze selected videos, and
+save a report. Start with `$adant-init` or ask for research directly.
 
-```text
-Product research → Trend discovery → Strategy → Media and ad generation
-```
+## Prerequisites
 
-AdAnt account access and generation use the plugin's one OAuth MCP connection.
-Some research skills run local, locked adapters because TikTok, Instagram,
-Meta Ads Library, and YouTube do not share that AdAnt session.
+Authorize the remote AdAnt connection. Research does not require a local
+runtime, Chrome, social-account login, provider key, or local file uploads.
+If a required remote tool is absent, the plugin names the capability gap
+before paid work; update/reconnect the plugin as appropriate for the observed
+host status. Missing local tools do not prevent server research.
 
-## Local prerequisites
+## Resume and delivery
 
-Start `$adant-init` to run the local `doctor` tool before research. It reports
-the managed Python environment, `uv`, Chrome, `yt-dlp`, AdAnt authentication,
-and platform sessions together, with a fix for each missing prerequisite. It
-only reads state; it never starts a platform login flow.
+Each run retains a research ID, operation IDs and idempotency keys. Profile,
+seed metadata and analysis jobs execute on the server and survive a sleeping
+or disconnected desktop. The host recovers their results before continuing;
+reasoning between stages still requires the host to run.
 
-- `uv`; it provisions the locked Python runtime automatically, so a system
-  Python or Node.js installation is not required.
-- Google Chrome.
-- `yt-dlp` for inspiration-video analysis.
-- An interactive TikTok or Instagram login when those platforms require it.
+The report is saved directly to AdAnt Studio. Original thumbnail URLs are
+stored by the server, and video evidence references are checked during save.
+Insufficient evidence produces an explicitly partial report with named gaps.
+Use the report page to export PDF; research does not render a local deck.
 
-Never paste keys or cookies into chat or commit them to a project. Provide keys
-through the process environment. The plugin does not copy or display browser
-cookies.
-
-## Keep runtime data outside the plugin
-
-Choose a writable research workspace and place persistent browser state below
-it:
-
-```bash
-export ADANT_SOCIAL_DATA_DIR="/absolute/path/to/research/.runtime"
-```
-
-Store reports, downloads, screenshots, history, and generated decks in the
-same external workspace. Installed plugin directories may be replaced during
-an update and must remain free of credentials and user data.
-
-## Host support
-
-The same social skills ship for Codex and local Claude Code. Browser-dependent
-workflows require a local desktop environment; remote or web-only agent hosts
-may provide research through their own browsing tools but cannot run the local
-Chrome adapters directly.
-
-The `browse-*` platform skills are deprecated as of 2026-09-16: platform search
-already runs on AdAnt's servers, and the rest of the research path follows.
-They remain the gap-fill and fallback step until then; do not build new flows
-on them.
+The full research and fresh-ideas skills share the web workflow's selection,
+seed exclusion, hashtag, attempt-budget and report rules. Local tools remain
+available for explicitly requested local media, document exports and browser
+investigation; their setup is independent of research.
