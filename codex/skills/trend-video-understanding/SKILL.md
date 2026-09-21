@@ -1,24 +1,11 @@
 ---
 name: trend-video-understanding
-description: Analyze a short-form video through authenticated AdAnt video understanding for narrative, structure, creative mechanics, and brand-promotion evidence.
+description: Analyze short-form videos on AdAnt servers for structure, creative mechanics and promotion evidence.
 ---
 
-# Understand a Trend Video
+# Trend Video Understanding
 
 Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with its recovery instructions if a required check fails.
+return early with the observed error if required authentication fails.
 
-Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
-`strategy` with exactly one source URL or local video artifact, an output
-artifact, and optional context/brand/model controls.
-
-Return: source metadata, one-sentence concept, hook, beat-by-beat timeline,
-visual/camera/editing language, spoken script, text overlays, audio/music,
-emotional arc, CTA, reusable creative mechanism, product-integration pattern,
-and uncertainties.
-
-When a brand is supplied, include promotion assessment: brand/product evidence,
-relationship and creator-profile evidence, creator-native UGC style, and
-`promotion_strength` as `none`, `incidental`, `integrated`, or `direct`.
-Differentiate observed facts from interpretation and do not infer sponsorship
-from a tag alone.
+Use the analysis stage of the [content research workflow](../content-research/SKILL.md). Pass explicit candidate URLs to `adant_research_analyze` or collection IDs for previously collected videos; wait with `adant_research_status`. Ask in `questions` for promotion assessment, target-product integration, relationship and creator-profile evidence when relevant. Preserve the returned analysisArtifactId and failures. A paid label establishes disclosure, not performance; never claim a failed analysis was watched.

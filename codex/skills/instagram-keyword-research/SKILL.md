@@ -1,22 +1,11 @@
 ---
 name: instagram-keyword-research
-description: Generate Instagram-native keyword sets for Reels discovery from a product description, website, niche, and competitors.
+description: Build instagram-native discovery queries from a sourced product profile and seed evidence.
 ---
 
 # Instagram Keyword Research
 
 Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with its recovery instructions if a required check fails.
+return early with the observed error if required authentication fails.
 
-Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
-`keywords` with variant `instagram`, client, description, optional website and
-competitors, maximum count, and an output artifact.
-
-Return grouped keywords for category, pain, benefit, use case, audience,
-competitor comparison, creator language, purchase intent, hashtags, and Meta Ad
-Library variants. Prefer phrases a person would type on Instagram, including
-short noun phrases and natural questions. Remove generic noise, duplicates,
-unsupported claims, and terms unrelated to the product's decision layer.
-
-Include a compact rationale and a recommended first browse batch balancing broad
-discovery, product use, and high-intent searches.
+Use the profile and seed-reading steps of the [content research workflow](../content-research/SKILL.md) when evidence is missing. Compose instagram-native subject, audience-problem, format-in-category and brand/competitor queries from that evidence in this conversation. Keep each query short and specific, drop feed hashtags, and explain which seed or product fact supports it. Return the query set; only collect or save a report when the user requested that broader work.

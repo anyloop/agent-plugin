@@ -17,10 +17,9 @@ missing AdAnt tool with an unrelated generator.
   durable jobs, library data, uploads, reports, and creative projects.
 - Local `media_local`: upload, analyze, or edit a file from the user's machine.
 - `adant-create-ad` / `adant-clone-ad`: multi-step ads with approvals.
-- `initial-social-content-research`: the full social research report.
+- `content-research` / `initial-social-content-research`: server research and a saved Studio report.
 - `social-content-strategist`: new content ideas from example videos, a
-  report, or a niche, delivered as the strategy brief — a PDF and a saved
-  report with one-click Create in Studio.
+  report, or a niche, delivered as a saved strategy brief with one-click Create in Studio and on-demand PDF export.
 - `adant-init`: first-run connection and readiness help.
 
 Report missing tools using the preflight evidence; do not infer OAuth failure

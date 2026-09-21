@@ -1,21 +1,11 @@
 ---
 name: product-research
-description: Turn a product URL and notes into a sourced client profile for downstream competitor, keyword, social, and content-strategy research.
+description: Turn a product URL and notes into a sourced profile through AdAnt's durable server profile job.
 ---
 
 # Product Research
 
 Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with its recovery instructions if a required check fails.
+return early with the observed error if required authentication fails.
 
-Call `doctor`; bootstrap a `research` token if needed. Run `research_run` phase
-`product-profile` with the URL, user notes, and an output artifact.
-
-Return the verified product name, canonical URL, concise description, category,
-target users, jobs-to-be-done, pains, benefits, features, differentiators, proof,
-pricing when visible, brand voice, claims/constraints, likely purchase triggers,
-social-content implications, and sources. Separate sourced facts from inference,
-keep unknown fields explicit, and never invent claims.
-
-Treat user notes as context, not automatically verified evidence. Flag conflicts
-between notes and the current site for the user.
+Use the profile stage of the [content research workflow](../content-research/SKILL.md): call `adant_research_profile` and wait with `adant_research_status`. Return the sourced product facts, audience, benefits, differentiators, claims, voice, assets and gaps. Separate inference from observed facts. Do not run unrelated collection or report stages for a profile-only request.

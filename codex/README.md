@@ -62,7 +62,7 @@ skills and tools are discovered.
 - `initial-social-content-research` researches a product, competitors, TikTok,
   Instagram, Meta Ads, and YouTube, recommends the brand's hashtag sets
   (competitors first, then niche keywords, then the brand tag; at most five a
-  post), and generates a research deck.
+  post), and saves a research report.
 - `social-content-strategist` converts current examples and prior research into
   distinct, reusable content strategies.
 - Component skills provide product research, keyword discovery, platform
@@ -72,21 +72,18 @@ Generation spends AdAnt credits. The skills require an explicit confirmation
 before submitting credit-spending work and derive project ownership from the
 authorized AdAnt account.
 
-Social-research model work uses the installed AdAnt connection to mint a
-short-lived, scoped local token; it does not require a second CLI login or a
-Gemini/provider key. Local tools require `uv`, which provisions the locked
-Python runtime automatically, so no system Python or Node.js install is needed.
-Before authenticated work, the plugin verifies the remote AdAnt connection and
-any required local credential. A failed or unverified connection stops the
-workflow with the observed error and host-specific recovery instructions.
-Platform search uses AdAnt's suppliers without a user social account. Chrome
-is used for public/existing-session gap filling and PDF export; inaccessible
-pages are evidence gaps, not instructions to sign in to TikTok or Instagram.
-The progress view is a live MCP App; hosts that cannot render it receive a
-tokenized local-only fallback URL. Remote generation and local media tools
-share a content-hashed MCP App preview for job state, credits, analysis,
-cancellation, and completed assets. Browser state and credentials must never
-be exposed.
+Social research runs through the same durable server jobs as the web app:
+profile, collect, analyze and save. The installed AdAnt connection is the only
+research prerequisite; local tools, `uv`, Chrome, social logins, and provider
+keys are not required. The plugin checks remote authentication and capability
+availability before work. Queued jobs survive a disconnected or sleeping
+computer and resume by operation ID; host reasoning resumes with the host.
+
+Reports are saved directly to Studio with their evidence references and
+original thumbnail URLs. Export a PDF from the report page when needed.
+The shared research procedure is generated from the web workflow and checked
+for drift for both plugin hosts. Local tools remain for explicit local-file
+media, document export and browser investigation, outside normal research.
 
 ## Support
 

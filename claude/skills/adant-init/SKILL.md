@@ -1,73 +1,49 @@
 ---
 name: adant-init
-description: First-run initialization for AdAnt. Verify the remote connection, open the live progress panel, check local research readiness, and offer three personalized starting prompts. Trigger on "$adant-init", setup, installation checks, or requests for how to start.
+description: Verify the AdAnt remote connection and server research capabilities, then continue the requested work or offer three personalized starts.
 ---
 
 # Initialize AdAnt
 
-Move from installation to a useful first action with at most one question.
+Use `$adant-init` to move from installation to useful work with at most one question.
 
-## Verify both MCP surfaces
+## Verify the required surface
 
-1. If `research_progress_open` exists, call it **before** running checks and say briefly
-   that it shows live research progress.
-2. Follow the [authentication preflight](../adant/references/authentication.md):
-   call `adant_get_credit_balance` to prove remote authentication. If unavailable
-   or rejected, diagnose and return early with recovery instructions. Do not
-   continue the user's task or offer starting prompts until it succeeds.
-3. Call `doctor(sessions=false)` once when available and research is relevant.
-   It verifies local credentials only; `ok` does not prove remote authentication.
+Follow the [authentication preflight](../adant/references/authentication.md):
+call `adant_get_credit_balance` to verify remote authentication. If unavailable
+or rejected, diagnose and return early with the observed error and matching
+recovery instruction. Reinstalling plugin files does not repair OAuth.
 
-The remote `adant_*` tools and local research tools are independent. Missing
-tools do not prove the plugin is uninstalled or that a restart will fix it.
-Report which surface is unavailable; never work around a missing server or
-ask for provider/API secrets. Reinstalling plugin files does not repair a stored
-OAuth connection.
+For research, verify `adant_research_profile`, `adant_research_collect`,
+`adant_research_seeds`, `adant_research_analyze`, `adant_research_status` and
+`adant_research_save`. These run on AdAnt servers. Research requires no local
+runtime, browser, local credential or progress panel. Missing local tools do
+not block this workflow. Never work around a missing server with local research.
 
-When tools are missing, check the host's MCP connection/startup status if
-available. For installation troubleshooting, read-only inspection of host logs,
-resolved server configuration, and prerequisite availability is appropriate;
-do not run research or generation through a substitute shell workflow.
+For explicitly requested local media, browser work or installation repair,
+check the local surface separately. The remote `adant_*` tools and local
+research tools are independent; `doctor` diagnoses only the latter.
+When startup reports that it is missing, use the authorized
+[runtime setup procedure](references/runtime-setup.md) to repair the local
+prerequisite. Do not require that setup for server research.
 
-- Remote server: if status says not logged in, direct the user to AdAnt's
-  connection prompt in the host's plugin settings. In Codex, when its CLI is
-  installed, `codex mcp login adant` is also available. Browser authorization
-  requires the user; never ask them to paste credentials or tokens.
-- Local server: `uv` must be installed and discoverable by the launcher. If
-  startup reports that it is missing, explain the prerequisite and use the
-  [runtime setup procedure](references/runtime-setup.md) when setup or repair
-  is authorized. It installs uv and prepares the locked environment before
-  reconnecting. Do not recommend OAuth reconnect as a fix for a local crash.
-- If logs show a different startup error, report that error and investigate it
-  instead of assuming missing authentication or dependencies. If diagnostics
-  are unavailable, state that the cause is unverified.
-- After a prerequisite fix, use the host's MCP reconnect/restart control if
-  available and re-check tools. Only suggest a fresh task after installation,
-  update, or a prerequisite fix when tools remain unavailable.
-  A desktop restart may refresh stale state, but never repeat restart advice
-  after the user has already tried it without success.
-
-If `doctor` reports local authentication missing, pass the two fields of its
-`device` to
-`adant_mint_local_token(scopes=["research"], device_id=..., device_name=...)`,
-and pass the minted token directly to `auth_bootstrap`. Never print or repeat
-the token.
-
+When connection status says authorization is required, use the host's AdAnt
+connection control. In Codex, `codex mcp login adant` is available when the CLI
+is installed. In Claude Code, use `claude mcp login plugin:adant:adant`.
+Never ask for credentials. If diagnostics are unavailable, say the cause is
+unverified; never repeat restart advice after it has already failed.
 Consolidate all missing prerequisites into one message.
 
 ## Continue the request or offer three starts
 
-If the user already supplied a task or product URL with an intended workflow,
-continue that request after checks pass in the same task. Do not require another
-init invocation or replace their request with a menu. Otherwise offer the three
-starts below.
+If a task or product URL with an intended workflow was supplied, continue it
+in the same task after the relevant checks pass. Otherwise use the known
+product, or ask once for its website, and offer:
 
-Use the known product, or ask once for its website. Then offer these personalized,
-copy-ready prompts:
-
-1. Research its short-form content landscape and build a report.
+1. Research its short-form content landscape and save a strategy report.
 2. Create a 15-second vertical product ad with AdAnt.
 3. Clone a supplied reference ad for the product.
 
-Mention once that generation spends credits and requires confirmation. Route to
-`initial-social-content-research`, `adant-create-ad`, or `adant-clone-ad`.
+Route to `initial-social-content-research`, `adant-create-ad`, or
+`adant-clone-ad`. Mention once that generation spends credits and requires
+confirmation; use the research skills' server workflow for research.
