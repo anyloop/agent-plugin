@@ -4,7 +4,7 @@
 
 - ChatGPT desktop with Codex, or Codex CLI with plugin support.
 - A browser for AdAnt sign-in and OAuth consent.
-- `uv` for local research tools. `uv` provisions Python automatically.
+- An AdAnt account; paid work uses AdAnt credits separately from host credits.
 
 ## ChatGPT desktop / Codex app
 
@@ -71,6 +71,6 @@ codex plugin marketplace remove adant-ai
 
 ## First run
 
-Start a new task and send `$adant-init`. It opens the live progress panel,
-verifies the AdAnt connection, checks local research prerequisites, and hands
-you three ready-to-send starting prompts for your product.
+Start a new task and send `$adant-init`. It verifies the remote AdAnt connection and account capabilities. State your
+research, listening, creator, video or scheduling goal next. No local research
+runtime or provider key is required.

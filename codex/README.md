@@ -1,104 +1,77 @@
 # AdAnt for Codex
 
-Research social content, build strategies, and create or clone short-form video
-ads in one AdAnt plugin. It connects Codex to the authenticated AdAnt MCP at
-`https://api.adant.ai/mcp`.
+Run AdAnt's current server agents from Codex: research products and competitors,
+listen to Reddit and X, find creators, analyze videos, create or clone ads, edit
+videos, and plan TikTok/Instagram posts and recurring tasks.
 
-## Install in ChatGPT desktop
+Connect the plugin to `https://api.adant.ai/mcp` using AdAnt OAuth. Install from
+[the public marketplace](https://github.com/anyloop/agent-plugin), complete the
+AdAnt connection prompt and start a new task to discover its tools. See the
+public repository's [installation guides](https://github.com/anyloop/agent-plugin/tree/main/docs).
 
-Open **Plugins**, add `https://github.com/anyloop/agent-plugin.git` as a personal
-marketplace on the `main` ref, then install AdAnt from **Personal**. Complete
-the AdAnt connection prompt during installation and start a new task so the
-skills and MCP tools are discovered.
+## What runs where
 
-If AdAnt was installed or updated in the current task, start a new task first.
-If its tools are still unavailable there, check which MCP server failed.
-For remote authentication, open AdAnt under **Plugins** > **Installed** or
-**Personal** and complete the connection prompt. For local startup failures,
-use the runtime setup and recovery procedure below. ChatGPT desktop does not require the separate `codex`
-terminal command.
+The plugin contains thin workflow adapters. AdAnt executes its private agent
+skills, data collection, analysis, media generation and task scheduling on its
+servers. Agent work, paid data and media use AdAnt credits **in addition to** the
+coding agent's credits; read-only account/status operations may be free.
+Agree on agent and media budgets before starting. Model or agent availability
+and feature restrictions come from the authenticated account's capabilities.
 
-## Install in Codex CLI
+The plugin installs only the remote AdAnt MCP. No local research server, Python,
+uv, Chrome automation, social research login or provider API key is required.
+For local assets use the AdAnt upload flow or upload through Studio.
 
-Add the public AdAnt marketplace, then install the plugin:
+## Workflows
 
-```bash
-codex plugin marketplace add anyloop/agent-plugin --ref main
-codex plugin add adant@adant-ai
-```
+- `content-research`: product, competitor and social research with saved reports.
+- `adant-social-listening`: Reddit/X findings and reply drafts; does not post replies.
+- `adant-find-creators`: evidence-backed creator shortlists; no automatic outreach.
+- `adant-analyze`: video structure and creative analysis.
+- `adant-create-ad` / `adant-clone-ad`: complete creative projects.
+- `adant-video-editor`: editing, captions, stitching and rendering.
+- `adant-social-manager`: account audits, TikTok/Instagram posts and recurring tasks.
+- `adant-init`: connection and capability verification.
 
-Installation is configured to authenticate immediately. Codex CLI opens AdAnt
-in the browser so the user can sign in or create an account, review the
-requested permissions, and authorize the connection. A manual CLI reconnect
-is also available:
+Projects return durable ids. Resume the same project after disconnection; do
+not resubmit paid work with a new key. Review actual credit usage and returned
+artifacts. Pending work is not a completed report, render or published post.
+Publishing and scheduling require explicit confirmation. Some platform consent,
+TikTok posting choices and editable forms must be completed at the returned
+Studio link. The plugin does not invent account settings or bypass those forms.
+Creator discovery does not establish that a person offers video-editing services
+or is available to hire; the video editor workflow edits media in AdAnt.
 
-```bash
-codex mcp login adant
-```
+If authentication fails, reconnect the existing AdAnt connection and retain
+project ids. Missing tools alone do not prove an expired login. Never use a
+browser scraper or another provider to bypass unavailable AdAnt capabilities.
 
-Use this command only when the `codex` executable is installed in that
-terminal. Finish sign-in in Chrome or Safari. If the embedded browser times
-out, return to the AdAnt authorization page, copy its full address, and paste
-it into the regular browser while the command keeps running.
+For help, contact [AdAnt support](mailto:contact@anyloop.ai).
 
-Verify the installation with:
+Budget thresholds check estimated next-turn and generation admission. They do
+not hard-cap in-flight or concurrent spending; final usage can exceed them.
+Review actual returned usage rather than treating an estimate as a final charge.
 
-```bash
-codex plugin list
-codex mcp get adant
-```
+## Cloud roles in your coding task
 
-Start a new Codex task after installing or updating the plugin so the new
-skills and tools are discovered.
+Your host subscription agent handles the conversation, planning and review.
+AdAnt executes each requested task through its authenticated APIs using the
+same private cloud specialists and current skills:
 
-## Included workflows
+| Role | Work |
+| --- | --- |
+| Strategist | Product/competitor research and saved content strategies |
+| Scout | Reddit/X listening and creator shortlists |
+| Creator | Video analysis, creation, cloning and timeline editing |
+| Manager | Account planning, posts and recurring AdAnt tasks |
 
-- `adant` routes one-off image, video, and voice generation plus credit, model,
-  job, upload, and library operations.
-- `adant-create-ad` runs a durable, approval-gated creative project for a
-  complete ad.
-- `adant-clone-ad` analyzes and adapts a reference ad while preserving the
-  traits chosen by the user.
-- `initial-social-content-research` researches a product, competitors, TikTok,
-  Instagram, Meta Ads, and YouTube, recommends the brand's hashtag sets
-  (competitors first, then niche keywords, then the brand tag; at most five a
-  post), and saves a research report.
-- `social-content-strategist` converts current examples and prior research into
-  distinct, reusable content strategies.
-- Component skills provide product research, keyword discovery, platform
-  browsing, video understanding, report generation, and strategy synthesis.
+Start with `adant_get_capabilities`, then `adant_agent_start` with an available
+`agentKey` and supported `projectType`. Recover prior work with
+`adant_list_agent_tasks`; continue using its existing project id. The optional
+Ads Buyer pilot is exposed only when the account allows it. No private skill
+bodies or executable research code are distributed in the plugin.
 
-Generation spends AdAnt credits. The skills require an explicit confirmation
-before submitting credit-spending work and derive project ownership from the
-authorized AdAnt account.
-
-Social research runs through the same durable server jobs as the web app:
-profile, collect, analyze and save. The installed AdAnt connection is the only
-research prerequisite; local tools, `uv`, Chrome, social logins, and provider
-keys are not required. The plugin checks remote authentication and capability
-availability before work. Queued jobs survive a disconnected or sleeping
-computer and resume by operation ID; host reasoning resumes with the host.
-
-Reports are saved directly to Studio with their evidence references and
-original thumbnail URLs. Export a PDF from the report page when needed.
-The shared research procedure is generated from the web workflow and checked
-for drift for both plugin hosts. Local tools remain for explicit local-file
-media, document export and browser investigation, outside normal research.
-
-## Support
-
-For product information, visit [adant.ai](https://adant.ai). For help, email
-[contact@anyloop.ai](mailto:contact@anyloop.ai).
-
-## Local runtime setup and recovery
-
-If the local MCP server reports that uv is missing, run
-`sh /absolute/path/to/plugin/local-server/setup.sh --install-runtime`, or ask
-AdAnt initialization to repair the local runtime. This installs uv from Astral
-without changing shell profiles and prepares the locked Python environment
-outside the MCP startup timeout. Reconnect the local MCP server afterward; if
-the host has no reconnect control, start a new task with your original request.
-Restarting the desktop app does not install missing dependencies.
-
-You can combine initialization and work in that task: “Initialize AdAnt, then
-research this product: <URL>.” No separate post-initialization task is needed.
+Native scheduled-task confirmations carry the proposed fields for review;
+TikTok posting settings and platform consent still use Studio when required.
+Account gates and consent requirements match the cloud; installation alone
+does not enable a restricted capability.

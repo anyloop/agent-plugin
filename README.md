@@ -1,72 +1,53 @@
-# AdAnt Agent Plugin
+# AdAnt agent plugin
 
-Research current social trends, build strategies, and create or clone short-form
-video ads with AdAnt from Codex or Claude Code. One plugin connects each host to
-the authenticated AdAnt MCP server at `https://api.adant.ai/mcp`.
+Research, listen, discover creators, analyze videos, create and edit ads, and
+schedule TikTok/Instagram content through AdAnt's authenticated server agents.
 
-## What's included
+- [Install in Codex](docs/codex-install.md)
+- [Install in Claude Code](docs/claude-code-install.md)
+- [Research and agent workflows](docs/social-research.md)
 
-- `codex/` — the Codex plugin package and MCP configuration.
-- `claude/` — the Claude Code plugin package and MCP configuration.
-- `.agents/plugins/marketplace.json` — the Codex marketplace catalog.
-- `.claude-plugin/marketplace.json` — the Claude Code marketplace catalog.
+Add this repository as the `adant-ai` marketplace and install AdAnt. Complete
+AdAnt OAuth; no provider API keys or local research runtime are needed.
 
-## Install in ChatGPT desktop
+AdAnt runs its private skills and paid data/media operations on its servers.
+AdAnt credits are separate from your coding agent's credits. Set agent/media
+budgets before starting and resume durable projects by id. Read-only account
+and status requests may be free. Capabilities depend on your AdAnt account.
 
-Open **Plugins**, add `https://github.com/anyloop/agent-plugin.git` as a personal
-marketplace on `main`, then install AdAnt from **Personal** and complete the
-connection prompt. Start a new task after installation. If a connection needs
-repair in that fresh task, reopen AdAnt under **Installed** or **Personal**;
-the desktop app does not require the separate `codex` terminal command.
+Research, listening, creator discovery, creation, editing and recurring tasks
+use AdAnt's agents. Listening produces drafts, not posted replies. Publishing
+and scheduling require confirmation; platform consent and some editable forms
+open in Studio. A creator shortlist does not prove hiring availability.
 
-## Install in Codex CLI
+The repository is generated from AdAnt's application source. Please report
+issues through [AdAnt support](mailto:contact@anyloop.ai); do not commit tokens,
+private media, customer reports or credentials.
 
-```bash
-codex plugin marketplace add anyloop/agent-plugin --ref main
-codex plugin add adant@adant-ai
-```
+Budget thresholds check estimated next-turn and generation admission. They do
+not hard-cap in-flight or concurrent spending; final usage can exceed them.
+Review actual returned usage rather than treating an estimate as a final charge.
 
-Codex CLI opens AdAnt OAuth during installation. To reconnect later, run
-`codex mcp login adant` only from a terminal where the Codex CLI is installed.
-See [the Codex guide](docs/codex-install.md).
+## Cloud roles in your coding task
 
-## Install in Claude Code
+Your host subscription agent handles the conversation, planning and review.
+AdAnt executes each requested task through its authenticated APIs using the
+same private cloud specialists and current skills:
 
-```bash
-claude plugin marketplace add https://github.com/anyloop/agent-plugin.git
-claude plugin install adant@adant-ai
-claude mcp login plugin:adant:adant
-```
+| Role | Work |
+| --- | --- |
+| Strategist | Product/competitor research and saved content strategies |
+| Scout | Reddit/X listening and creator shortlists |
+| Creator | Video analysis, creation, cloning and timeline editing |
+| Manager | Account planning, posts and recurring AdAnt tasks |
 
-See [the Claude Code guide](docs/claude-code-install.md) for verification,
-reconnection, and update steps.
+Start with `adant_get_capabilities`, then `adant_agent_start` with an available
+`agentKey` and supported `projectType`. Recover prior work with
+`adant_list_agent_tasks`; continue using its existing project id. The optional
+Ads Buyer pilot is exposed only when the account allows it. No private skill
+bodies or executable research code are distributed in the plugin.
 
-See [Social research setup](docs/social-research.md) for local prerequisites,
-platform sessions, and workspace safety.
-
-## Try it
-
-New here? Send **`$adant-init`** (or ask "What can AdAnt do?") — the plugin
-opens its live progress panel, verifies your connection, and offers three
-ready-to-send starting prompts.
-
-- “Create a 15-second vertical product ad with AdAnt.”
-- “Clone this reference ad for my product, but keep my brand voice.”
-- “Research current TikTok, Instagram, and YouTube trends for this product.”
-- “Turn this research into eight distinct content strategies.”
-
-Generation can spend AdAnt credits. The packaged skills require confirmation
-before submitting credit-spending work. Project ownership comes from the AdAnt
-account authorized through OAuth; the AdAnt MCP does not ask for or store API
-keys.
-
-AdAnt account access uses one MCP login. Some local social-research adapters
-also require Python 3.11+, `uv`, Chrome, a user-provided Gemini API key, or an
-interactive TikTok/Instagram session. These credentials are used by their
-respective local or third-party tools and must never be committed to a project.
-
-## Support
-
-For product information, visit [adant.ai](https://adant.ai). For help, email
-[contact@anyloop.ai](mailto:contact@anyloop.ai). Please report suspected
-security issues privately as described in [SECURITY.md](SECURITY.md).
+Native scheduled-task confirmations carry the proposed fields for review;
+TikTok posting settings and platform consent still use Studio when required.
+Account gates and consent requirements match the cloud; installation alone
+does not enable a restricted capability.

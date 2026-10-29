@@ -1,11 +1,16 @@
 ---
 name: content-strategy-generator
-description: Generate fresh product content strategies from reports, examples and analyzed candidates through AdAnt server jobs.
+description: Generate a saved social strategy brief.
 ---
 
-# Generate Content Strategies
+# Content Strategy Generator
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Follow the [content research workflow](../content-research/SKILL.md) in New social ideas scope. Reuse evidence already analyzed in this researchId, read prior reports as seeds, and exclude all prior inspiration URLs and near-duplicate concepts. Collect only missing evidence, analyze new candidates on the server, then save a strategy brief with evidence, hooks, product angle, script, CTA, avatar and three-line recreation message.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Generate a saved social strategy brief.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

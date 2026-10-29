@@ -1,11 +1,16 @@
 ---
 name: social-content-strategist
-description: Turn example videos, creators, prior reports or product briefs into fresh evidence-backed strategies using AdAnt server jobs.
+description: Generate new content strategies from prior reports, examples and brand goals.
 ---
 
 # Social Content Strategist
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Run the [content research workflow](../content-research/SKILL.md) in New social ideas scope. Read every seed through the remote seed job or `adant_get_product_report`; exclude every supplied and previously cited video by platform ID. Honor platform weights and requested counts. Deliver `layout: "strategy_brief"` with fresh primaries and reserves, the saved Studio URL, and a clear account of missing evidence.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Generate new content strategies from prior reports, examples and brand goals.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

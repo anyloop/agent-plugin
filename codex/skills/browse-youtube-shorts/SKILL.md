@@ -1,25 +1,16 @@
 ---
 name: browse-youtube-shorts
-description: Browse YouTube Shorts by keywords for visible trend and creator evidence. Prefer the in-app Browser; use adant-local research tools as fallback.
+description: Research YouTube Shorts through AdAnt server collection.
 ---
 
-# Browse YouTube Shorts
+# Browse Youtube Shorts
 
-> **Deprecated (2026-09-20).** Use the server content-research workflow for normal research. This browser skill is retained only for explicitly requested browser investigation; it is not automatic gap-fill for server jobs.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with its recovery instructions if a required check fails.
+Follow the [durable project procedure](../adant/references/projects.md).
 
-Use the `control-in-app-browser` skill and its browser-client selection flow when
-available; the runtime prefers the persistent in-app Browser. Never inspect
-browser secrets.
-
-Reuse one workflow-owned tab and close it immediately after capture; never close
-a user-created tab. If Browser is unavailable or blocked, use the Chrome/CDP
-fallback by calling `research_run`
-phase `platform-youtube` with queries, sort/time/view filters, limits, and an
-output artifact.
-
-Return visible URL, channel, title/description, hashtags, views/likes/comments,
-publish date, thumbnail, query, and backend. Keep Shorts distinct from long-form
-videos, label missing metrics, and separate observations from inferred patterns.
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Research YouTube Shorts through AdAnt server collection.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

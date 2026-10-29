@@ -1,11 +1,16 @@
 ---
 name: tiktok-keyword-research
-description: Build tiktok-native discovery queries from a sourced product profile and seed evidence.
+description: Research TikTok-native discovery queries for the supplied brand.
 ---
 
 # Tiktok Keyword Research
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Use the profile and seed-reading steps of the [content research workflow](../content-research/SKILL.md) when evidence is missing. Compose tiktok-native subject, audience-problem, format-in-category and brand/competitor queries from that evidence in this conversation. Keep each query short and specific, drop feed hashtags, and explain which seed or product fact supports it. Return the query set; only collect or save a report when the user requested that broader work.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Research TikTok-native discovery queries for the supplied brand.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

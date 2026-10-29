@@ -1,65 +1,65 @@
 ---
 name: adant
-description: Use AdAnt through its authenticated remote and local MCP tools for credits, media models, generation, jobs, local-file media, and creative workflows. Trigger when the user mentions AdAnt, requests AI ad media, or provides a local asset for AdAnt processing.
+description: Run AdAnt's authenticated server agents for research, social listening, creator discovery, video analysis, ad creation, video editing, scheduling and TikTok/Instagram publishing. Also manage AdAnt media, credits and library assets.
 ---
 
 # Use AdAnt
 
-Before work, follow the [authentication preflight](references/authentication.md);
-return early with its recovery instructions if a required check fails.
+Follow the [authentication preflight](references/authentication.md), then
+[the durable project procedure](references/projects.md) for substantive work.
+The host subscription agent handles the conversation, planning and review.
+Use `adant_agent_start` to execute substantive work on AdAnt’s cloud specialists;
+AdAnt runs their current private skills and tools on its own servers.
+Agent work, paid data and media consume AdAnt credits in addition to the
+coding agent's credits. Report actual usage; do not promise every read is paid.
 
-Use only the connected AdAnt MCP tools. Never ask for provider keys or replace a
-missing AdAnt tool with an unrelated generator.
+## Choose the cloud role
 
-## Choose the surface
+Read `adant_get_capabilities`: use each agent’s `role`, `projectTypes` and
+`taskApi`, and select only an available `agentKey`. The named role adapters are
+`adant-strategist`, `adant-scout`, `adant-creator` and `adant-manager`.
+The optional Ads Buyer pilot uses `adant-ads-buyer` when enabled.
 
-- Remote `adant_*` tools: credits, capabilities, model discovery, generation,
-  durable jobs, library data, uploads, reports, and creative projects.
-- Local `media_local`: upload, analyze, or edit a file from the user's machine.
-- `adant-create-ad` / `adant-clone-ad`: multi-step ads with approvals.
-- `content-research` / `initial-social-content-research`: server research and a saved Studio report.
-- `social-content-strategist`: new content ideas from example videos, a
-  report, or a niche, delivered as a saved strategy brief with one-click Create in Studio and on-demand PDF export.
-- `adant-init`: first-run connection and readiness help.
+For work spanning roles, the host keeps the plan and runs the tasks in dependency
+order, passing saved report/task/artifact references between them. Preserve all
+returned ids; never silently add paid research or generation.
 
-Report missing tools using the preflight evidence; do not infer OAuth failure
-from absence alone or prescribe a restart without a diagnosed cause.
+## Route the request
 
-## Remote media workflow
+| Request | Project type / skill |
+| --- | --- |
+| Product, competitor, social content or strategy research | `research` / `content-research` |
+| Reddit or X listening and reply drafts | `social_listening` / `adant-social-listening` |
+| Find UGC creators or influencers | `creator_discovery` / `adant-find-creators` |
+| Create a complete ad | `adant-create-ad` |
+| Clone or adapt a reference ad | `clone` / `adant-clone-ad` |
+| Edit, caption, stitch or render a video | `video_editing` / `adant-video-editor` |
+| Analyze a reference video | `video_analysis` / `adant-analyze` |
+| Account audit, recurring tasks, TikTok/Instagram posts | `social_publishing` / `adant-social-manager` |
+| Initialize or repair the connection | `adant-init` |
 
-1. Use `adant_get_capabilities` when availability is uncertain.
-2. Discover with `adant_list_media_models`; inspect model-specific controls
-   with `adant_get_media_model`.
-3. Present the exact model, count, dimensions/duration, and quoted credits.
-4. Obtain explicit approval before a credit-spending call.
-5. Call the matching generate tool with a fresh idempotency key.
-6. Report the durable job id. Read it later with `adant_get_media_job`; cancel
-   only with explicit authorization.
+Keep execution in the authenticated AdAnt tools. Missing capabilities are
+reported as gaps; never substitute browser scraping, local research scripts,
+a provider API, a host automation, or a separate coding agent for paid AdAnt
+work. Do not download or reconstruct AdAnt's private agent instructions.
 
-Do not invent controls or claim completion while a job is queued/running. Reuse
-an idempotency key only for the identical logical request.
+## One explicit media asset
 
-## Local files
+For an explicit single image, video or voice request, discover models with
+`adant_list_media_models` / `adant_get_media_model`, present the model and
+available credit estimate, and obtain approval for the requested generation.
+Call the matching remote generation tool with a fresh idempotency key.
+Read the returned job with `adant_get_media_job`; reuse the original key and
+identical arguments for an uncertain retry. Never invent model controls.
 
-Call `doctor` first. If local authentication is absent, mint the minimum scopes
-needed by passing the fields of its `device` to `adant_mint_local_token`; pass
-the token directly to `auth_bootstrap` and never echo it in chat.
+## References and local files
 
-- Upload: `media_local(action="upload", path=<file>, params={})`.
-- Analyze: use action `analyze` with `prompt` and optional `response_format`,
-  `model`, and `output_path`.
-- Edit: use action `edit` with `prompt` and optional `mask_path`, model/quality,
-  output, and wait controls.
+Use owner-scoped library tools or the remote prepare/upload/complete flow.
+Upload only to the returned upload destination, then complete the upload and
+use its verified file id. A prepared slot is not a completed file. If the host
+cannot transfer the bytes, ask the user to upload in Studio and reuse the
+returned asset; do not pretend a local path is server-visible. No local MCP
+server, social login, Python runtime or provider key is required.
 
-Local media requires the `media` scope. Report delivery may additionally request
-`report`; research uses `research`.
-
-## Creative projects
-
-Start once, persist the returned project id, and resume with the project tools.
-Present every question, picker, or generation confirmation to the user and
-respond using the exact interaction id. Never infer approval, expose hidden
-reasoning, or hammer a progress tool in one turn.
-
-Finish with the adapter used, model, credit estimate/usage, job or project ids,
-artifact links/paths, current state, and any exact pending decision.
+Return the project/job id, current status, saved report or artifact links,
+actual AdAnt usage and any pending user decision. Queued work is not complete.

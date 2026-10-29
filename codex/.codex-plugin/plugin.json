@@ -1,7 +1,7 @@
 {
   "name": "adant",
-  "version": "0.11.0",
-  "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt.",
+  "version": "0.12.0",
+  "description": "Use AdAnt’s cloud Strategist, Scout, Creator and Manager for research, listening, creator discovery, video creation/editing and social scheduling.",
   "author": {
     "name": "AdAnt AI",
     "email": "contact@anyloop.ai",
@@ -20,31 +20,37 @@
     "media-generation",
     "research",
     "social-content",
-    "strategy"
+    "strategy",
+    "social-listening",
+    "creators",
+    "video-editing",
+    "scheduling",
+    "publishing"
   ],
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "AdAnt",
-    "shortDescription": "Research trends and create short-form ads with AI.",
-    "longDescription": "Research products, competitors, and short-form trends; build evidence-backed social strategies and reports; then create or clone ads and generate image, video, and voice assets with AdAnt.",
+    "shortDescription": "Research, create, edit and schedule with AdAnt.",
+    "longDescription": "Use AdAnt’s cloud Strategist, Scout, Creator and Manager for research, listening, creator discovery, video creation/editing and social scheduling.",
     "developerName": "AdAnt AI",
     "category": "Design",
     "capabilities": [
       "Research",
-      "Browser automation",
-      "Video understanding",
-      "Report generation",
-      "Strategy generation",
-      "Media generation"
+      "Social listening",
+      "Creator discovery",
+      "Video analysis",
+      "Media generation",
+      "Video editing",
+      "Social scheduling"
     ],
     "websiteURL": "https://adant.ai",
     "privacyPolicyURL": "https://adant.ai/privacy",
     "termsOfServiceURL": "https://adant.ai/terms",
     "defaultPrompt": [
-      "Research short-form trends for my product.",
-      "Create a short-form product ad with AdAnt.",
-      "Clone this reference ad for my product."
+      "Ask the Strategist to research my product and the Scout to find creators.",
+      "Use the Creator to analyze, create or edit a short-form video.",
+      "Ask the Manager to plan and schedule TikTok and Instagram posts."
     ],
     "brandColor": "#FF5A1F",
     "composerIcon": "./assets/icon.png",

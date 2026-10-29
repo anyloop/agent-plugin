@@ -1,7 +1,0 @@
-{
-  "$schema": "https://pspm.dev/schema/v1/pspm-lock.json",
-  "lockfileVersion": 3,
-  "registryUrl": "https://registry.pspm.dev",
-  "packages": {},
-  "githubPackages": {}
-}

@@ -1,11 +1,16 @@
 ---
 name: social-content-research-report
-description: Save research and strategy briefs directly to AdAnt Studio with evidence checks and on-demand PDF export.
+description: Create or revise the requested saved research report in AdAnt.
 ---
 
 # Social Content Research Report
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Follow the report contract and save stage of the [content research workflow](../content-research/SKILL.md). Compose `data`, preserve original thumbnail URLs, candidate tiers, sources, gaps, and this run's analysisArtifactId values. Use `adant_research_save` with the same researchId and a stable key. Return the actual saved ID/URL and warnings. PDF export is available from that report page; no local rendering or upload is required. Full reports show brand/competitor evidence before creator evidence; idea requests use `layout: "strategy_brief"`.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Create or revise the requested saved research report in AdAnt.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

@@ -1,11 +1,16 @@
 ---
 name: competitor-research
-description: Identify direct product competitors and gather bounded website and social evidence through AdAnt server research.
+description: Research direct competitors and their content, keeping adjacent brands separate.
 ---
 
 # Competitor Research
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Use the [content research workflow](../content-research/SKILL.md). Profile the product, distinguish direct competitors from adjacent tools, and profile named competitor URLs when verification is needed. Use bounded `adant_research_collect` queries for their organic posts and Meta ads. Check advertiser identity and treat active ads as positioning evidence, not proof of conversions. A competitor report uses Spy competitors scope and direct server saving.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Research direct competitors and their content, keeping adjacent brands separate.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

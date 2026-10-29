@@ -1,15 +1,8 @@
 {
   "mcpServers": {
     "adant": {
-      "oauth_resource": "https://api.adant.ai/mcp",
-      "url": "https://api.adant.ai/mcp"
-    },
-    "adant-local": {
-      "command": "sh",
-      "args": [
-        "./local-server/bootstrap.sh"
-      ],
-      "cwd": "."
+      "url": "https://api.adant.ai/mcp",
+      "oauth_resource": "https://api.adant.ai/mcp"
     }
   }
 }

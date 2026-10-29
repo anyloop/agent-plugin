@@ -13,8 +13,8 @@ Use the plugin-managed MCP server named `plugin:adant:adant`. Do not configure a
 second AdAnt MCP server or ask the user for an API key.
 
 Before continuing a product task after setup, follow the shared
-[authentication preflight](../adant/references/authentication.md). If it fails,
-return its observed error and recovery instructions before doing actual work.
+[authentication preflight](../adant/references/authentication.md), including its
+connection recovery before reporting an authentication blocker.
 
 ## Verify
 
@@ -46,5 +46,8 @@ claude plugin marketplace update adant-ai
 claude plugin update adant@adant-ai
 ```
 
-After installing, updating, or reconnecting, ask the user to start a new Claude
-Code conversation before testing an AdAnt workflow.
+After login, use any exposed reconnect control, rediscover tools and rerun the
+remote authentication probe. Continue the original request in this conversation
+when verification passes. If the host cannot refresh its tools here, preserve
+the request and research operation IDs in a resume prompt for a new conversation;
+do not repeat login after authorization has succeeded.

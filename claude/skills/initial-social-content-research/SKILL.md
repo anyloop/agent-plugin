@@ -1,11 +1,16 @@
 ---
 name: initial-social-content-research
-description: Run full product and social-content research through AdAnt server jobs and deliver a saved report.
+description: Run initial product and multi-platform social content research.
 ---
 
 # Initial Social Content Research
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Run the [content research workflow](../content-research/SKILL.md) with full social strategy scope unless the user narrows it. Profile the product, collect all in-scope platforms, analyze five primaries and three reserves by default, and save the report. Preserve the user's requested counts. Missing evidence produces an explicitly partial report, not a local browser recovery loop.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Run initial product and multi-platform social content research.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.

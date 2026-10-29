@@ -1,30 +1,56 @@
-# Social research
+# Research and agent workflows
 
-Codex and Claude Code use the same AdAnt server research workflow as Studio:
-profile the product, collect social evidence, analyze selected videos, and
-save a report. Start with `$adant-init` or ask for research directly.
+Start with `$adant-init` to verify the remote AdAnt connection and capabilities,
+then state the product, references, goal, scope and budget in ordinary language.
 
-## Prerequisites
+Research and strategy requests start durable `research` projects. AdAnt owns
+the current research skills, supplier acquisition, analysis and saved reports.
+Listening uses `social_listening`, creator discovery uses `creator_discovery`,
+editing uses `video_editing`, and posts or recurring tasks use `social_publishing`.
+Ad creation and cloning use the corresponding creative project types.
 
-Authorize the remote AdAnt connection. Research does not require a local
-runtime, Chrome, social-account login, provider key, or local file uploads.
-If a required remote tool is absent, the plugin names the capability gap
-before paid work; update/reconnect the plugin as appropriate for the observed
-host status. Missing local tools do not prevent server research.
+Agent work, paid data and media consume AdAnt credits separately from the host
+coding agent. The plugin checks capabilities and agrees on agent/media budgets.
+Status and account reads may be free. Missing features are reported rather than
+replaced with local/browser collection or third-party APIs.
 
-## Resume and delivery
+Save the returned project id. Resume that project after an interrupted task or
+reconnect; an uncertain retry keeps the same idempotency key and arguments.
+The plugin returns the actual state, artifacts, usage and pending decisions.
+A pending project is not complete and a partial report keeps its evidence gaps.
 
-Each run retains a research ID, operation IDs and idempotency keys. Profile,
-seed metadata and analysis jobs execute on the server and survive a sleeping
-or disconnected desktop. The host recovers their results before continuing;
-reasoning between stages still requires the host to run.
+The installed plugin needs no Python, uv, browser automation or social research
+login. Private workflows and execution remain on AdAnt. Upload local references
+with the remote upload flow or through Studio; local paths alone are not assets.
 
-The report is saved directly to AdAnt Studio. Original thumbnail URLs are
-stored by the server, and video evidence references are checked during save.
-Insufficient evidence produces an explicitly partial report with named gaps.
-Use the report page to export PDF; research does not render a local deck.
+Listening drafts are not published replies. TikTok/Instagram posting and schedule
+changes require user confirmation; platform consent and some forms use the
+returned Studio link. Recurring tasks run in AdAnt and use AdAnt credits.
 
-The full research and fresh-ideas skills share the web workflow's selection,
-seed exclusion, hashtag, attempt-budget and report rules. Local tools remain
-available for explicitly requested local media, document exports and browser
-investigation; their setup is independent of research.
+Budget thresholds check estimated next-turn and generation admission. They do
+not hard-cap in-flight or concurrent spending; final usage can exceed them.
+Review actual returned usage rather than treating an estimate as a final charge.
+
+## Cloud roles in your coding task
+
+Your host subscription agent handles the conversation, planning and review.
+AdAnt executes each requested task through its authenticated APIs using the
+same private cloud specialists and current skills:
+
+| Role | Work |
+| --- | --- |
+| Strategist | Product/competitor research and saved content strategies |
+| Scout | Reddit/X listening and creator shortlists |
+| Creator | Video analysis, creation, cloning and timeline editing |
+| Manager | Account planning, posts and recurring AdAnt tasks |
+
+Start with `adant_get_capabilities`, then `adant_agent_start` with an available
+`agentKey` and supported `projectType`. Recover prior work with
+`adant_list_agent_tasks`; continue using its existing project id. The optional
+Ads Buyer pilot is exposed only when the account allows it. No private skill
+bodies or executable research code are distributed in the plugin.
+
+Native scheduled-task confirmations carry the proposed fields for review;
+TikTok posting settings and platform consent still use Studio when required.
+Account gates and consent requirements match the cloud; installation alone
+does not enable a restricted capability.

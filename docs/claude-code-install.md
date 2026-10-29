@@ -4,7 +4,7 @@
 
 - A current local Claude Code installation with plugin support.
 - A browser for AdAnt sign-in and OAuth consent.
-- `uv` for local research tools. `uv` provisions Python automatically.
+- An AdAnt account; paid work uses AdAnt credits separately from host credits.
 
 Remote Claude surfaces may not support local marketplace installation or the
 interactive login flow. Complete setup in local Claude Code.

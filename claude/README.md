@@ -1,53 +1,77 @@
 # AdAnt for Claude Code
 
-The AdAnt Claude Code plugin connects Claude to AdAnt's hosted MCP server and
-adds one workflow surface for social research, strategy, media generation, and
-creating or cloning short-form ads.
+Run AdAnt's current server agents from Claude Code: research products and competitors,
+listen to Reddit and X, find creators, analyze videos, create or clone ads, edit
+videos, and plan TikTok/Instagram posts and recurring tasks.
 
-## Install
+Connect the plugin to `https://api.adant.ai/mcp` using AdAnt OAuth. Install from
+[the public marketplace](https://github.com/anyloop/agent-plugin), complete the
+AdAnt connection prompt and start a new task to discover its tools. See the
+public repository's [installation guides](https://github.com/anyloop/agent-plugin/tree/main/docs).
 
-```bash
-claude plugin marketplace add https://github.com/anyloop/agent-plugin.git
-claude plugin install adant@adant-ai
-claude mcp login plugin:adant:adant
-```
+## What runs where
 
-Confirm the connection with `claude mcp get plugin:adant:adant`, then start a
-new Claude Code conversation so the plugin skills and tools are loaded.
+The plugin contains thin workflow adapters. AdAnt executes its private agent
+skills, data collection, analysis, media generation and task scheduling on its
+servers. Agent work, paid data and media use AdAnt credits **in addition to** the
+coding agent's credits; read-only account/status operations may be free.
+Agree on agent and media budgets before starting. Model or agent availability
+and feature restrictions come from the authenticated account's capabilities.
 
-If authentication needs an interactive terminal, run:
+The plugin installs only the remote AdAnt MCP. No local research server, Python,
+uv, Chrome automation, social research login or provider API key is required.
+For local assets use the AdAnt upload flow or upload through Studio.
 
-```bash
-sh "${CLAUDE_PLUGIN_ROOT}/skills/adant-claude-setup/scripts/login-adant.sh"
-```
+## Workflows
 
-Social research runs through the same durable server jobs as the web app:
-profile, collect, analyze and save. The installed AdAnt connection is the only
-research prerequisite; local tools, `uv`, Chrome, social logins, and provider
-keys are not required. The plugin checks remote authentication and capability
-availability before work. Queued jobs survive a disconnected or sleeping
-computer and resume by operation ID; host reasoning resumes with the host.
+- `content-research`: product, competitor and social research with saved reports.
+- `adant-social-listening`: Reddit/X findings and reply drafts; does not post replies.
+- `adant-find-creators`: evidence-backed creator shortlists; no automatic outreach.
+- `adant-analyze`: video structure and creative analysis.
+- `adant-create-ad` / `adant-clone-ad`: complete creative projects.
+- `adant-video-editor`: editing, captions, stitching and rendering.
+- `adant-social-manager`: account audits, TikTok/Instagram posts and recurring tasks.
+- `adant-init`: connection and capability verification.
 
-Reports are saved directly to Studio with their evidence references and
-original thumbnail URLs. Export a PDF from the report page when needed.
-The shared research procedure is generated from the web workflow and checked
-for drift for both plugin hosts. Local tools remain for explicit local-file
-media, document export and browser investigation, outside normal research.
+Projects return durable ids. Resume the same project after disconnection; do
+not resubmit paid work with a new key. Review actual credit usage and returned
+artifacts. Pending work is not a completed report, render or published post.
+Publishing and scheduling require explicit confirmation. Some platform consent,
+TikTok posting choices and editable forms must be completed at the returned
+Studio link. The plugin does not invent account settings or bypass those forms.
+Creator discovery does not establish that a person offers video-editing services
+or is available to hire; the video editor workflow edits media in AdAnt.
 
-## Support
+If authentication fails, reconnect the existing AdAnt connection and retain
+project ids. Missing tools alone do not prove an expired login. Never use a
+browser scraper or another provider to bypass unavailable AdAnt capabilities.
 
-For product information, visit [adant.ai](https://adant.ai). For help, email
-[contact@anyloop.ai](mailto:contact@anyloop.ai).
+For help, contact [AdAnt support](mailto:contact@anyloop.ai).
 
-## Local runtime setup and recovery
+Budget thresholds check estimated next-turn and generation admission. They do
+not hard-cap in-flight or concurrent spending; final usage can exceed them.
+Review actual returned usage rather than treating an estimate as a final charge.
 
-If the local MCP server reports that uv is missing, run
-`sh /absolute/path/to/plugin/local-server/setup.sh --install-runtime`, or ask
-AdAnt initialization to repair the local runtime. This installs uv from Astral
-without changing shell profiles and prepares the locked Python environment
-outside the MCP startup timeout. Reconnect the local MCP server afterward; if
-the host has no reconnect control, start a new task with your original request.
-Restarting the desktop app does not install missing dependencies.
+## Cloud roles in your coding task
 
-You can combine initialization and work in that task: “Initialize AdAnt, then
-research this product: <URL>.” No separate post-initialization task is needed.
+Your host subscription agent handles the conversation, planning and review.
+AdAnt executes each requested task through its authenticated APIs using the
+same private cloud specialists and current skills:
+
+| Role | Work |
+| --- | --- |
+| Strategist | Product/competitor research and saved content strategies |
+| Scout | Reddit/X listening and creator shortlists |
+| Creator | Video analysis, creation, cloning and timeline editing |
+| Manager | Account planning, posts and recurring AdAnt tasks |
+
+Start with `adant_get_capabilities`, then `adant_agent_start` with an available
+`agentKey` and supported `projectType`. Recover prior work with
+`adant_list_agent_tasks`; continue using its existing project id. The optional
+Ads Buyer pilot is exposed only when the account allows it. No private skill
+bodies or executable research code are distributed in the plugin.
+
+Native scheduled-task confirmations carry the proposed fields for review;
+TikTok posting settings and platform consent still use Studio when required.
+Account gates and consent requirements match the cloud; installation alone
+does not enable a restricted capability.

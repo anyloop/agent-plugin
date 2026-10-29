@@ -1,11 +1,16 @@
 ---
 name: product-research
-description: Turn a product URL and notes into a sourced profile through AdAnt's durable server profile job.
+description: Research and profile the supplied product; keep the scope to the product.
 ---
 
 # Product Research
 
-Before work, follow the [authentication preflight](../adant/references/authentication.md);
-return early with the observed error if required authentication fails.
+Before work, follow the [authentication preflight](../adant/references/authentication.md).
 
-Use the profile stage of the [content research workflow](../content-research/SKILL.md): call `adant_research_profile` and wait with `adant_research_status`. Return the sourced product facts, audience, benefits, differentiators, claims, voice, assets and gaps. Separate inference from observed facts. Do not run unrelated collection or report stages for a profile-only request.
+Follow the [durable project procedure](../adant/references/projects.md).
+
+Use the [content research entrypoint](../content-research/SKILL.md) with
+`projectType: "research"`. Research and profile the supplied product; keep the scope to the product.
+Pass the requested scope and reference URLs/report ids in the project brief.
+The server owns data acquisition, private skills, analysis and report delivery.
+Preserve citations and evidence gaps; do not substitute local/browser execution.
