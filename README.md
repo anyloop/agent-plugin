@@ -28,6 +28,21 @@ Budget thresholds check estimated next-turn and generation admission. They do
 not hard-cap in-flight or concurrent spending; final usage can exceed them.
 Review actual returned usage rather than treating an estimate as a final charge.
 
+## Meet the ants
+
+![Strategist](https://adant.ai/agents/heads/content-strategist-kit.png)
+![Scout](https://adant.ai/agents/heads/social-scout-kit.png)
+![Creator](https://adant.ai/agents/heads/video-creator-kit.png)
+![Manager](https://adant.ai/agents/heads/social-manager-kit.png)
+
+Invoke AdAnt and say “Introduce the team,” or share your product website URL.
+Your first response introduces the four ants with the same animated portraits
+as Studio (text fallback in terminals). After connection and credit checks, a
+bare product URL starts Strategist research followed by Scout listening on
+Reddit and X. You get saved reports and suggestions for Creator and Manager;
+video creation and calendar work begin when you request them. Explicit tasks
+keep their scope. Installation alone does not send a chat message.
+
 ## Cloud roles in your coding task
 
 Your host subscription agent handles the conversation, planning and review.

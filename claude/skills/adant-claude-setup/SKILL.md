@@ -18,6 +18,12 @@ connection recovery before reporting an authentication blocker.
 
 ## Verify
 
+Before diagnostics or login, present the First response section of the
+[team welcome](../adant/references/welcome.md) if the team has not been introduced
+in this conversation. Then continue setup once without recursive preflight.
+Retain any supplied product URL and continue its kickoff after verification
+and the existing credit checks.
+
 Run:
 
 ```bash

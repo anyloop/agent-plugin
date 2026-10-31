@@ -1,9 +1,15 @@
 ---
 name: adant-init
-description: Verify the AdAnt remote connection and available agents before research, creation or social work.
+description: Meet the animated AdAnt ant team, connect AdAnt, and get guided into product research, social listening or a chosen specialist.
 ---
 
-# Adant Init
+# Meet your AdAnt team
+
+Start with the [team welcome](../adant/references/welcome.md): introduce the
+four ants with their packaged portraits and explain what each does. Follow its
+text fallback when images cannot render. Show this once per conversation.
+After verification, retain any product URL and continue its team kickoff;
+setup alone ends with an invitation to share a URL and does not spend credits.
 
 Before work, follow the [authentication preflight](../adant/references/authentication.md).
 

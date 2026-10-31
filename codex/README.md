@@ -9,6 +9,25 @@ Connect the plugin to `https://api.adant.ai/mcp` using AdAnt OAuth. Install from
 AdAnt connection prompt and start a new task to discover its tools. See the
 public repository's [installation guides](https://github.com/anyloop/agent-plugin/tree/main/docs).
 
+## Meet your team
+
+![Strategist](assets/agents/content-strategist-kit.png)
+![Scout](assets/agents/social-scout-kit.png)
+![Creator](assets/agents/video-creator-kit.png)
+![Manager](assets/agents/social-manager-kit.png)
+
+Start with “Introduce the AdAnt team” or send AdAnt your product website URL.
+The first response introduces Strategist, Scout, Creator and Manager and checks
+your connection. A product URL defaults to product/competitor/content research,
+then Reddit and X listening, after agreeing on credit thresholds. You receive
+saved reports and suggested creative/calendar next steps. A narrower request
+keeps its own scope; setup alone starts no paid work.
+
+These are the same animated ant portraits as Studio. Hosts that cannot display
+images get a readable role list and a [local team preview](assets/agents/team.html).
+Installation does not itself send a message; invoke AdAnt to meet the team.
+Creator and Manager are introduced for next steps, not dispatched automatically.
+
 ## What runs where
 
 The plugin contains thin workflow adapters. AdAnt executes its private agent

@@ -1,9 +1,11 @@
 ---
 name: adant
-description: Run AdAnt's authenticated server agents for research, social listening, creator discovery, video analysis, ad creation, video editing, scheduling and TikTok/Instagram publishing. Also manage AdAnt media, credits and library assets.
+description: Run AdAnt's authenticated server agents for research, social listening, creator discovery, video analysis, ad creation, video editing, scheduling and TikTok/Instagram publishing. Also manage AdAnt media, credits and library assets. Use when a user shares a product or brand URL with AdAnt to introduce the ant team and start a research and social-listening brief.
 ---
 
 # Use AdAnt
+
+On the first AdAnt interaction, follow the [team welcome and product URL kickoff](references/welcome.md). A bare product URL requests research plus Reddit/X listening, subject to the existing budget and capability checks. Explicit narrower requests take precedence.
 
 Follow the [authentication preflight](references/authentication.md), then
 [the durable project procedure](references/projects.md) for substantive work.

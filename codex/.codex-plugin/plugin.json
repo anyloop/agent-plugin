@@ -1,6 +1,6 @@
 {
   "name": "adant",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Use AdAnt’s cloud Strategist, Scout, Creator and Manager for research, listening, creator discovery, video creation/editing and social scheduling.",
   "author": {
     "name": "AdAnt AI",
@@ -48,9 +48,9 @@
     "privacyPolicyURL": "https://adant.ai/privacy",
     "termsOfServiceURL": "https://adant.ai/terms",
     "defaultPrompt": [
-      "Ask the Strategist to research my product and the Scout to find creators.",
-      "Use the Creator to analyze, create or edit a short-form video.",
-      "Ask the Manager to plan and schedule TikTok and Instagram posts."
+      "Introduce the AdAnt ant team and help me get started.",
+      "Research my product URL with the team, including Reddit and X social listening.",
+      "Use the Creator for a video or the Manager to plan social posts."
     ],
     "brandColor": "#FF5A1F",
     "composerIcon": "./assets/icon.png",

@@ -1,5 +1,12 @@
 # Authentication preflight
 
+On the first AdAnt interaction in this conversation, present the First response
+section of the [team welcome](welcome.md), including its image/text fallback.
+This also applies when the user invokes a specialist directly. Then continue
+this preflight once; do not recursively restart it. Preserve the requested
+specialist scope and use the URL kickoff only for a new, otherwise unspecified
+product task. Reconnects do not repeat onboarding.
+
 Run this once at the start of each requested workflow, before product/competitor
 research, seed reads, discovery, analysis, generation, or uploads. Read-only
 diagnostics may precede it. Reuse a successful
