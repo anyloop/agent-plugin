@@ -1,7 +1,8 @@
 # Authentication preflight
 
-On the first AdAnt interaction in this conversation, present the First response
-section of the [team welcome](welcome.md), including its image/text fallback.
+On the first AdAnt interaction in this conversation, follow the [team
+welcome](welcome.md): `adant_meet_team` when the tools are there, otherwise only
+a short connecting line until they are.
 This also applies when the user invokes a specialist directly. Then continue
 this preflight once; do not recursively restart it. Preserve the requested
 specialist scope and use the URL kickoff only for a new, otherwise unspecified
@@ -18,7 +19,8 @@ and use the same recovery below, preserving work already submitted.
 1. Discover the remote tools through the host's tool search when available.
    Call `adant_get_credit_balance` as a read-only authentication probe. A zero
    balance still proves authentication; it is not an authentication failure.
-   Report the returned available credits. Before requested paid work, explain
+   Report the returned available credits unless the team card already shows
+   them; `adant_meet_team` is the same probe on a first interaction. Before requested paid work, explain
    that it consumes AdAnt credits and continue without asking for a numeric
    budget or exact-cost approval. Respect any user-supplied limits.
 2. If the probe fails or cannot be called, inspect current MCP startup status
@@ -31,7 +33,7 @@ and use the same recovery below, preserving work already submitted.
    substitute browser discovery while remote authentication is unverified.
 3. After a successful probe, check the remote tools required by the selected
    workflow. Durable agent work uses `adant_agent_start`, `adant_list_agent_tasks`
-   and the matching creative get/send/respond/stop tools. Check `adant_get_capabilities` for the supported
+   and the matching creative get/wait/send/respond/stop tools. Check `adant_get_capabilities` for the supported
    roles, agent keys, project types and account availability; no local server
    is required.
    A missing tool is a capability gap on an authenticated connection, not an
@@ -86,7 +88,16 @@ If login succeeded but tools remain absent after rediscovery, report
 In Codex desktop, reconnect AdAnt in plugin settings when no reload control is
 exposed to the agent. Request a new task only when the host cannot refresh tools
 in place, and provide a resume prompt with the original request and retained
-IDs. Do not repeatedly ask for “continue,” reauthorize, or promise that another
+IDs. Keep that message to these lines, with no team roster and no account of
+what you searched:
+
+> You're signed in. Open a new session to finish connecting, then send:
+>
+> `<the original request>`
+>
+> Nothing has run and no credits have been spent.
+
+Do not repeatedly ask for “continue,” reauthorize, or promise that another
 message will refresh the tool catalog. Resume only after the remote probe and
 required-tool checks pass.
 

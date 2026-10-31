@@ -17,8 +17,11 @@ public repository's [installation guides](https://github.com/anyloop/agent-plugi
 ![Manager](assets/agents/social-manager-kit.png)
 
 Start with “Introduce the AdAnt team” or send AdAnt your product website URL.
-The first response introduces Strategist, Scout, Creator and Manager and checks
-your connection. A product URL defaults to product/competitor/content research,
+The first response shows the team card, with Strategist, Scout, Creator and
+Manager, your credits and a box for your product URL, and checks your connection.
+The Claude desktop app draws these cards inline, along with the project,
+report and video cards that follow. The terminal has no inline surface, so it
+gets a short text reply and Studio links instead. A product URL defaults to product/competitor/content research,
 then Reddit and X listening, after showing your available credits and explaining
 that this work consumes credits. You receive
 saved reports and suggested creative/calendar next steps. A narrower request

@@ -5,9 +5,8 @@ description: Meet the animated AdAnt ant team, connect AdAnt, and get guided int
 
 # Meet your AdAnt team
 
-Start with the [team welcome](../adant/references/welcome.md): introduce the
-four ants with their packaged portraits and explain what each does. Follow its
-text fallback when images cannot render. Show this once per conversation.
+Start with the [team welcome](../adant/references/welcome.md): call
+`adant_meet_team` to show the team card, once per conversation.
 After verification, retain any product URL and continue its team kickoff;
 setup alone ends with an invitation to share a URL and does not spend credits.
 
@@ -15,8 +14,8 @@ Before work, follow the [authentication preflight](../adant/references/authentic
 
 Follow the [durable project procedure](../adant/references/projects.md).
 
-Use `$adant-init` for setup. Call `adant_get_credit_balance` as the read-only
-authentication probe, then `adant_get_capabilities` and discover the creative
+Use `$adant-init` for setup. `adant_meet_team` is also the read-only
+authentication probe; then call `adant_get_capabilities` and discover the creative
 project tools plus `adant_agent_start` and `adant_list_agent_tasks`.
 Inspect role metadata for Strategist, Scout, Creator and Manager, including
 which specialists/project types this account can use. A zero balance proves authentication but may prevent paid work.

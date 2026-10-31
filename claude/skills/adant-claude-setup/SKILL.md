@@ -18,9 +18,10 @@ connection recovery before reporting an authentication blocker.
 
 ## Verify
 
-Before diagnostics or login, present the First response section of the
-[team welcome](../adant/references/welcome.md) if the team has not been introduced
-in this conversation. Then continue setup once without recursive preflight.
+If the AdAnt tools are available, follow the [team
+welcome](../adant/references/welcome.md) and stop there unless the user asked for
+more. Otherwise say “Connecting AdAnt…”, with no team roster yet, and continue
+setup once without recursive preflight.
 Retain any supplied product URL and continue its kickoff after verification
 and the existing credit checks.
 
@@ -54,6 +55,8 @@ claude plugin update adant@adant-ai
 
 After login, use any exposed reconnect control, rediscover tools and rerun the
 remote authentication probe. Continue the original request in this conversation
-when verification passes. If the host cannot refresh its tools here, preserve
-the request and research operation IDs in a resume prompt for a new conversation;
-do not repeat login after authorization has succeeded.
+when verification passes, starting with `adant_meet_team`. A login run from the
+shell does not refresh a session that is already open: if the tools stay absent
+after rediscovery, use the short new-session message in the [authentication
+preflight](../adant/references/authentication.md), and do not repeat login after
+authorization has succeeded.
