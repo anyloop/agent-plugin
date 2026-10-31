@@ -55,7 +55,7 @@ starting it recursively.
 Mark unavailable roles clearly; introduce the optional Ads Buyer only if the
 account exposes it. After setup, use one status line: “Connected · {returned balance} AdAnt credits.”
 Mention missing capabilities only when relevant. Explain separate billing once
-when discussing the budget, not as an onboarding paragraph.
+before starting requested paid work, not as an onboarding paragraph.
 For setup alone, use the single URL invitation above; do not add another CTA. Do not
 start paid work merely because setup succeeded.
 
@@ -75,13 +75,12 @@ Use the short URL acknowledgment above once. Keep the URL through setup.
 This kickoff includes both platforms; a standalone listening request still
 follows the Scout adapter's defaults.
 
-Follow [durable projects](projects.md), including its budget admission caveat.
-Reuse previously authorized budgets and scope. Otherwise ask once for the
-agent credit threshold for each of the three tasks (research, Reddit, X),
-showing that the allowance applies per task and is not a shared hard cap.
-Do not choose a budget on the user's behalf or start paid tasks before it is
-settled. No media generation is in this kickoff; omit optional media budgets
-and state “research and listening only; no generation” in each brief.
+Follow [durable projects](projects.md): report the available AdAnt credits and
+say that research and listening consume credits, then start the requested work.
+Do not ask for numeric credit thresholds for research, Reddit or X. Respect
+limits the user already supplied; otherwise omit optional agent/media budgets.
+No media generation is in this kickoff; state “research and listening only;
+no generation” in each brief.
 
 1. Check capabilities for the Strategist and both Scout specialists before
    starting. Explain unavailable lanes and offer the supported subset; never

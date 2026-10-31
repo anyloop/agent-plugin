@@ -12,19 +12,25 @@ Do not invent tools or bypass unavailable account features.
 ## Start once
 
 Summarize the user's brief, scope, references, constraints and deliverable.
-AdAnt agent work, paid data and generation spend AdAnt credits separately from
-the host agent. Agree on agent and media credit budget thresholds before starting
-unless the user already authorized them; pass the supported `maxAgentCredits`
-and `maxMediaCredits`. These are admission checks: the server estimates the next
-agent turn and checks a generation estimate when approving it. They are not
-hard caps on in-flight or concurrent spending; final usage may exceed them.
-Explain this before accepting a budget and report the actual returned usage.
-Do not invent a fixed quote or pass zero when the schema
-requires a positive value. If media is out of scope, say so in the brief and
-decline unexpected generation requests.
+Before paid work, use `adant_get_credit_balance` (reuse this workflow's successful
+check) and tell the user their available AdAnt credits. State that the requested
+work consumes AdAnt credits separately from
+the host agent subscription, then proceed.
+Do not ask the user to choose a numeric credit amount or budget threshold, or to
+approve an exact cost. For example: “You have 115.77 AdAnt credits. This research
+will consume AdAnt credits. I'll start now.” Use the actual returned balance.
+
+Respect credit limits the user explicitly supplied; otherwise omit optional
+`maxAgentCredits` and `maxMediaCredits`. Never invent limits, use the available
+balance as a budget, or ask again because “yes” did not specify a number.
+If the user supplies a budget, explain that these are admission checks for the
+estimated next turn or generation, not hard caps on in-flight or concurrent
+spending. Report actual returned usage. Do not invent a fixed quote or pass zero
+when the schema requires a positive value. If media is out of scope, say so in
+the brief and decline unexpected generation requests.
 
 Call `adant_agent_start` with `agentKey`, `projectType`, `message`, a fresh
-`idempotencyKey`, the budgets and any completed owner-visible reference ids.
+`idempotencyKey`, any user-supplied budgets and completed owner-visible reference ids.
 Pass the user’s IANA `timezone` when known, especially for scheduled work.
 Use `tier` when the user selects an AdAnt model tier; otherwise the API uses
 the configured default with the same account plan checks as Studio.

@@ -19,7 +19,8 @@ public repository's [installation guides](https://github.com/anyloop/agent-plugi
 Start with “Introduce the AdAnt team” or send AdAnt your product website URL.
 The first response introduces Strategist, Scout, Creator and Manager and checks
 your connection. A product URL defaults to product/competitor/content research,
-then Reddit and X listening, after agreeing on credit thresholds. You receive
+then Reddit and X listening, after showing your available credits and explaining
+that this work consumes credits. You receive
 saved reports and suggested creative/calendar next steps. A narrower request
 keeps its own scope; setup alone starts no paid work.
 
@@ -34,7 +35,8 @@ The plugin contains thin workflow adapters. AdAnt executes its private agent
 skills, data collection, analysis, media generation and task scheduling on its
 servers. Agent work, paid data and media use AdAnt credits **in addition to** the
 coding agent's credits; read-only account/status operations may be free.
-Agree on agent and media budgets before starting. Model or agent availability
+No numeric budget or exact-cost approval is required before starting requested
+work. Limits you explicitly supply are respected. Model or agent availability
 and feature restrictions come from the authenticated account's capabilities.
 
 The plugin installs only the remote AdAnt MCP. No local research server, Python,
@@ -67,7 +69,7 @@ browser scraper or another provider to bypass unavailable AdAnt capabilities.
 
 For help, contact [AdAnt support](mailto:contact@anyloop.ai).
 
-Budget thresholds check estimated next-turn and generation admission. They do
+Optional user-supplied budget thresholds check estimated next-turn and generation admission. They do
 not hard-cap in-flight or concurrent spending; final usage can exceed them.
 Review actual returned usage rather than treating an estimate as a final charge.
 

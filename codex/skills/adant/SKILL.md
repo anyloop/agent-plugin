@@ -5,7 +5,7 @@ description: Run AdAnt's authenticated server agents for research, social listen
 
 # Use AdAnt
 
-On the first AdAnt interaction, follow the [team welcome and product URL kickoff](references/welcome.md). A bare product URL requests research plus Reddit/X listening, subject to the existing budget and capability checks. Explicit narrower requests take precedence.
+On the first AdAnt interaction, follow the [team welcome and product URL kickoff](references/welcome.md). A bare product URL requests research plus Reddit/X listening, subject to user-supplied limits and capability checks. Explicit narrower requests take precedence.
 
 Follow the [authentication preflight](references/authentication.md), then
 [the durable project procedure](references/projects.md) for substantive work.
@@ -49,7 +49,9 @@ work. Do not download or reconstruct AdAnt's private agent instructions.
 
 For an explicit single image, video or voice request, discover models with
 `adant_list_media_models` / `adant_get_media_model`, present the model and
-available credit estimate, and obtain approval for the requested generation.
+available credit estimate, and explain that generation consumes AdAnt credits.
+Proceed with the requested generation without asking for a numeric budget or
+exact-cost approval; respect any limits the user supplied.
 Call the matching remote generation tool with a fresh idempotency key.
 Read the returned job with `adant_get_media_job`; reuse the original key and
 identical arguments for an uncertain retry. Never invent model controls.

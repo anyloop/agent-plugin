@@ -18,6 +18,9 @@ and use the same recovery below, preserving work already submitted.
 1. Discover the remote tools through the host's tool search when available.
    Call `adant_get_credit_balance` as a read-only authentication probe. A zero
    balance still proves authentication; it is not an authentication failure.
+   Report the returned available credits. Before requested paid work, explain
+   that it consumes AdAnt credits and continue without asking for a numeric
+   budget or exact-cost approval. Respect any user-supplied limits.
 2. If the probe fails or cannot be called, inspect current MCP startup status
    or connection logs when available; errors predating a successful login are
    not evidence of a new failure. An OAuth-required status,
