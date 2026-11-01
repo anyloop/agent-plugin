@@ -7,13 +7,23 @@ schedule TikTok/Instagram content through AdAnt's authenticated server agents.
 - [Install in Claude Code](docs/claude-code-install.md)
 - [Research and agent workflows](docs/social-research.md)
 
-Add this repository as the `adant-ai` marketplace and install AdAnt. Complete
-AdAnt OAuth; no provider API keys or local research runtime are needed.
+Claude Code installs in one command, then signs in to AdAnt:
+
+```bash
+claude plugin install adant --marketplace anyloop/agent-plugin
+claude mcp login plugin:adant:adant
+```
+
+For ChatGPT desktop and Codex, add this repository as the `adant-ai` marketplace
+and install AdAnt. Complete AdAnt OAuth; no provider API keys or local research
+runtime are needed. Step-by-step pages: [Claude](https://adant.ai/claude-plugin)
+and [ChatGPT and Codex](https://adant.ai/chatgpt-plugin).
 
 AdAnt runs its private skills and paid data/media operations on its servers.
-AdAnt credits are separate from your coding agent's credits. Set agent/media
-budgets before starting and resume durable projects by id. Read-only account
-and status requests may be free. Capabilities depend on your AdAnt account.
+AdAnt credits are separate from your coding agent's credits. No numeric budget
+is needed to start requested work, and limits you supply are respected. Resume
+durable projects by id. Read-only account and status requests may be free.
+Capabilities depend on your AdAnt account.
 
 Research, listening, creator discovery, creation, editing and recurring tasks
 use AdAnt's agents. Listening produces drafts, not posted replies. Publishing
@@ -24,7 +34,7 @@ The repository is generated from AdAnt's application source. Please report
 issues through [AdAnt support](mailto:contact@anyloop.ai); do not commit tokens,
 private media, customer reports or credentials.
 
-Budget thresholds check estimated next-turn and generation admission. They do
+Budget thresholds you choose to set check estimated next-turn and generation admission. They do
 not hard-cap in-flight or concurrent spending; final usage can exceed them.
 Review actual returned usage rather than treating an estimate as a final charge.
 

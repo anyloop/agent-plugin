@@ -4,10 +4,16 @@ Run AdAnt's current server agents from Claude Code: research products and compet
 listen to Reddit and X, find creators, analyze videos, create or clone ads, edit
 videos, and plan TikTok/Instagram posts and recurring tasks.
 
-Connect the plugin to `https://api.adant.ai/mcp` using AdAnt OAuth. Install from
-[the public marketplace](https://github.com/anyloop/agent-plugin), complete the
-AdAnt connection prompt and start a new task to discover its tools. See the
-public repository's [installation guides](https://github.com/anyloop/agent-plugin/tree/main/docs).
+Install it in one command, sign in to AdAnt, then start a new conversation:
+
+```bash
+claude plugin install adant --marketplace anyloop/agent-plugin
+claude mcp login plugin:adant:adant
+```
+
+The plugin connects to `https://api.adant.ai/mcp` using AdAnt OAuth. See
+[the install page](https://adant.ai/claude-plugin) and the public repository's
+[installation guides](https://github.com/anyloop/agent-plugin/tree/main/docs).
 
 ## Meet your team
 

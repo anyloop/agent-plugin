@@ -10,7 +10,8 @@ editing uses `video_editing`, and posts or recurring tasks use `social_publishin
 Ad creation and cloning use the corresponding creative project types.
 
 Agent work, paid data and media consume AdAnt credits separately from the host
-coding agent. The plugin checks capabilities and agrees on agent/media budgets.
+coding agent. The plugin checks capabilities and shows available credits; no
+numeric budget is needed to start, and limits you supply are respected.
 Status and account reads may be free. Missing features are reported rather than
 replaced with local/browser collection or third-party APIs.
 
@@ -27,7 +28,7 @@ Listening drafts are not published replies. TikTok/Instagram posting and schedul
 changes require user confirmation; platform consent and some forms use the
 returned Studio link. Recurring tasks run in AdAnt and use AdAnt credits.
 
-Budget thresholds check estimated next-turn and generation admission. They do
+Budget thresholds you choose to set check estimated next-turn and generation admission. They do
 not hard-cap in-flight or concurrent spending; final usage can exceed them.
 Review actual returned usage rather than treating an estimate as a final charge.
 

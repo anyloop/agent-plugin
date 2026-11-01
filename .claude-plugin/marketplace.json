@@ -5,14 +5,14 @@
     "email": "contact@anyloop.ai",
     "url": "https://adant.ai"
   },
-  "description": "Official AdAnt plugin for social research, strategy, and short-form ad creation.",
+  "description": "AdAnt's Strategist, Scout, Creator and Manager agents, for ad research, social listening, video creation and social scheduling.",
   "plugins": [
     {
       "name": "adant",
       "source": "./claude",
-      "description": "Research social trends, build strategies, and create or clone short-form ads with AdAnt.",
+      "description": "Research products and competitors, listen on Reddit and X, find creators, create or clone short-form ads, and schedule TikTok and Instagram posts.",
       "category": "Design",
-      "homepage": "https://adant.ai",
+      "homepage": "https://adant.ai/claude-plugin",
       "author": {
         "name": "AdAnt AI",
         "email": "contact@anyloop.ai"
