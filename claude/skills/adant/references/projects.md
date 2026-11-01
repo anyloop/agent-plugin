@@ -82,8 +82,9 @@ answers them.
   recipients; relay the user’s chosen supported fields via the `scheduled_task`
   response schema. Never invent missing required fields or silently add recipients.
 - If the response requires Studio, give the returned Studio link and pause that
-  action. Platform connection, TikTok privacy/disclosure and editable schedule
-  forms must be completed there when the host cannot represent their fields.
+  action. Anything that publishes, starts or changes ad spend, or adds a report
+  recipient is confirmed there, along with platform connection and TikTok
+  privacy/disclosure. A decline can still be relayed from the conversation.
   Never fabricate a completed form or choose posting settings for the user.
 
 Reject stale interactions and refresh the project rather than replaying them.
