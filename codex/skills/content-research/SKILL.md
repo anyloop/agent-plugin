@@ -16,3 +16,8 @@ brief. Request a saved evidence-backed report or strategy brief. AdAnt owns
 collection, analysis, private research skills and report creation. Preserve
 returned citations, partial results and gaps; never claim unavailable evidence
 was verified. Do not recreate the research workflow in the host conversation.
+
+Content reports rank posts on three criteria. **Outlier** means reach far above
+the author's followers. **Relevant** means it fits the product and its
+audience. **Fresh** means the last three months first and six at most. Say so
+in the brief unless the user sets other terms.
