@@ -3,21 +3,50 @@
 Research, listen, discover creators, analyze videos, create and edit ads, and
 schedule TikTok/Instagram content through AdAnt's authenticated server agents.
 
-- [Install in Codex](docs/codex-install.md)
-- [Install in Claude Code](docs/claude-code-install.md)
-- [Research and agent workflows](docs/social-research.md)
+## Use AdAnt in Claude
 
-Claude Code installs in one command, then signs in to AdAnt:
+**claude.ai and Claude Desktop.** Open Settings → Connectors, choose Add custom
+connector, name it AdAnt, and enter this URL. Select Connect and sign in to
+AdAnt. On Team and Enterprise plans, an owner adds the connector first.
+
+```text
+https://api.adant.ai/mcp
+```
+
+**Claude Code.** Install the plugin, then run `/mcp` in a session, choose
+`plugin:adant:adant`, and sign in to AdAnt:
 
 ```bash
 claude plugin install adant --marketplace anyloop/agent-plugin
-claude mcp login plugin:adant:adant
 ```
 
-For ChatGPT desktop and Codex, add this repository as the `adant-ai` marketplace
-and install AdAnt. Complete AdAnt OAuth; no provider API keys or local research
-runtime are needed. Step-by-step pages: [Claude](https://adant.ai/claude-plugin)
-and [ChatGPT and Codex](https://adant.ai/chatgpt-plugin).
+**Skills for other agents.** `npx skills add anyloop/agent-plugin` installs the
+skills. They call AdAnt's MCP server, so also connect `https://api.adant.ai/mcp`
+in that agent.
+
+Step-by-step page: [adant.ai/claude-plugin](https://adant.ai/claude-plugin).
+
+## What you can ask
+
+- “Research my product: https://example.com.”
+- “Find what is working on TikTok and Instagram for this product and its
+  competitors.”
+- “Turn this research into eight content strategies.”
+- “Create a 15-second vertical product ad with an AI creator.”
+
+## ChatGPT and Codex
+
+Add this repository as the `adant-ai` marketplace and install AdAnt. Complete
+AdAnt OAuth; no provider API keys or local research runtime are needed. See
+[ChatGPT and Codex](https://adant.ai/chatgpt-plugin) and
+[the Codex guide](docs/codex-install.md).
+
+## More
+
+- [Install in Claude Code](docs/claude-code-install.md)
+- [Research and agent workflows](docs/social-research.md)
+
+## Credits and confirmation
 
 AdAnt runs its private skills and paid data/media operations on its servers.
 AdAnt credits are separate from your coding agent's credits. No numeric budget
