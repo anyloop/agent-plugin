@@ -105,3 +105,8 @@ Native scheduled-task confirmations carry the proposed fields for review;
 TikTok posting settings and platform consent still use Studio when required.
 Account gates and consent requirements match the cloud; installation alone
 does not enable a restricted capability.
+
+## License
+
+The plugin files in this repository are released under the [MIT License](LICENSE).
+The AdAnt service they connect to is covered by the [AdAnt terms](https://adant.ai/terms).
